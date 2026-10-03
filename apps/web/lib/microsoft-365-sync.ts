@@ -404,6 +404,7 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
       },
       roleAssignments: {
         select: {
+          externalId: true,
           principalExternalId: true,
           roleDefinitionExternalId: true,
         },
