@@ -12,6 +12,10 @@ body {
   margin: 0;
 }
 
+button {
+  font: inherit;
+}
+
 .shell {
   min-height: 100vh;
   display: grid;
@@ -19,7 +23,9 @@ body {
   padding: 48px 24px;
 }
 
-.hero {
+.hero,
+.auth-card,
+.dashboard {
   width: min(820px, 100%);
 }
 
@@ -38,6 +44,11 @@ h1 {
   font-size: clamp(48px, 8vw, 86px);
   line-height: 0.98;
   letter-spacing: -0.05em;
+}
+
+.auth-title,
+.dashboard-title {
+  font-size: clamp(42px, 7vw, 72px);
 }
 
 .lede {
@@ -63,4 +74,111 @@ h1 {
   height: 9px;
   border-radius: 999px;
   background: #55d98b;
+}
+
+.auth-card,
+.panel,
+.empty-state,
+.organization-card {
+  border: 1px solid #283143;
+  background: #0d121c;
+}
+
+.auth-card {
+  padding: clamp(28px, 5vw, 56px);
+  border-radius: 28px;
+}
+
+.auth-actions {
+  display: grid;
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.primary-button {
+  width: fit-content;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 12px;
+  background: #f5f7fb;
+  color: #080b12;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-note,
+.auth-error,
+.organization-card p,
+.empty-state p {
+  margin: 0;
+  color: #9aa6bb;
+  line-height: 1.5;
+}
+
+.auth-error {
+  color: #ffb4b4;
+}
+
+.dashboard {
+  align-self: start;
+  margin-top: 6vh;
+}
+
+.panel {
+  display: flex;
+  gap: 24px;
+  margin: 32px 0;
+  padding: 22px;
+  border-radius: 18px;
+}
+
+.panel-label {
+  margin: 0 0 6px;
+  color: #9aa6bb;
+  font-size: 14px;
+}
+
+.panel-value {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.empty-state {
+  padding: 28px;
+  border-radius: 18px;
+}
+
+.empty-state h2,
+.organization-card h2 {
+  margin: 0 0 8px;
+}
+
+.organization-list {
+  display: grid;
+  gap: 12px;
+}
+
+.organization-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px;
+  border-radius: 18px;
+}
+
+.role-badge {
+  padding: 7px 10px;
+  border: 1px solid #344055;
+  border-radius: 999px;
+  color: #c9d1df;
+  font-size: 12px;
+  font-weight: 700;
 }
