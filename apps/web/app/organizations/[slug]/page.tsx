@@ -16,7 +16,7 @@ export default async function OrganizationPage({
   const { slug } = await params;
   const { membership } = await requireOrganizationAccess(slug);
 
-  const [integration, findings, administratorIdentities, domains] =
+  const [integration, findings, administratorIdentities, domains, scoreHistory] =
     await Promise.all([
     db.integration.findUnique({
       where: {
@@ -99,6 +99,25 @@ export default async function OrganizationPage({
         dnsObservedAt: true,
       },
     }),
+    db.securityScore.findMany({
+      where: {
+        organizationId: membership.organization.id,
+      },
+      orderBy: {
+        calculatedAt: "desc",
+      },
+      take: 8,
+      select: {
+        id: true,
+        modelVersion: true,
+        score: true,
+        riskPoints: true,
+        coverage: true,
+        supportedFindingCount: true,
+        unsupportedFindingCount: true,
+        calculatedAt: true,
+      },
+    }),
   ]);
 
   const administratorsWithMfaEvidence = administratorIdentities.filter(
@@ -132,6 +151,15 @@ export default async function OrganizationPage({
     integration?.mfaEvidenceStatus === "ERROR" ||
     domainCoverageIsPartial ||
     cyberScore.unsupportedFindingCount > 0;
+
+  const latestScoreSnapshot = scoreHistory[0];
+  const previousScoreSnapshot = scoreHistory[1];
+  const scoreDelta =
+    latestScoreSnapshot &&
+    previousScoreSnapshot &&
+    latestScoreSnapshot.modelVersion === previousScoreSnapshot.modelVersion
+      ? latestScoreSnapshot.score - previousScoreSnapshot.score
+      : null;
 
   const canManageIntegrations =
     membership.role === "OWNER" || membership.role === "ADMIN";
@@ -256,6 +284,74 @@ export default async function OrganizationPage({
         </div>
 
 
+
+
+        <section className="history-section">
+          <div className="section-heading">
+            <p className="eyebrow">Posture history</p>
+            <h2>Security trend</h2>
+          </div>
+
+          {scoreHistory.length === 0 ? (
+            <div className="empty-state">
+              <p>
+                CyberPilot will create a posture snapshot after each successful
+                security synchronization.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="history-summary">
+                <div>
+                  <p className="panel-label">Latest snapshot</p>
+                  <p className="panel-value">{latestScoreSnapshot?.score}</p>
+                </div>
+                <div>
+                  <p className="panel-label">Change</p>
+                  <p className="panel-value">
+                    {scoreDelta === null
+                      ? "—"
+                      : scoreDelta > 0
+                        ? `+${scoreDelta}`
+                        : scoreDelta}
+                  </p>
+                </div>
+                <div>
+                  <p className="panel-label">Coverage</p>
+                  <p className="history-coverage">
+                    {latestScoreSnapshot?.coverage ?? "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="history-list">
+                {scoreHistory.map((snapshot) => (
+                  <article className="history-row" key={snapshot.id}>
+                    <div>
+                      <strong>{snapshot.score}/100</strong>
+                      <span>
+                        {snapshot.riskPoints.toFixed(1)} risk points
+                      </span>
+                    </div>
+                    <div>
+                      <span>{snapshot.coverage}</span>
+                      <span>
+                        {snapshot.supportedFindingCount} scored /{" "}
+                        {snapshot.unsupportedFindingCount} unscored
+                      </span>
+                    </div>
+                    <div>
+                      <span>CyberScore {snapshot.modelVersion}</span>
+                      <time dateTime={snapshot.calculatedAt.toISOString()}>
+                        {snapshot.calculatedAt.toISOString()}
+                      </time>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
 
         <section className="domain-section">
           <div className="section-heading">

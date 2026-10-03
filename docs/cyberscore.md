@@ -131,3 +131,26 @@ The first domain controls cover:
 The domain rules use lower context multipliers where the DNS signal alone cannot prove the full mail flow. In particular, absence of Microsoft 365 DKIM selector CNAMEs does not prove that a domain never signs mail if another provider is responsible for outbound mail.
 
 DNS lookup errors are treated as unknown/error coverage. They are not converted into security findings that claim a record is missing.
+
+
+## Posture history
+
+After each successful security synchronization, CyberPilot stores an immutable CyberScore snapshot.
+
+A snapshot contains:
+
+- score;
+- total risk points;
+- score model version;
+- evidence coverage state;
+- number of supported/scored findings;
+- number of unsupported/unscored findings;
+- per-rule score contributions;
+- identifiers and risk points for the current Top Actions;
+- calculation timestamp.
+
+Snapshots are not retroactively recalculated when the scoring model changes.
+
+For example, a historical `v0` snapshot remains a `v0` snapshot after a future `v1` model is introduced. This preserves auditability and prevents the historical record from silently changing because CyberPilot's scoring logic evolved.
+
+The product should compare snapshots from the same model version when presenting score deltas as directly comparable. During model migrations, the UI should explicitly identify the model version instead of implying perfect continuity.

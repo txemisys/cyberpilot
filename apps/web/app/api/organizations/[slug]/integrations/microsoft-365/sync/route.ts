@@ -81,6 +81,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           roleAssignments: result.roleAssignments,
           authenticationRegistrations: result.authenticationRegistrations,
           domains: result.domains,
+          cyberScore: result.cyberScore,
+          scoreCoverage: result.scoreCoverage,
         },
       },
     });

@@ -82,6 +82,11 @@ enum DomainDkimStatus {
   ERROR
 }
 
+enum ScoreCoverage {
+  COMPLETE
+  PARTIAL
+}
+
 model User {
   id            String       @id @default(cuid())
   name          String
@@ -157,6 +162,7 @@ model Organization {
   integrationConsentStates IntegrationConsentState[]
   findings                 SecurityFinding[]
   domains                  Domain[]
+  securityScores           SecurityScore[]
 }
 
 model Membership {
@@ -317,6 +323,24 @@ model SecurityFinding {
   @@unique([organizationId, key])
   @@index([organizationId, status, severity])
   @@index([integrationId])
+}
+
+
+model SecurityScore {
+  id                      String        @id @default(cuid())
+  organizationId          String
+  modelVersion            String
+  score                   Int
+  riskPoints              Float
+  coverage                ScoreCoverage
+  supportedFindingCount   Int
+  unsupportedFindingCount Int
+  details                 Json?
+  calculatedAt            DateTime      @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, calculatedAt])
 }
 
 model IntegrationConsentState {
