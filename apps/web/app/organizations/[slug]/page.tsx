@@ -155,7 +155,9 @@ export default async function OrganizationPage({
   const latestScoreSnapshot = scoreHistory[0];
   const previousScoreSnapshot = scoreHistory[1];
   const scoreDelta =
-    latestScoreSnapshot && previousScoreSnapshot
+    latestScoreSnapshot &&
+    previousScoreSnapshot &&
+    latestScoreSnapshot.modelVersion === previousScoreSnapshot.modelVersion
       ? latestScoreSnapshot.score - previousScoreSnapshot.score
       : null;
 
