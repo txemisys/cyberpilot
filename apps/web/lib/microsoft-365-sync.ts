@@ -642,12 +642,15 @@ async function ensureRemediationProposal(input: {
       organizationId: input.organizationId,
       findingId: input.findingId,
       playbookId: playbook.id,
-      mode: playbook.mode,
+      mode:
+        playbook.mode === "AUTOMATED" && actionPayload
+          ? "AUTOMATED"
+          : "GUIDED",
       title: playbook.title,
       summary: playbook.summary,
       steps: playbook.steps,
       verification: playbook.verification,
-      actionType: playbook.actionType ?? null,
+      actionType: actionPayload ? playbook.actionType ?? null : null,
       actionPayload: actionPayload ?? undefined,
     },
   });
