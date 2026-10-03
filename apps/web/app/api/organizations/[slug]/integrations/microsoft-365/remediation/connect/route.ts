@@ -2,7 +2,7 @@ import { db } from "@cyberpilot/database";
 import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
-import { auth } from "../../../../../../../lib/auth";
+import { auth } from "../../../../../../../../lib/auth";
 
 const CONSENT_TTL_MS = 10 * 60 * 1000;
 
@@ -53,11 +53,35 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return new Response("Forbidden.", { status: 403 });
   }
 
-  const clientId = process.env.M365_GRAPH_CLIENT_ID;
-  const redirectUri = process.env.M365_GRAPH_REDIRECT_URI;
+  const integration = await db.integration.findUnique({
+    where: {
+      organizationId_provider: {
+        organizationId: membership.organization.id,
+        provider: "MICROSOFT_365",
+      },
+    },
+    select: {
+      id: true,
+      externalTenantId: true,
+      status: true,
+    },
+  });
+
+  if (
+    !integration ||
+    integration.status !== "CONNECTED" ||
+    !integration.externalTenantId
+  ) {
+    return new Response("Microsoft 365 must be connected first.", {
+      status: 409,
+    });
+  }
+
+  const clientId = process.env.M365_REMEDIATION_CLIENT_ID;
+  const redirectUri = process.env.M365_REMEDIATION_REDIRECT_URI;
 
   if (!clientId || !redirectUri) {
-    return new Response("Microsoft 365 integration is not configured.", {
+    return new Response("Microsoft 365 remediation is not configured.", {
       status: 503,
     });
   }
@@ -79,9 +103,18 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         organizationId: membership.organization.id,
         userId: session.user.id,
         provider: "MICROSOFT_365",
-        purpose: "SCANNER",
+        purpose: "REMEDIATION",
         nonceHash,
         expiresAt,
+      },
+    }),
+    db.integration.update({
+      where: {
+        id: integration.id,
+      },
+      data: {
+        remediationStatus: "UNKNOWN",
+        remediationCheckedAt: null,
       },
     }),
     db.auditEvent.create({
@@ -89,17 +122,19 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         organizationId: membership.organization.id,
         actorType: "USER",
         actorUserId: session.user.id,
-        action: "integration.microsoft_365.consent_started",
+        action: "integration.microsoft_365.remediation_consent_started",
         resourceType: "integration",
+        resourceId: integration.id,
         metadata: {
           provider: "MICROSOFT_365",
+          tenantId: integration.externalTenantId,
         },
       },
     }),
   ]);
 
   const consentUrl = new URL(
-    "https://login.microsoftonline.com/organizations/v2.0/adminconsent",
+    `https://login.microsoftonline.com/${integration.externalTenantId}/v2.0/adminconsent`,
   );
 
   consentUrl.searchParams.set("client_id", clientId);

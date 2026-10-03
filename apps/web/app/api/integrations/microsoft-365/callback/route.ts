@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     },
     select: {
       id: true,
+      purpose: true,
       userId: true,
       organizationId: true,
       expiresAt: true,
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
 
   if (
     !consent ||
+    consent.purpose !== "SCANNER" ||
     consent.userId !== session.user.id ||
     consent.consumedAt ||
     consent.expiresAt <= new Date()

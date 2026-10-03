@@ -662,3 +662,17 @@ h1 {
     display: grid;
   }
 }
+
+.remediation-capability {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #283143;
+  border-radius: 14px;
+  background: #0a0f17;
+}
+
+.remediation-capability > p {
+  margin: 8px 0 0;
+  color: #aeb8ca;
+  line-height: 1.5;
+}

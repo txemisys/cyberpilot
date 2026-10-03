@@ -38,6 +38,11 @@ enum IntegrationCapabilityStatus {
   ERROR
 }
 
+enum IntegrationConsentPurpose {
+  SCANNER
+  REMEDIATION
+}
+
 enum DirectoryIdentityType {
   MEMBER
   GUEST
@@ -210,6 +215,8 @@ model Integration {
   lastErrorCode    String?
   mfaEvidenceStatus IntegrationCapabilityStatus @default(UNKNOWN)
   mfaEvidenceCheckedAt DateTime?
+  remediationStatus IntegrationCapabilityStatus @default(UNKNOWN)
+  remediationCheckedAt DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
@@ -398,6 +405,7 @@ model IntegrationConsentState {
   organizationId String
   userId         String
   provider       IntegrationProvider
+  purpose        IntegrationConsentPurpose @default(SCANNER)
   nonceHash      String              @unique
   expiresAt      DateTime
   consumedAt     DateTime?
@@ -406,7 +414,7 @@ model IntegrationConsentState {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([organizationId, provider, expiresAt])
+  @@index([organizationId, provider, purpose, expiresAt])
   @@index([userId, expiresAt])
 }
 

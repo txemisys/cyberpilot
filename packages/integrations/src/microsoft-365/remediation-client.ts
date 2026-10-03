@@ -57,6 +57,23 @@ export class MicrosoftRemediationClient {
     });
   }
 
+  async probeDirectoryRoleManagement() {
+    const url = new URL(
+      "roleManagement/directory/roleAssignments?$top=1&$select=id",
+      GRAPH_BASE_URL,
+    );
+    const response = await this.request(url);
+
+    if (!response.ok) {
+      throw new MicrosoftRemediationError(
+        `Microsoft remediation permission probe failed with status ${response.status}.`,
+        response.status,
+      );
+    }
+
+    return true;
+  }
+
   async getDirectoryRoleAssignment(roleAssignmentId: string) {
     const response = await this.request(roleAssignmentUrl(roleAssignmentId));
 
