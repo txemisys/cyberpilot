@@ -134,6 +134,47 @@ export async function GET(request: NextRequest) {
       return dashboardError(request, "tenant_verification_failed");
     }
 
+    const currentIntegration = await db.integration.findUnique({
+      where: {
+        organizationId_provider: {
+          organizationId: consent.organizationId,
+          provider: "MICROSOFT_365",
+        },
+      },
+      select: {
+        id: true,
+        mode: true,
+      },
+    });
+
+    if (currentIntegration?.mode === "LAB") {
+      await db.$transaction([
+        db.securityScore.deleteMany({
+          where: {
+            organizationId: consent.organizationId,
+          },
+        }),
+        db.securityFinding.deleteMany({
+          where: {
+            organizationId: consent.organizationId,
+            integrationId: currentIntegration.id,
+          },
+        }),
+        db.directoryRoleAssignment.deleteMany({
+          where: { integrationId: currentIntegration.id },
+        }),
+        db.directoryIdentity.deleteMany({
+          where: { integrationId: currentIntegration.id },
+        }),
+        db.directoryRoleDefinition.deleteMany({
+          where: { integrationId: currentIntegration.id },
+        }),
+        db.domain.deleteMany({
+          where: { integrationId: currentIntegration.id },
+        }),
+      ]);
+    }
+
     const integration = await db.integration.upsert({
       where: {
         organizationId_provider: {
@@ -145,12 +186,14 @@ export async function GET(request: NextRequest) {
         organizationId: consent.organizationId,
         provider: "MICROSOFT_365",
         status: "CONNECTED",
+        mode: "LIVE",
         externalTenantId: tenantId,
         displayName: microsoftOrganization.displayName ?? null,
         connectedAt: new Date(),
       },
       update: {
         status: "CONNECTED",
+        mode: "LIVE",
         externalTenantId: tenantId,
         displayName: microsoftOrganization.displayName ?? null,
         connectedAt: new Date(),

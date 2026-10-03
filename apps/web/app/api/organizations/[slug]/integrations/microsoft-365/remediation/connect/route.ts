@@ -64,12 +64,14 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       id: true,
       externalTenantId: true,
       status: true,
+      mode: true,
     },
   });
 
   if (
     !integration ||
     integration.status !== "CONNECTED" ||
+    integration.mode !== "LIVE" ||
     !integration.externalTenantId
   ) {
     return new Response("Microsoft 365 must be connected first.", {

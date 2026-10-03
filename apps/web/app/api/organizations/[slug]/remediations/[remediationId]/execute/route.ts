@@ -121,6 +121,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       externalTenantId: true,
       status: true,
       remediationStatus: true,
+      mode: true,
     },
   });
 
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     !integration ||
     integration.status !== "CONNECTED" ||
     integration.remediationStatus !== "AVAILABLE" ||
-    !integration.externalTenantId
+    (integration.mode === "LIVE" && !integration.externalTenantId)
   ) {
     return new Response(
       "Microsoft 365 remediation permission is not available.",
@@ -153,30 +154,80 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     });
   }
 
-  const client = new MicrosoftRemediationClient(integration.externalTenantId);
-
   try {
-    const currentAssignment = await client.getDirectoryRoleAssignment(
-      payload.roleAssignmentId,
-    );
+    if (integration.mode === "LAB") {
+      const currentAssignment = await db.directoryRoleAssignment.findUnique({
+        where: {
+          integrationId_externalId: {
+            integrationId: integration.id,
+            externalId: payload.roleAssignmentId,
+          },
+        },
+        select: {
+          principalExternalId: true,
+          roleDefinitionExternalId: true,
+        },
+      });
 
-    if (currentAssignment) {
-      if (
-        currentAssignment.principalId !== payload.userId ||
-        currentAssignment.roleDefinitionId !== payload.roleDefinitionId
-      ) {
-        throw new Error("REMEDIATION_EVIDENCE_MISMATCH");
+      if (currentAssignment) {
+        if (
+          currentAssignment.principalExternalId !== payload.userId ||
+          currentAssignment.roleDefinitionExternalId !== payload.roleDefinitionId
+        ) {
+          throw new Error("REMEDIATION_EVIDENCE_MISMATCH");
+        }
+
+        await db.directoryRoleAssignment.delete({
+          where: {
+            integrationId_externalId: {
+              integrationId: integration.id,
+              externalId: payload.roleAssignmentId,
+            },
+          },
+        });
       }
 
-      await client.deleteDirectoryRoleAssignment(payload.roleAssignmentId);
-    }
+      const verification = await db.directoryRoleAssignment.findUnique({
+        where: {
+          integrationId_externalId: {
+            integrationId: integration.id,
+            externalId: payload.roleAssignmentId,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
 
-    const verification = await client.getDirectoryRoleAssignment(
-      payload.roleAssignmentId,
-    );
+      if (verification) {
+        throw new Error("REMEDIATION_VERIFICATION_FAILED");
+      }
+    } else {
+      const client = new MicrosoftRemediationClient(
+        integration.externalTenantId!,
+      );
+      const currentAssignment = await client.getDirectoryRoleAssignment(
+        payload.roleAssignmentId,
+      );
 
-    if (verification) {
-      throw new Error("REMEDIATION_VERIFICATION_FAILED");
+      if (currentAssignment) {
+        if (
+          currentAssignment.principalId !== payload.userId ||
+          currentAssignment.roleDefinitionId !== payload.roleDefinitionId
+        ) {
+          throw new Error("REMEDIATION_EVIDENCE_MISMATCH");
+        }
+
+        await client.deleteDirectoryRoleAssignment(payload.roleAssignmentId);
+      }
+
+      const verification = await client.getDirectoryRoleAssignment(
+        payload.roleAssignmentId,
+      );
+
+      if (verification) {
+        throw new Error("REMEDIATION_VERIFICATION_FAILED");
+      }
     }
 
     const completedAt = new Date();

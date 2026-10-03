@@ -35,6 +35,7 @@ export default async function OrganizationPage({
       select: {
         id: true,
         status: true,
+        mode: true,
         displayName: true,
         connectedAt: true,
         lastSyncAt: true,
@@ -210,8 +211,8 @@ export default async function OrganizationPage({
   const remediationExecutorConfigured =
     isMicrosoftRemediationExecutorConfigured();
   const remediationExecutorAvailable =
-    remediationExecutorConfigured &&
-    integration?.remediationStatus === "AVAILABLE";
+    integration?.remediationStatus === "AVAILABLE" &&
+    (integration.mode === "LAB" || remediationExecutorConfigured);
 
   return (
     <main className="shell">
@@ -250,13 +251,24 @@ export default async function OrganizationPage({
           </div>
         </div>
 
+        {integration?.mode === "LAB" ? (
+          <div className="lab-banner">
+            <strong>Microsoft 365 Lab Mode</strong>
+            <p>
+              This workspace is using deterministic synthetic Microsoft 365
+              evidence. No Microsoft tenant, credentials, or external API calls
+              are involved.
+            </p>
+          </div>
+        ) : null}
+
         <div className="empty-state">
           <h2>Microsoft 365</h2>
 
           {integration?.status === "CONNECTED" ? (
             <>
               <p>
-                Connected
+                {integration.mode === "LAB" ? "Lab connected" : "Connected"}
                 {integration.displayName
                   ? ` to ${integration.displayName}`
                   : ""}.
@@ -304,7 +316,12 @@ export default async function OrganizationPage({
                     : ""}
                 </p>
 
-                {!remediationExecutorConfigured ? (
+                {integration.mode === "LAB" ? (
+                  <p>
+                    Lab remediation is available locally and cannot modify a
+                    real Microsoft tenant.
+                  </p>
+                ) : !remediationExecutorConfigured ? (
                   <p>
                     The isolated remediation application is not configured on
                     the CyberPilot server.
@@ -326,15 +343,30 @@ export default async function OrganizationPage({
               </div>
 
               {canManageIntegrations ? (
-                <form
-                  action={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/sync`}
-                  method="post"
-                  className="sync-form"
-                >
-                  <button className="primary-button" type="submit">
-                    Sync Microsoft 365
-                  </button>
-                </form>
+                <div className="integration-actions">
+                  <form
+                    action={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/sync`}
+                    method="post"
+                    className="sync-form"
+                  >
+                    <button className="primary-button" type="submit">
+                      {integration.mode === "LAB"
+                        ? "Re-evaluate lab"
+                        : "Sync Microsoft 365"}
+                    </button>
+                  </form>
+                  {integration.mode === "LAB" ? (
+                    <form
+                      action={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/lab/activate`}
+                      method="post"
+                      className="sync-form"
+                    >
+                      <button className="secondary-button" type="submit">
+                        Reset lab scenario
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
               ) : null}
             </>
           ) : (
@@ -345,13 +377,24 @@ export default async function OrganizationPage({
               </p>
 
               {canManageIntegrations ? (
-                <p className="action-link">
-                  <Link
-                    href={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/connect`}
+                <div className="integration-choice">
+                  <p className="action-link">
+                    <Link
+                      href={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/connect`}
+                    >
+                      Connect Microsoft 365
+                    </Link>
+                  </p>
+                  <p>or</p>
+                  <form
+                    action={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/lab/activate`}
+                    method="post"
                   >
-                    Connect Microsoft 365
-                  </Link>
-                </p>
+                    <button className="primary-button" type="submit">
+                      Start Microsoft 365 Lab
+                    </button>
+                  </form>
+                </div>
               ) : (
                 <p>
                   An organization owner or administrator must connect Microsoft
