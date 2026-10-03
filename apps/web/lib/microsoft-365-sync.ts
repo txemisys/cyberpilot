@@ -10,6 +10,7 @@ import {
   DOMAIN_RULE_IDS,
   evaluateDomainSecurityFindings,
   evaluateM365IdentityFindings,
+  getRemediationPlaybook,
   M365_RULE_IDS,
 } from "@cyberpilot/risk-engine";
 
@@ -403,6 +404,7 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
       },
       roleAssignments: {
         select: {
+          externalId: true,
           principalExternalId: true,
           roleDefinitionExternalId: true,
         },
@@ -444,7 +446,7 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
   const observedFindingKeys = findings.map((finding) => finding.key);
 
   for (const finding of findings) {
-    await db.securityFinding.upsert({
+    const persistedFinding = await db.securityFinding.upsert({
       where: {
         organizationId_key: {
           organizationId: integration.organizationId,
@@ -472,6 +474,13 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
         lastSeenAt: now,
         resolvedAt: null,
       },
+    });
+
+    await ensureRemediationProposal({
+      organizationId: integration.organizationId,
+      findingId: persistedFinding.id,
+      ruleId: finding.rule.id,
+      evidence: finding.evidence,
     });
   }
 
@@ -572,6 +581,77 @@ async function snapshotSecurityScore(organizationId: string) {
           riskPoints: action.riskPoints,
         })),
       },
+    },
+  });
+}
+
+
+async function ensureRemediationProposal(input: {
+  organizationId: string;
+  findingId: string;
+  ruleId: string;
+  evidence: Record<string, import("@cyberpilot/risk-engine").JsonValue>;
+}) {
+  const playbook = getRemediationPlaybook(input.ruleId);
+
+  if (!playbook) {
+    return;
+  }
+
+  const existing = await db.remediation.findFirst({
+    where: {
+      findingId: input.findingId,
+      playbookId: playbook.id,
+      status: {
+        in: ["PROPOSED", "APPROVED", "EXECUTING"],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existing) {
+    return;
+  }
+
+  const roleAssignmentId =
+    typeof input.evidence.roleAssignmentId === "string"
+      ? input.evidence.roleAssignmentId
+      : null;
+  const userId =
+    typeof input.evidence.userId === "string" ? input.evidence.userId : null;
+  const roleDefinitionId =
+    typeof input.evidence.roleDefinitionId === "string"
+      ? input.evidence.roleDefinitionId
+      : null;
+
+  const actionPayload =
+    playbook.actionType === "M365_DELETE_DIRECTORY_ROLE_ASSIGNMENT"
+      ? roleAssignmentId
+        ? {
+            roleAssignmentId,
+            roleDefinitionId,
+            userId,
+          }
+        : null
+      : null;
+
+  await db.remediation.create({
+    data: {
+      organizationId: input.organizationId,
+      findingId: input.findingId,
+      playbookId: playbook.id,
+      mode:
+        playbook.mode === "AUTOMATED" && actionPayload
+          ? "AUTOMATED"
+          : "GUIDED",
+      title: playbook.title,
+      summary: playbook.summary,
+      steps: playbook.steps,
+      verification: playbook.verification,
+      actionType: actionPayload ? playbook.actionType ?? null : null,
+      ...(actionPayload ? { actionPayload } : {}),
     },
   });
 }

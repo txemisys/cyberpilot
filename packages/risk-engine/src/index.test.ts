@@ -4,6 +4,7 @@ import {
   calculateCyberScore,
   evaluateDomainSecurityFindings,
   evaluateM365IdentityFindings,
+  getRemediationPlaybook,
   prioritizeFindings,
 } from "./index";
 
@@ -85,6 +86,7 @@ describe("evaluateM365IdentityFindings", () => {
       roleDefinitions: [globalAdminRole],
       roleAssignments: [
         {
+          externalId: "assignment-1",
           principalExternalId: "user-1",
           roleDefinitionExternalId: "role-global-admin",
         },
@@ -364,5 +366,51 @@ describe("evaluateDomainSecurityFindings", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]?.rule.id).toBe("DOMAIN_M365_DKIM_SELECTORS_MISSING");
     expect(findings[0]?.rule.severity).toBe("LOW");
+  });
+});
+
+
+describe("remediation playbooks", () => {
+  it("exposes a guided playbook for administrator MFA remediation", () => {
+    const playbook = getRemediationPlaybook("M365_ADMIN_MFA_NOT_CAPABLE");
+
+    expect(playbook).not.toBeNull();
+    expect(playbook?.mode).toBe("GUIDED");
+    expect(playbook?.steps.length).toBeGreaterThan(0);
+    expect(playbook?.verification.length).toBeGreaterThan(0);
+  });
+
+  it("exposes an automated playbook only for the exact guest role assignment action", () => {
+    const playbook = getRemediationPlaybook("M365_GUEST_GLOBAL_ADMIN");
+
+    expect(playbook?.mode).toBe("AUTOMATED");
+    expect(playbook?.actionType).toBe(
+      "M365_DELETE_DIRECTORY_ROLE_ASSIGNMENT",
+    );
+  });
+
+  it("retains exact role-assignment evidence for guest Global Administrator remediation", () => {
+    const findings = evaluateM365IdentityFindings({
+      identities: [
+        identity({
+          identityType: "GUEST",
+        }),
+      ],
+      roleDefinitions: [globalAdminRole],
+      roleAssignments: [
+        {
+          externalId: "assignment-exact",
+          principalExternalId: "user-1",
+          roleDefinitionExternalId: "role-global-admin",
+        },
+      ],
+    });
+
+    const finding = findings.find(
+      (candidate) => candidate.rule.id === "M365_GUEST_GLOBAL_ADMIN",
+    );
+
+    expect(finding?.evidence.roleAssignmentId).toBe("assignment-exact");
+    expect(finding?.evidence.roleDefinitionId).toBe("role-global-admin");
   });
 });
