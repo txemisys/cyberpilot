@@ -651,7 +651,7 @@ async function ensureRemediationProposal(input: {
       steps: playbook.steps,
       verification: playbook.verification,
       actionType: actionPayload ? playbook.actionType ?? null : null,
-      actionPayload: actionPayload ?? undefined,
+      ...(actionPayload ? { actionPayload } : {}),
     },
   });
 }
