@@ -414,3 +414,112 @@ describe("remediation playbooks", () => {
     expect(finding?.evidence.roleDefinitionId).toBe("role-global-admin");
   });
 });
+
+
+describe("Microsoft 365 lab scenario", () => {
+  it("produces the intended identity and domain findings from deterministic evidence", () => {
+    const identityFindings = evaluateM365IdentityFindings({
+      identities: [
+        {
+          externalId: "lab-user-owner",
+          displayName: "Alicia Owner",
+          userPrincipalName: "alicia@cyberpilot-lab.example",
+          accountEnabled: true,
+          identityType: "MEMBER",
+          isAdmin: true,
+          isMfaRegistered: true,
+          isMfaCapable: true,
+        },
+        {
+          externalId: "lab-user-admin-no-mfa",
+          displayName: "Bruno Admin",
+          userPrincipalName: "bruno@cyberpilot-lab.example",
+          accountEnabled: true,
+          identityType: "MEMBER",
+          isAdmin: true,
+          isMfaRegistered: false,
+          isMfaCapable: false,
+        },
+        {
+          externalId: "lab-user-ga-2",
+          accountEnabled: true,
+          identityType: "MEMBER",
+          isAdmin: true,
+          isMfaCapable: true,
+        },
+        {
+          externalId: "lab-user-ga-3",
+          accountEnabled: true,
+          identityType: "MEMBER",
+          isAdmin: true,
+          isMfaCapable: true,
+        },
+        {
+          externalId: "lab-user-ga-4",
+          accountEnabled: true,
+          identityType: "MEMBER",
+          isAdmin: true,
+          isMfaCapable: true,
+        },
+        {
+          externalId: "lab-user-guest-ga",
+          accountEnabled: true,
+          identityType: "GUEST",
+          isAdmin: true,
+          isMfaCapable: true,
+        },
+      ],
+      roleDefinitions: [
+        {
+          externalId: "lab-role-global-admin",
+          templateId: "62e90394-69f5-4237-9190-012177145e10",
+          displayName: "Global Administrator",
+        },
+      ],
+      roleAssignments: [
+        ["lab-assignment-owner", "lab-user-owner"],
+        ["lab-assignment-ga-2", "lab-user-ga-2"],
+        ["lab-assignment-ga-3", "lab-user-ga-3"],
+        ["lab-assignment-ga-4", "lab-user-ga-4"],
+        ["lab-assignment-guest-ga", "lab-user-guest-ga"],
+      ].map(([externalId, principalExternalId]) => ({
+        externalId,
+        principalExternalId,
+        roleDefinitionExternalId: "lab-role-global-admin",
+      })),
+    });
+
+    const domainFindings = evaluateDomainSecurityFindings([
+      {
+        name: "cyberpilot-lab.example",
+        isInitial: false,
+        spfStatus: "PRESENT",
+        dmarcStatus: "MONITORING",
+        dmarcPolicy: "none",
+        dkimStatus: "PARTIAL",
+      },
+    ]);
+
+    const ruleIds = [...identityFindings, ...domainFindings].map(
+      (finding) => finding.rule.id,
+    );
+
+    expect(ruleIds).toEqual(
+      expect.arrayContaining([
+        "M365_ADMIN_MFA_NOT_CAPABLE",
+        "M365_GLOBAL_ADMIN_COUNT_HIGH",
+        "M365_GUEST_GLOBAL_ADMIN",
+        "DOMAIN_DMARC_MONITORING_ONLY",
+        "DOMAIN_M365_DKIM_SELECTORS_PARTIAL",
+      ]),
+    );
+
+    const guestFinding = identityFindings.find(
+      (finding) => finding.rule.id === "M365_GUEST_GLOBAL_ADMIN",
+    );
+
+    expect(guestFinding?.evidence.roleAssignmentId).toBe(
+      "lab-assignment-guest-ga",
+    );
+  });
+});
