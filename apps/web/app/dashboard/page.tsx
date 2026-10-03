@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { getCurrentUserOrganizations } from "../../lib/session";
 
 export default async function DashboardPage() {
@@ -26,19 +28,32 @@ export default async function DashboardPage() {
               Your identity is authenticated, but no CyberPilot organization
               membership has been granted.
             </p>
+            <p className="action-link">
+              <Link href="/onboarding">Create an organization</Link>
+            </p>
           </div>
         ) : (
-          <div className="organization-list">
-            {memberships.map(({ organization, role }) => (
-              <article className="organization-card" key={organization.id}>
-                <div>
-                  <h2>{organization.name}</h2>
-                  <p>{organization.slug}</p>
-                </div>
-                <span className="role-badge">{role}</span>
-              </article>
-            ))}
-          </div>
+          <>
+            <div className="organization-list">
+              {memberships.map(({ organization, role }) => (
+                <Link
+                  className="organization-card"
+                  href={`/organizations/${organization.slug}`}
+                  key={organization.id}
+                >
+                  <div>
+                    <h2>{organization.name}</h2>
+                    <p>{organization.slug}</p>
+                  </div>
+                  <span className="role-badge">{role}</span>
+                </Link>
+              ))}
+            </div>
+
+            <p className="action-link">
+              <Link href="/onboarding">Create another organization</Link>
+            </p>
+          </>
         )}
       </section>
     </main>
