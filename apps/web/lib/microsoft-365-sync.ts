@@ -6,6 +6,7 @@ import {
   type MicrosoftUserRegistrationDetails,
 } from "@cyberpilot/integrations/microsoft-365";
 import {
+  calculateCyberScore,
   DOMAIN_RULE_IDS,
   evaluateDomainSecurityFindings,
   evaluateM365IdentityFindings,
@@ -357,6 +358,7 @@ export async function syncMicrosoft365Integration(integrationId: string) {
   });
 
   await evaluateMicrosoft365Findings(integration.id);
+  const scoreSnapshot = await snapshotSecurityScore(integration.organizationId);
 
   return {
     users: users.length,
@@ -364,6 +366,8 @@ export async function syncMicrosoft365Integration(integrationId: string) {
     roleAssignments: persistedRoleAssignments.length,
     authenticationRegistrations: registrationDetails.length,
     domains: domainObservations.length,
+    cyberScore: scoreSnapshot.score,
+    scoreCoverage: scoreSnapshot.coverage,
     observedAt,
   };
 }
@@ -490,6 +494,84 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
     data: {
       status: "RESOLVED",
       resolvedAt: now,
+    },
+  });
+}
+
+
+async function snapshotSecurityScore(organizationId: string) {
+  const [findings, integration, domains] = await Promise.all([
+    db.securityFinding.findMany({
+      where: {
+        organizationId,
+        status: "OPEN",
+      },
+      select: {
+        id: true,
+        ruleId: true,
+        severity: true,
+        title: true,
+        description: true,
+      },
+    }),
+    db.integration.findUnique({
+      where: {
+        organizationId_provider: {
+          organizationId,
+          provider: "MICROSOFT_365",
+        },
+      },
+      select: {
+        mfaEvidenceStatus: true,
+      },
+    }),
+    db.domain.findMany({
+      where: {
+        organizationId,
+        isInitial: false,
+      },
+      select: {
+        spfStatus: true,
+        dmarcStatus: true,
+        dkimStatus: true,
+      },
+    }),
+  ]);
+
+  const score = calculateCyberScore(findings);
+  const domainCoverageIsPartial = domains.some(
+    (domain) =>
+      domain.spfStatus === "ERROR" ||
+      domain.dmarcStatus === "ERROR" ||
+      domain.dkimStatus === "ERROR",
+  );
+
+  const coverage =
+    integration?.mfaEvidenceStatus === "PERMISSION_REQUIRED" ||
+    integration?.mfaEvidenceStatus === "ERROR" ||
+    domainCoverageIsPartial ||
+    score.unsupportedFindingCount > 0
+      ? ("PARTIAL" as const)
+      : ("COMPLETE" as const);
+
+  return db.securityScore.create({
+    data: {
+      organizationId,
+      modelVersion: "v0",
+      score: score.score,
+      riskPoints: score.totalRiskPoints,
+      coverage,
+      supportedFindingCount: score.supportedFindingCount,
+      unsupportedFindingCount: score.unsupportedFindingCount,
+      details: {
+        contributions: score.contributions,
+        topActions: score.topActions.map((action) => ({
+          findingId: action.id,
+          ruleId: action.ruleId,
+          severity: action.severity,
+          riskPoints: action.riskPoints,
+        })),
+      },
     },
   });
 }
