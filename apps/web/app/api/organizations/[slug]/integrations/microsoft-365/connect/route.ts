@@ -79,6 +79,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         organizationId: membership.organization.id,
         userId: session.user.id,
         provider: "MICROSOFT_365",
+        purpose: "SCANNER",
         nonceHash,
         expiresAt,
       },
