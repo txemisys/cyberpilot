@@ -621,12 +621,17 @@ async function ensureRemediationProposal(input: {
       : null;
   const userId =
     typeof input.evidence.userId === "string" ? input.evidence.userId : null;
+  const roleDefinitionId =
+    typeof input.evidence.roleDefinitionId === "string"
+      ? input.evidence.roleDefinitionId
+      : null;
 
   const actionPayload =
     playbook.actionType === "M365_DELETE_DIRECTORY_ROLE_ASSIGNMENT"
       ? roleAssignmentId
         ? {
             roleAssignmentId,
+            roleDefinitionId,
             userId,
           }
         : null
