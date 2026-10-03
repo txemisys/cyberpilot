@@ -508,6 +508,9 @@ export function evaluateM365IdentityFindings(input: {
         roleAssignmentId:
           globalAdminAssignmentByPrincipal.get(identity.externalId)?.externalId ??
           null,
+        roleDefinitionId:
+          globalAdminAssignmentByPrincipal.get(identity.externalId)
+            ?.roleDefinitionExternalId ?? null,
       },
     });
   }
