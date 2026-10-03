@@ -2,6 +2,9 @@
   "name": "@cyberpilot/database",
   "version": "0.1.0",
   "private": true,
+  "exports": {
+    ".": "./src/client.ts"
+  },
   "scripts": {
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
