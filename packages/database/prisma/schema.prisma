@@ -87,6 +87,21 @@ enum ScoreCoverage {
   PARTIAL
 }
 
+enum RemediationMode {
+  GUIDED
+  AUTOMATED
+}
+
+enum RemediationStatus {
+  PROPOSED
+  APPROVED
+  EXECUTING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  VERIFIED
+}
+
 model User {
   id            String       @id @default(cuid())
   name          String
@@ -101,6 +116,7 @@ model User {
   memberships              Membership[]
   auditEvents              AuditEvent[]             @relation("AuditUser")
   integrationConsentStates IntegrationConsentState[]
+  approvedRemediations      Remediation[] @relation("RemediationApprover")
 }
 
 model Session {
@@ -163,6 +179,7 @@ model Organization {
   findings                 SecurityFinding[]
   domains                  Domain[]
   securityScores           SecurityScore[]
+  remediations             Remediation[]
 }
 
 model Membership {
@@ -319,12 +336,45 @@ model SecurityFinding {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   integration  Integration? @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  remediations Remediation[]
 
   @@unique([organizationId, key])
   @@index([organizationId, status, severity])
   @@index([integrationId])
 }
 
+
+
+model Remediation {
+  id                String            @id @default(cuid())
+  organizationId    String
+  findingId         String
+  playbookId        String
+  mode              RemediationMode
+  status            RemediationStatus @default(PROPOSED)
+  title             String
+  summary           String
+  steps             Json
+  verification      Json
+  actionType        String?
+  actionPayload     Json?
+  executionEvidence Json?
+  failureCode       String?
+  approvedByUserId  String?
+  approvedAt        DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  verifiedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  finding        SecurityFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  approvedByUser User?           @relation("RemediationApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, createdAt])
+  @@index([findingId])
+}
 
 model SecurityScore {
   id                      String        @id @default(cuid())
