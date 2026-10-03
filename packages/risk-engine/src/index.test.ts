@@ -476,13 +476,13 @@ describe("Microsoft 365 lab scenario", () => {
           displayName: "Global Administrator",
         },
       ],
-      roleAssignments: [
+      roleAssignments: ([
         ["lab-assignment-owner", "lab-user-owner"],
         ["lab-assignment-ga-2", "lab-user-ga-2"],
         ["lab-assignment-ga-3", "lab-user-ga-3"],
         ["lab-assignment-ga-4", "lab-user-ga-4"],
         ["lab-assignment-guest-ga", "lab-user-guest-ga"],
-      ].map(([externalId, principalExternalId]) => ({
+      ] as const).map(([externalId, principalExternalId]) => ({
         externalId,
         principalExternalId,
         roleDefinitionExternalId: "lab-role-global-admin",
