@@ -11,12 +11,23 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
+export type RemediationPlaybookDefinition = {
+  id: string;
+  mode: "GUIDED" | "AUTOMATED";
+  title: string;
+  summary: string;
+  steps: string[];
+  verification: string[];
+  actionType?: string;
+};
+
 export type RiskRuleDefinition = {
   id: string;
   severity: RiskSeverity;
   title: string;
   description: string;
   remediation: string;
+  playbook: RemediationPlaybookDefinition;
   contextMultiplier: number;
   perRuleCap: number;
 };
@@ -80,6 +91,24 @@ export const M365_RULES = {
       "Microsoft recommends assigning the Global Administrator role to fewer than five people.",
     remediation:
       "Reduce permanent Global Administrator assignments and keep only the minimum number required for emergency and operational access.",
+    playbook: {
+      id: "M365_REDUCE_GLOBAL_ADMINS_V1",
+      mode: "GUIDED",
+      title: "Reduce permanent Global Administrator access",
+      summary:
+        "Review current Global Administrators, identify accounts that do not require permanent tenant-wide privilege, and replace assignments with least-privileged roles.",
+      steps: [
+        "Review every active Global Administrator and confirm the business owner and operational need.",
+        "Identify emergency-access accounts that must remain available and document their purpose.",
+        "For each remaining account, select the least-privileged role that supports its required tasks.",
+        "Remove unnecessary Global Administrator assignments only after replacement access has been validated.",
+      ],
+      verification: [
+        "Re-run the Microsoft 365 synchronization.",
+        "Confirm the active Global Administrator count is below five.",
+        "Confirm required administrative tasks remain operational.",
+      ],
+    },
     contextMultiplier: 1.3,
     perRuleCap: 30,
   },
@@ -91,6 +120,25 @@ export const M365_RULES = {
       "A guest identity has the Global Administrator role. Microsoft guidance recommends that guests are not assigned highly privileged directory roles.",
     remediation:
       "Remove the Global Administrator assignment from the guest identity and replace it with the least-privileged role required for its legitimate task.",
+    playbook: {
+      id: "M365_REMOVE_GUEST_GLOBAL_ADMIN_V1",
+      mode: "AUTOMATED",
+      title: "Remove guest Global Administrator assignment",
+      summary:
+        "Remove the specific Global Administrator role assignment from the guest identity after explicit approval.",
+      steps: [
+        "Confirm the guest identity and exact Global Administrator role assignment from current CyberPilot evidence.",
+        "Confirm the guest does not require tenant-wide Global Administrator access.",
+        "Approve removal of the exact role assignment.",
+        "CyberPilot removes only that role assignment through the remediation executor.",
+      ],
+      verification: [
+        "Read the exact role assignment again from Microsoft Graph.",
+        "Confirm the assignment no longer exists.",
+        "Run a fresh security synchronization and confirm the finding resolves.",
+      ],
+      actionType: "M365_DELETE_DIRECTORY_ROLE_ASSIGNMENT",
+    },
     contextMultiplier: 1.6,
     perRuleCap: 40,
   },
@@ -102,6 +150,24 @@ export const M365_RULES = {
       "This active Global Administrator does not have an MFA method that Microsoft currently considers capable under the tenant authentication-method policy.",
     remediation:
       "Register and permit a strong MFA method for this Global Administrator, then re-run the CyberPilot Microsoft 365 sync to verify the control.",
+    playbook: {
+      id: "M365_ENABLE_GLOBAL_ADMIN_MFA_V1",
+      mode: "GUIDED",
+      title: "Make Global Administrator MFA-capable",
+      summary:
+        "Register and permit a strong authentication method for the affected Global Administrator and verify Microsoft reports it as MFA-capable.",
+      steps: [
+        "Confirm the affected Global Administrator identity.",
+        "Register an approved strong authentication method for the account.",
+        "Ensure the authentication method is allowed by the tenant authentication-methods policy.",
+        "Complete a successful MFA sign-in test according to the organization's access policy.",
+      ],
+      verification: [
+        "Re-run the Microsoft 365 synchronization.",
+        "Confirm Microsoft reports isMfaCapable=true for the identity.",
+        "Confirm the finding resolves.",
+      ],
+    },
     contextMultiplier: 1.6,
     perRuleCap: 40,
   },
@@ -113,6 +179,23 @@ export const M365_RULES = {
       "This active administrator does not have an MFA method that Microsoft currently considers capable under the tenant authentication-method policy.",
     remediation:
       "Register and permit a strong MFA method for this administrator, then re-run the CyberPilot Microsoft 365 sync to verify the control.",
+    playbook: {
+      id: "M365_ENABLE_ADMIN_MFA_V1",
+      mode: "GUIDED",
+      title: "Make administrator MFA-capable",
+      summary:
+        "Register and permit a strong authentication method for the affected administrator and verify Microsoft reports it as MFA-capable.",
+      steps: [
+        "Confirm the affected administrator identity.",
+        "Register an approved strong authentication method for the account.",
+        "Ensure the method is allowed by the tenant authentication-methods policy.",
+      ],
+      verification: [
+        "Re-run the Microsoft 365 synchronization.",
+        "Confirm Microsoft reports isMfaCapable=true for the identity.",
+        "Confirm the finding resolves.",
+      ],
+    },
     contextMultiplier: 1.35,
     perRuleCap: 30,
   },
@@ -128,6 +211,24 @@ export const DOMAIN_RULES = {
       "No DMARC policy record was observed for this verified custom domain.",
     remediation:
       "Publish a DMARC record for the domain, begin with monitored deployment if necessary, review aggregate reports, and progress toward an enforcing policy after legitimate senders are validated.",
+    playbook: {
+      id: "DOMAIN_PUBLISH_DMARC_V1",
+      mode: "GUIDED",
+      title: "Publish a DMARC policy",
+      summary:
+        "Create a valid DMARC policy, observe legitimate sending sources, and progress toward enforcement without disrupting valid mail.",
+      steps: [
+        "Inventory legitimate mail senders for the domain.",
+        "Publish one valid DMARC record at _dmarc.<domain>.",
+        "Begin with reporting/monitoring if sender alignment is not yet validated.",
+        "Review aggregate reports and move toward quarantine or reject once legitimate sources align.",
+      ],
+      verification: [
+        "Resolve the DMARC TXT record from public DNS.",
+        "Confirm one valid policy is published.",
+        "Re-run CyberPilot and confirm the finding resolves or moves to the expected monitoring state.",
+      ],
+    },
     contextMultiplier: 1.2,
     perRuleCap: 30,
   },
@@ -139,6 +240,23 @@ export const DOMAIN_RULES = {
       "CyberPilot observed a DMARC record state that cannot be interpreted as one valid policy.",
     remediation:
       "Correct the DMARC DNS record so the domain publishes one valid DMARC policy record with a supported p= policy.",
+    playbook: {
+      id: "DOMAIN_FIX_DMARC_V1",
+      mode: "GUIDED",
+      title: "Correct the DMARC policy",
+      summary:
+        "Consolidate the domain's DMARC configuration into one valid policy record.",
+      steps: [
+        "Review the currently published DMARC TXT records.",
+        "Remove duplicate or malformed DMARC policy records.",
+        "Publish one valid v=DMARC1 record with an explicit supported p= policy.",
+      ],
+      verification: [
+        "Resolve _dmarc.<domain> from public DNS.",
+        "Confirm exactly one valid DMARC policy is returned.",
+        "Re-run CyberPilot and confirm the invalid-policy finding resolves.",
+      ],
+    },
     contextMultiplier: 1.2,
     perRuleCap: 30,
   },
@@ -150,6 +268,23 @@ export const DOMAIN_RULES = {
       "The domain publishes DMARC with p=none, which requests reporting but does not request quarantine or rejection of messages that fail DMARC.",
     remediation:
       "Review DMARC reports and, once legitimate senders are aligned, move the policy toward p=quarantine or p=reject according to the organization's rollout plan.",
+    playbook: {
+      id: "DOMAIN_ENFORCE_DMARC_V1",
+      mode: "GUIDED",
+      title: "Move DMARC toward enforcement",
+      summary:
+        "Use DMARC reporting to validate legitimate senders, then progress from monitoring to quarantine or reject.",
+      steps: [
+        "Review DMARC aggregate reports and identify legitimate senders.",
+        "Correct SPF/DKIM alignment issues for legitimate senders.",
+        "Increase enforcement to p=quarantine or p=reject using a controlled rollout.",
+      ],
+      verification: [
+        "Resolve the public DMARC record.",
+        "Confirm the p= policy is quarantine or reject.",
+        "Re-run CyberPilot and confirm the monitoring-only finding resolves.",
+      ],
+    },
     contextMultiplier: 1.0,
     perRuleCap: 15,
   },
@@ -161,6 +296,23 @@ export const DOMAIN_RULES = {
       "No SPF policy record was observed for this verified custom domain.",
     remediation:
       "Publish one SPF record that accurately authorizes legitimate SMTP senders. If the domain never sends mail, consider an explicit no-senders policy.",
+    playbook: {
+      id: "DOMAIN_PUBLISH_SPF_V1",
+      mode: "GUIDED",
+      title: "Publish an SPF policy",
+      summary:
+        "Publish one SPF record that represents the domain's legitimate SMTP sending infrastructure.",
+      steps: [
+        "Inventory legitimate SMTP senders for the domain.",
+        "Build one SPF record authorizing only those senders.",
+        "Publish the record and remove obsolete sender authorizations.",
+      ],
+      verification: [
+        "Resolve root-domain TXT records.",
+        "Confirm exactly one v=spf1 record exists.",
+        "Re-run CyberPilot and confirm the SPF finding resolves.",
+      ],
+    },
     contextMultiplier: 0.9,
     perRuleCap: 15,
   },
@@ -172,6 +324,23 @@ export const DOMAIN_RULES = {
       "More than one SPF policy record was observed for the same domain.",
     remediation:
       "Consolidate the domain's sender authorization into one SPF record and re-test DNS after propagation.",
+    playbook: {
+      id: "DOMAIN_CONSOLIDATE_SPF_V1",
+      mode: "GUIDED",
+      title: "Consolidate SPF records",
+      summary:
+        "Replace multiple SPF policy records with one coherent SPF policy.",
+      steps: [
+        "Collect all currently published SPF records and intended senders.",
+        "Merge required sender mechanisms into one SPF policy.",
+        "Remove duplicate SPF policy records.",
+      ],
+      verification: [
+        "Resolve root-domain TXT records.",
+        "Confirm exactly one v=spf1 record exists.",
+        "Re-run CyberPilot and confirm the multiple-SPF finding resolves.",
+      ],
+    },
     contextMultiplier: 1.1,
     perRuleCap: 20,
   },
@@ -183,6 +352,24 @@ export const DOMAIN_RULES = {
       "Neither standard Microsoft 365 DKIM selector CNAME was observed for this verified custom domain. This DNS signal alone does not prove how every outbound mail path is signed.",
     remediation:
       "If Microsoft 365 sends mail for this domain, configure its DKIM signing and publish the selector1 and selector2 CNAME records provided by Microsoft.",
+    playbook: {
+      id: "DOMAIN_PUBLISH_M365_DKIM_V1",
+      mode: "GUIDED",
+      title: "Publish Microsoft 365 DKIM selectors",
+      summary:
+        "If Microsoft 365 sends mail for the domain, enable DKIM and publish both selector CNAME records supplied by Microsoft.",
+      steps: [
+        "Confirm Microsoft 365 is an outbound mail provider for this domain.",
+        "Obtain the current selector1 and selector2 CNAME targets from Microsoft 365.",
+        "Publish both CNAME records in public DNS.",
+        "Enable DKIM signing for the custom domain in Microsoft 365.",
+      ],
+      verification: [
+        "Resolve selector1._domainkey.<domain> and selector2._domainkey.<domain>.",
+        "Confirm both CNAME records resolve.",
+        "Re-run CyberPilot and confirm the DNS finding resolves.",
+      ],
+    },
     contextMultiplier: 0.7,
     perRuleCap: 8,
   },
@@ -194,6 +381,22 @@ export const DOMAIN_RULES = {
       "Only one of the two standard Microsoft 365 DKIM selector CNAMEs was observed for this verified custom domain.",
     remediation:
       "Verify the Microsoft 365 DKIM configuration and publish both selector CNAME records supplied for the domain.",
+    playbook: {
+      id: "DOMAIN_COMPLETE_M365_DKIM_V1",
+      mode: "GUIDED",
+      title: "Complete Microsoft 365 DKIM selectors",
+      summary:
+        "Publish the missing Microsoft 365 DKIM selector CNAME and verify both selectors resolve.",
+      steps: [
+        "Identify which selector CNAME is missing.",
+        "Confirm the correct target supplied by Microsoft 365.",
+        "Publish the missing CNAME record.",
+      ],
+      verification: [
+        "Resolve both Microsoft 365 selector CNAMEs.",
+        "Re-run CyberPilot and confirm the partial-selector finding resolves.",
+      ],
+    },
     contextMultiplier: 0.8,
     perRuleCap: 8,
   },
@@ -539,4 +742,18 @@ export function calculateCyberScore(
     topActions: supported.slice(0, 3),
     contributions,
   };
+}
+
+
+const ALL_RULES = new Map<string, RiskRuleDefinition>(
+  [...Object.values(M365_RULES), ...Object.values(DOMAIN_RULES)].map((rule) => [
+    rule.id,
+    rule,
+  ]),
+);
+
+export function getRemediationPlaybook(
+  ruleId: string,
+): RemediationPlaybookDefinition | null {
+  return ALL_RULES.get(ruleId)?.playbook ?? null;
 }
