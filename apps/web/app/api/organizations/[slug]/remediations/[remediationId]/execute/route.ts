@@ -1,5 +1,8 @@
 import { db } from "@cyberpilot/database";
-import { MicrosoftRemediationClient } from "@cyberpilot/integrations/microsoft-365";
+import {
+  MicrosoftRemediationClient,
+  MicrosoftRemediationError,
+} from "@cyberpilot/integrations/microsoft-365";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "../../../../../../../lib/auth";
@@ -117,15 +120,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       id: true,
       externalTenantId: true,
       status: true,
+      remediationStatus: true,
     },
   });
 
   if (
     !integration ||
     integration.status !== "CONNECTED" ||
+    integration.remediationStatus !== "AVAILABLE" ||
     !integration.externalTenantId
   ) {
-    return new Response("Microsoft 365 is not connected.", { status: 409 });
+    return new Response(
+      "Microsoft 365 remediation permission is not available.",
+      { status: 409 },
+    );
   }
 
   const claimed = await db.remediation.updateMany({
@@ -229,12 +237,29 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.redirect(url, 303);
   } catch (error) {
+    const permissionRevoked =
+      error instanceof MicrosoftRemediationError && error.status === 403;
     const failureCode =
       error instanceof Error && error.message.startsWith("REMEDIATION_")
         ? error.message
-        : "M365_REMEDIATION_FAILED";
+        : permissionRevoked
+          ? "M365_REMEDIATION_PERMISSION_REQUIRED"
+          : "M365_REMEDIATION_FAILED";
 
     await db.$transaction([
+      ...(permissionRevoked
+        ? [
+            db.integration.update({
+              where: {
+                id: integration.id,
+              },
+              data: {
+                remediationStatus: "PERMISSION_REQUIRED",
+                remediationCheckedAt: new Date(),
+              },
+            }),
+          ]
+        : []),
       db.remediation.update({
         where: {
           id: remediation.id,
