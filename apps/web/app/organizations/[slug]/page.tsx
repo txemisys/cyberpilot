@@ -15,7 +15,7 @@ export default async function OrganizationPage({
   const { slug } = await params;
   const { membership } = await requireOrganizationAccess(slug);
 
-  const [integration, findings] = await Promise.all([
+  const [integration, findings, administratorIdentities] = await Promise.all([
     db.integration.findUnique({
       where: {
         organizationId_provider: {
@@ -30,6 +30,8 @@ export default async function OrganizationPage({
         connectedAt: true,
         lastSyncAt: true,
         lastErrorAt: true,
+        mfaEvidenceStatus: true,
+        mfaEvidenceCheckedAt: true,
       },
     }),
     db.securityFinding.findMany({
@@ -47,13 +49,38 @@ export default async function OrganizationPage({
       ],
       select: {
         id: true,
+        ruleId: true,
         title: true,
         description: true,
         severity: true,
+        evidence: true,
+        firstSeenAt: true,
         lastSeenAt: true,
       },
     }),
+    db.directoryIdentity.findMany({
+      where: {
+        integration: {
+          organizationId: membership.organization.id,
+          provider: "MICROSOFT_365",
+        },
+        accountEnabled: true,
+        isAdmin: true,
+      },
+      select: {
+        id: true,
+        isMfaCapable: true,
+        authenticationObservedAt: true,
+      },
+    }),
   ]);
+
+  const administratorsWithMfaEvidence = administratorIdentities.filter(
+    (identity) => identity.authenticationObservedAt !== null,
+  );
+  const mfaCapableAdministrators = administratorsWithMfaEvidence.filter(
+    (identity) => identity.isMfaCapable === true,
+  );
 
   const canManageIntegrations =
     membership.role === "OWNER" || membership.role === "ADMIN";
@@ -72,6 +99,13 @@ export default async function OrganizationPage({
           <div>
             <p className="panel-label">Open findings</p>
             <p className="panel-value">{findings.length}</p>
+          </div>
+          <div>
+            <p className="panel-label">MFA-capable administrators</p>
+            <p className="panel-value">
+              {mfaCapableAdministrators.length}/
+              {administratorsWithMfaEvidence.length}
+            </p>
           </div>
         </div>
 
@@ -97,6 +131,27 @@ export default async function OrganizationPage({
                 <p className="auth-error">
                   The last inventory synchronization failed.
                 </p>
+              ) : null}
+
+              {integration.mfaEvidenceStatus === "PERMISSION_REQUIRED" ? (
+                <div className="permission-warning">
+                  <strong>MFA evidence permission required</strong>
+                  <p>
+                    CyberPilot can continue reading users and privileged roles,
+                    but Microsoft has not granted access to authentication
+                    registration evidence. Grant the updated Microsoft 365
+                    consent to enable administrator MFA findings.
+                  </p>
+                  {canManageIntegrations ? (
+                    <p className="action-link">
+                      <Link
+                        href={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/connect`}
+                      >
+                        Grant MFA reporting permission
+                      </Link>
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
 
               {canManageIntegrations ? (
@@ -158,9 +213,26 @@ export default async function OrganizationPage({
                     <span className="role-badge">{finding.severity}</span>
                   </div>
                   <p>{finding.description}</p>
-                  <p className="finding-meta">
-                    Last observed {finding.lastSeenAt.toISOString()}
-                  </p>
+                  <dl className="finding-evidence">
+                    <div>
+                      <dt>Rule</dt>
+                      <dd>{finding.ruleId}</dd>
+                    </div>
+                    <div>
+                      <dt>First seen</dt>
+                      <dd>{finding.firstSeenAt.toISOString()}</dd>
+                    </div>
+                    <div>
+                      <dt>Last observed</dt>
+                      <dd>{finding.lastSeenAt.toISOString()}</dd>
+                    </div>
+                  </dl>
+                  <details className="evidence-details">
+                    <summary>Evidence</summary>
+                    <pre>
+                      {JSON.stringify(finding.evidence, null, 2)}
+                    </pre>
+                  </details>
                 </article>
               ))}
             </div>

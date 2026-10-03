@@ -42,8 +42,9 @@ The first inventory slice should request only:
 - `Organization.Read.All`
 - `User.Read.All`
 - `RoleManagement.Read.Directory`
+- `AuditLog.Read.All`
 
-These permissions support the initial organization, user, role-definition, and role-assignment inventory.
+These permissions support organization, user, role-definition, role-assignment, and authentication-registration inventory. `AuditLog.Read.All` is required for Microsoft Graph's `userRegistrationDetails` report.
 
 Broader permissions such as `Directory.Read.All` should not be requested merely for convenience when narrower permissions are sufficient.
 
@@ -117,3 +118,43 @@ On each successful synchronization:
 - failed scans do not automatically resolve findings.
 
 This prevents a temporary Microsoft Graph failure from being interpreted as remediation.
+
+## MFA evidence
+
+CyberPilot reads:
+
+```text
+GET /reports/authenticationMethods/userRegistrationDetails
+```
+
+The scanner stores only normalized posture required for security decisions:
+
+- whether Microsoft classifies the identity as an administrator;
+- `isMfaRegistered`;
+- `isMfaCapable`;
+- `isPasswordlessCapable`;
+- registered authentication-method names;
+- Microsoft report update timestamp;
+- CyberPilot observation timestamp.
+
+CyberPilot does not interpret a missing registration record as "MFA disabled".
+
+The MFA findings require Microsoft to return an explicit `isMfaCapable = false`.
+
+### M365_GLOBAL_ADMIN_MFA_NOT_CAPABLE
+
+A critical finding is opened when an active Global Administrator explicitly has `isMfaCapable = false`.
+
+### M365_ADMIN_MFA_NOT_CAPABLE
+
+A high finding is opened when another active administrator explicitly has `isMfaCapable = false`.
+
+`isMfaCapable` is preferred over `isMfaRegistered` for this finding because Microsoft defines MFA capability as having a strong authentication method that is currently allowed by the authentication-methods policy. A registered method alone might no longer be allowed.
+
+CyberPilot does not currently label `isPasswordlessCapable` as "phishing-resistant MFA". That property is useful evidence, but it is not by itself a direct proof that a tenant enforces phishing-resistant authentication for administrator sign-ins.
+
+## Permission expansion and re-consent
+
+Adding `AuditLog.Read.All` to the scanner application's configured Microsoft Graph application permissions requires administrator consent.
+
+Existing customer tenants must grant the expanded consent before MFA evidence can be synchronized.

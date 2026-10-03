@@ -5,5 +5,6 @@ export type {
   MicrosoftOrganization,
   MicrosoftRoleAssignment,
   MicrosoftRoleDefinition,
+  MicrosoftUserRegistrationDetails,
   MicrosoftVerifiedDomain,
 } from "./types";

@@ -79,6 +79,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           users: result.users,
           roleDefinitions: result.roleDefinitions,
           roleAssignments: result.roleAssignments,
+          authenticationRegistrations: result.authenticationRegistrations,
         },
       },
     });

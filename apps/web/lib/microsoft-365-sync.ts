@@ -1,5 +1,13 @@
 import { db } from "@cyberpilot/database";
-import { MicrosoftGraphClient } from "@cyberpilot/integrations/microsoft-365";
+import {
+  MicrosoftGraphClient,
+  MicrosoftGraphError,
+  type MicrosoftUserRegistrationDetails,
+} from "@cyberpilot/integrations/microsoft-365";
+import {
+  evaluateM365IdentityFindings,
+  M365_RULE_IDS,
+} from "@cyberpilot/risk-engine";
 
 const GLOBAL_ADMIN_TEMPLATE_ID =
   "62e90394-69f5-4237-9190-012177145e10";
@@ -51,6 +59,22 @@ export async function syncMicrosoft365Integration(integrationId: string) {
       graph.listRoleAssignments(),
     ]);
 
+  let registrationDetails: MicrosoftUserRegistrationDetails[] = [];
+  let mfaEvidenceStatus:
+    | "AVAILABLE"
+    | "PERMISSION_REQUIRED"
+    | "ERROR" = "AVAILABLE";
+
+  try {
+    registrationDetails = await graph.listUserRegistrationDetails();
+  } catch (error) {
+    if (error instanceof MicrosoftGraphError && error.status === 403) {
+      mfaEvidenceStatus = "PERMISSION_REQUIRED";
+    } else {
+      mfaEvidenceStatus = "ERROR";
+    }
+  }
+
   if (
     organization.id.toLowerCase() !== integration.externalTenantId.toLowerCase()
   ) {
@@ -58,6 +82,9 @@ export async function syncMicrosoft365Integration(integrationId: string) {
   }
 
   const observedAt = new Date();
+  const registrationByUserId = new Map(
+    registrationDetails.map((registration) => [registration.id, registration]),
+  );
   const userIds = new Set(users.map((user) => user.id));
   const roleDefinitionIds = new Set(roleDefinitions.map((role) => role.id));
   const persistedRoleAssignments = roleAssignments.filter((assignment) =>
@@ -68,6 +95,8 @@ export async function syncMicrosoft365Integration(integrationId: string) {
   );
 
   await forEachWithConcurrency(users, WRITE_CONCURRENCY, async (user) => {
+    const registration = registrationByUserId.get(user.id);
+
     await db.directoryIdentity.upsert({
       where: {
         integrationId_externalId: {
@@ -85,6 +114,15 @@ export async function syncMicrosoft365Integration(integrationId: string) {
         createdAtProvider: user.createdDateTime
           ? new Date(user.createdDateTime)
           : null,
+        isAdmin: registration?.isAdmin ?? null,
+        isMfaRegistered: registration?.isMfaRegistered ?? null,
+        isMfaCapable: registration?.isMfaCapable ?? null,
+        isPasswordlessCapable: registration?.isPasswordlessCapable ?? null,
+        methodsRegistered: registration?.methodsRegistered ?? [],
+        authenticationObservedAt: registration ? observedAt : null,
+        authenticationUpdatedAt: registration?.lastUpdatedDateTime
+          ? new Date(registration.lastUpdatedDateTime)
+          : null,
         observedAt,
       },
       update: {
@@ -94,6 +132,15 @@ export async function syncMicrosoft365Integration(integrationId: string) {
         identityType: mapIdentityType(user.userType),
         createdAtProvider: user.createdDateTime
           ? new Date(user.createdDateTime)
+          : null,
+        isAdmin: registration?.isAdmin ?? null,
+        isMfaRegistered: registration?.isMfaRegistered ?? null,
+        isMfaCapable: registration?.isMfaCapable ?? null,
+        isPasswordlessCapable: registration?.isPasswordlessCapable ?? null,
+        methodsRegistered: registration?.methodsRegistered ?? [],
+        authenticationObservedAt: registration ? observedAt : null,
+        authenticationUpdatedAt: registration?.lastUpdatedDateTime
+          ? new Date(registration.lastUpdatedDateTime)
           : null,
         observedAt,
       },
@@ -217,6 +264,8 @@ export async function syncMicrosoft365Integration(integrationId: string) {
         lastSyncAt: observedAt,
         lastErrorAt: null,
         lastErrorCode: null,
+        mfaEvidenceStatus,
+        mfaEvidenceCheckedAt: observedAt,
       },
     });
   });
@@ -227,6 +276,7 @@ export async function syncMicrosoft365Integration(integrationId: string) {
     users: users.length,
     roleDefinitions: roleDefinitions.length,
     roleAssignments: persistedRoleAssignments.length,
+    authenticationRegistrations: registrationDetails.length,
     observedAt,
   };
 }
@@ -244,6 +294,13 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
           userPrincipalName: true,
           accountEnabled: true,
           identityType: true,
+          isAdmin: true,
+          isMfaRegistered: true,
+          isMfaCapable: true,
+          isPasswordlessCapable: true,
+          methodsRegistered: true,
+          authenticationObservedAt: true,
+          authenticationUpdatedAt: true,
         },
       },
       roleDefinitions: {
@@ -257,7 +314,6 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
         select: {
           principalExternalId: true,
           roleDefinitionExternalId: true,
-          directoryScopeId: true,
         },
       },
     },
@@ -267,135 +323,69 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
     throw new Error("Integration not found.");
   }
 
-  const identities = new Map(
-    integration.identities.map((identity) => [identity.externalId, identity]),
-  );
-  const roles = new Map(
-    integration.roleDefinitions.map((role) => [role.externalId, role]),
-  );
+  const findings = evaluateM365IdentityFindings({
+    identities: integration.identities.map((identity) => ({
+      ...identity,
+      methodsRegistered: Array.isArray(identity.methodsRegistered)
+        ? identity.methodsRegistered.filter(
+            (method): method is string => typeof method === "string",
+          )
+        : [],
+    })),
+    roleDefinitions: integration.roleDefinitions,
+    roleAssignments: integration.roleAssignments,
+  });
 
-  const globalAdminAssignments = integration.roleAssignments.filter(
-    (assignment) =>
-      roles.get(assignment.roleDefinitionExternalId)?.templateId ===
-      GLOBAL_ADMIN_TEMPLATE_ID,
-  );
-
-  const activeGlobalAdminUsers = globalAdminAssignments
-    .map((assignment) => identities.get(assignment.principalExternalId))
-    .filter(
-      (identity): identity is NonNullable<typeof identity> =>
-        Boolean(identity && identity.accountEnabled !== false),
-    );
-
-  const globalAdminUsers = new Map(
-    activeGlobalAdminUsers.map((identity) => [identity.externalId, identity]),
-  );
-
-  const observedFindingKeys = new Set<string>();
   const now = new Date();
+  const observedFindingKeys = findings.map((finding) => finding.key);
 
-  if (globalAdminUsers.size >= 5) {
-    const key = "m365:global-admin-count-high";
-    observedFindingKeys.add(key);
-
+  for (const finding of findings) {
     await db.securityFinding.upsert({
       where: {
         organizationId_key: {
           organizationId: integration.organizationId,
-          key,
+          key: finding.key,
         },
       },
       create: {
         organizationId: integration.organizationId,
         integrationId: integration.id,
-        key,
-        ruleId: "M365_GLOBAL_ADMIN_COUNT_HIGH",
-        title: "Too many Global Administrators",
-        description:
-          "Microsoft recommends assigning the Global Administrator role to fewer than five people.",
-        severity: "HIGH",
-        evidence: {
-          activeGlobalAdministratorCount: globalAdminUsers.size,
-          threshold: 5,
-        },
+        key: finding.key,
+        ruleId: finding.rule.id,
+        title: finding.rule.title,
+        description: finding.rule.description,
+        severity: finding.rule.severity,
+        evidence: finding.evidence,
         lastSeenAt: now,
       },
       update: {
         status: "OPEN",
-        severity: "HIGH",
-        evidence: {
-          activeGlobalAdministratorCount: globalAdminUsers.size,
-          threshold: 5,
-        },
+        ruleId: finding.rule.id,
+        title: finding.rule.title,
+        description: finding.rule.description,
+        severity: finding.rule.severity,
+        evidence: finding.evidence,
         lastSeenAt: now,
         resolvedAt: null,
       },
     });
   }
-
-  for (const identity of globalAdminUsers.values()) {
-    if (identity.identityType !== "GUEST") {
-      continue;
-    }
-
-    const key = `m365:guest-global-admin:${identity.externalId}`;
-    observedFindingKeys.add(key);
-
-    await db.securityFinding.upsert({
-      where: {
-        organizationId_key: {
-          organizationId: integration.organizationId,
-          key,
-        },
-      },
-      create: {
-        organizationId: integration.organizationId,
-        integrationId: integration.id,
-        key,
-        ruleId: "M365_GUEST_GLOBAL_ADMIN",
-        title: "Guest user is a Global Administrator",
-        description:
-          "A guest identity has the Global Administrator role. Microsoft guidance recommends that guests are not assigned highly privileged directory roles.",
-        severity: "CRITICAL",
-        evidence: {
-          userId: identity.externalId,
-          displayName: identity.displayName,
-          userPrincipalName: identity.userPrincipalName,
-        },
-        lastSeenAt: now,
-      },
-      update: {
-        status: "OPEN",
-        severity: "CRITICAL",
-        evidence: {
-          userId: identity.externalId,
-          displayName: identity.displayName,
-          userPrincipalName: identity.userPrincipalName,
-        },
-        lastSeenAt: now,
-        resolvedAt: null,
-      },
-    });
-  }
-
-  const findingFilter =
-    observedFindingKeys.size > 0
-      ? {
-          key: {
-            notIn: [...observedFindingKeys],
-          },
-        }
-      : {};
 
   await db.securityFinding.updateMany({
     where: {
       organizationId: integration.organizationId,
       integrationId: integration.id,
       ruleId: {
-        in: ["M365_GLOBAL_ADMIN_COUNT_HIGH", "M365_GUEST_GLOBAL_ADMIN"],
+        in: [...M365_RULE_IDS],
       },
       status: "OPEN",
-      ...findingFilter,
+      ...(observedFindingKeys.length > 0
+        ? {
+            key: {
+              notIn: observedFindingKeys,
+            },
+          }
+        : {}),
     },
     data: {
       status: "RESOLVED",

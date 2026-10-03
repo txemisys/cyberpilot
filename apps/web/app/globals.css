@@ -273,3 +273,70 @@ h1 {
 .finding-meta {
   font-size: 13px;
 }
+
+.permission-warning {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #5b4a2f;
+  border-radius: 14px;
+  background: #17130d;
+}
+
+.permission-warning > p {
+  margin: 8px 0 0;
+  color: #c5b99f;
+  line-height: 1.5;
+}
+
+.finding-evidence {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 0;
+}
+
+.finding-evidence div {
+  min-width: 0;
+}
+
+.finding-evidence dt {
+  color: #7f8ba0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.finding-evidence dd {
+  margin: 6px 0 0;
+  color: #c9d1df;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.evidence-details {
+  margin-top: 16px;
+}
+
+.evidence-details summary {
+  cursor: pointer;
+  color: #c9d1df;
+  font-weight: 700;
+}
+
+.evidence-details pre {
+  overflow-x: auto;
+  margin: 12px 0 0;
+  padding: 14px;
+  border: 1px solid #283143;
+  border-radius: 12px;
+  background: #080b12;
+  color: #aeb8ca;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .finding-evidence {
+    grid-template-columns: 1fr;
+  }
+}
