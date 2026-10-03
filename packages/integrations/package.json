@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "exports": {
-    "./microsoft-365": "./src/microsoft-365/index.ts"
+    "./microsoft-365": "./src/microsoft-365/index.ts",
+    "./domain-security": "./src/domain-security/index.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
