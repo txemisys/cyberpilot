@@ -17,7 +17,7 @@ export type RiskRuleDefinition = {
   title: string;
   description: string;
   remediation: string;
-  privilegeMultiplier: number;
+  contextMultiplier: number;
   perRuleCap: number;
 };
 
@@ -47,6 +47,21 @@ export type M365RoleAssignmentEvidence = {
   roleDefinitionExternalId: string;
 };
 
+export type DomainSecurityEvidence = {
+  name: string;
+  isInitial: boolean;
+  spfStatus: "UNKNOWN" | "MISSING" | "PRESENT" | "MULTIPLE" | "ERROR";
+  dmarcStatus:
+    | "UNKNOWN"
+    | "MISSING"
+    | "MONITORING"
+    | "ENFORCING"
+    | "INVALID"
+    | "ERROR";
+  dmarcPolicy?: string | null;
+  dkimStatus: "UNKNOWN" | "MISSING" | "PARTIAL" | "PUBLISHED" | "ERROR";
+};
+
 export type EvaluatedFinding = {
   key: string;
   rule: RiskRuleDefinition;
@@ -65,7 +80,7 @@ export const M365_RULES = {
       "Microsoft recommends assigning the Global Administrator role to fewer than five people.",
     remediation:
       "Reduce permanent Global Administrator assignments and keep only the minimum number required for emergency and operational access.",
-    privilegeMultiplier: 1.3,
+    contextMultiplier: 1.3,
     perRuleCap: 30,
   },
   guestGlobalAdmin: {
@@ -76,7 +91,7 @@ export const M365_RULES = {
       "A guest identity has the Global Administrator role. Microsoft guidance recommends that guests are not assigned highly privileged directory roles.",
     remediation:
       "Remove the Global Administrator assignment from the guest identity and replace it with the least-privileged role required for its legitimate task.",
-    privilegeMultiplier: 1.6,
+    contextMultiplier: 1.6,
     perRuleCap: 40,
   },
   globalAdminMfaNotCapable: {
@@ -87,7 +102,7 @@ export const M365_RULES = {
       "This active Global Administrator does not have an MFA method that Microsoft currently considers capable under the tenant authentication-method policy.",
     remediation:
       "Register and permit a strong MFA method for this Global Administrator, then re-run the CyberPilot Microsoft 365 sync to verify the control.",
-    privilegeMultiplier: 1.6,
+    contextMultiplier: 1.6,
     perRuleCap: 40,
   },
   adminMfaNotCapable: {
@@ -98,12 +113,96 @@ export const M365_RULES = {
       "This active administrator does not have an MFA method that Microsoft currently considers capable under the tenant authentication-method policy.",
     remediation:
       "Register and permit a strong MFA method for this administrator, then re-run the CyberPilot Microsoft 365 sync to verify the control.",
-    privilegeMultiplier: 1.35,
+    contextMultiplier: 1.35,
     perRuleCap: 30,
   },
 } as const satisfies Record<string, RiskRuleDefinition>;
 
+
+export const DOMAIN_RULES = {
+  dmarcMissing: {
+    id: "DOMAIN_DMARC_MISSING",
+    severity: "HIGH",
+    title: "DMARC policy is missing",
+    description:
+      "No DMARC policy record was observed for this verified custom domain.",
+    remediation:
+      "Publish a DMARC record for the domain, begin with monitored deployment if necessary, review aggregate reports, and progress toward an enforcing policy after legitimate senders are validated.",
+    contextMultiplier: 1.2,
+    perRuleCap: 30,
+  },
+  dmarcInvalid: {
+    id: "DOMAIN_DMARC_INVALID",
+    severity: "HIGH",
+    title: "DMARC policy is invalid",
+    description:
+      "CyberPilot observed a DMARC record state that cannot be interpreted as one valid policy.",
+    remediation:
+      "Correct the DMARC DNS record so the domain publishes one valid DMARC policy record with a supported p= policy.",
+    contextMultiplier: 1.2,
+    perRuleCap: 30,
+  },
+  dmarcMonitoring: {
+    id: "DOMAIN_DMARC_MONITORING_ONLY",
+    severity: "MEDIUM",
+    title: "DMARC is monitoring only",
+    description:
+      "The domain publishes DMARC with p=none, which requests reporting but does not request quarantine or rejection of messages that fail DMARC.",
+    remediation:
+      "Review DMARC reports and, once legitimate senders are aligned, move the policy toward p=quarantine or p=reject according to the organization's rollout plan.",
+    contextMultiplier: 1.0,
+    perRuleCap: 15,
+  },
+  spfMissing: {
+    id: "DOMAIN_SPF_MISSING",
+    severity: "MEDIUM",
+    title: "SPF record is missing",
+    description:
+      "No SPF policy record was observed for this verified custom domain.",
+    remediation:
+      "Publish one SPF record that accurately authorizes legitimate SMTP senders. If the domain never sends mail, consider an explicit no-senders policy.",
+    contextMultiplier: 0.9,
+    perRuleCap: 15,
+  },
+  spfMultiple: {
+    id: "DOMAIN_SPF_MULTIPLE",
+    severity: "HIGH",
+    title: "Multiple SPF records are published",
+    description:
+      "More than one SPF policy record was observed for the same domain.",
+    remediation:
+      "Consolidate the domain's sender authorization into one SPF record and re-test DNS after propagation.",
+    contextMultiplier: 1.1,
+    perRuleCap: 20,
+  },
+  dkimMissing: {
+    id: "DOMAIN_M365_DKIM_SELECTORS_MISSING",
+    severity: "LOW",
+    title: "Microsoft 365 DKIM selectors were not observed",
+    description:
+      "Neither standard Microsoft 365 DKIM selector CNAME was observed for this verified custom domain. This DNS signal alone does not prove how every outbound mail path is signed.",
+    remediation:
+      "If Microsoft 365 sends mail for this domain, configure its DKIM signing and publish the selector1 and selector2 CNAME records provided by Microsoft.",
+    contextMultiplier: 0.7,
+    perRuleCap: 8,
+  },
+  dkimPartial: {
+    id: "DOMAIN_M365_DKIM_SELECTORS_PARTIAL",
+    severity: "LOW",
+    title: "Microsoft 365 DKIM selectors are incomplete",
+    description:
+      "Only one of the two standard Microsoft 365 DKIM selector CNAMEs was observed for this verified custom domain.",
+    remediation:
+      "Verify the Microsoft 365 DKIM configuration and publish both selector CNAME records supplied for the domain.",
+    contextMultiplier: 0.8,
+    perRuleCap: 8,
+  },
+} as const satisfies Record<string, RiskRuleDefinition>;
+
 export const M365_RULE_IDS = Object.values(M365_RULES).map((rule) => rule.id);
+export const DOMAIN_RULE_IDS = Object.values(DOMAIN_RULES).map(
+  (rule) => rule.id,
+);
 
 export function evaluateM365IdentityFindings(input: {
   identities: M365IdentityEvidence[];
@@ -203,6 +302,92 @@ export function evaluateM365IdentityFindings(input: {
 }
 
 
+
+export function evaluateDomainSecurityFindings(
+  domains: DomainSecurityEvidence[],
+): EvaluatedFinding[] {
+  const findings: EvaluatedFinding[] = [];
+
+  for (const domain of domains) {
+    if (domain.isInitial) {
+      continue;
+    }
+
+    if (domain.dmarcStatus === "MISSING") {
+      findings.push({
+        key: `domain:dmarc-missing:${domain.name}`,
+        rule: DOMAIN_RULES.dmarcMissing,
+        evidence: {
+          domain: domain.name,
+          dmarcStatus: domain.dmarcStatus,
+        },
+      });
+    } else if (domain.dmarcStatus === "INVALID") {
+      findings.push({
+        key: `domain:dmarc-invalid:${domain.name}`,
+        rule: DOMAIN_RULES.dmarcInvalid,
+        evidence: {
+          domain: domain.name,
+          dmarcStatus: domain.dmarcStatus,
+          dmarcPolicy: domain.dmarcPolicy ?? null,
+        },
+      });
+    } else if (domain.dmarcStatus === "MONITORING") {
+      findings.push({
+        key: `domain:dmarc-monitoring:${domain.name}`,
+        rule: DOMAIN_RULES.dmarcMonitoring,
+        evidence: {
+          domain: domain.name,
+          dmarcStatus: domain.dmarcStatus,
+          dmarcPolicy: domain.dmarcPolicy ?? null,
+        },
+      });
+    }
+
+    if (domain.spfStatus === "MISSING") {
+      findings.push({
+        key: `domain:spf-missing:${domain.name}`,
+        rule: DOMAIN_RULES.spfMissing,
+        evidence: {
+          domain: domain.name,
+          spfStatus: domain.spfStatus,
+        },
+      });
+    } else if (domain.spfStatus === "MULTIPLE") {
+      findings.push({
+        key: `domain:spf-multiple:${domain.name}`,
+        rule: DOMAIN_RULES.spfMultiple,
+        evidence: {
+          domain: domain.name,
+          spfStatus: domain.spfStatus,
+        },
+      });
+    }
+
+    if (domain.dkimStatus === "MISSING") {
+      findings.push({
+        key: `domain:m365-dkim-missing:${domain.name}`,
+        rule: DOMAIN_RULES.dkimMissing,
+        evidence: {
+          domain: domain.name,
+          dkimStatus: domain.dkimStatus,
+        },
+      });
+    } else if (domain.dkimStatus === "PARTIAL") {
+      findings.push({
+        key: `domain:m365-dkim-partial:${domain.name}`,
+        rule: DOMAIN_RULES.dkimPartial,
+        evidence: {
+          domain: domain.name,
+          dkimStatus: domain.dkimStatus,
+        },
+      });
+    }
+  }
+
+  return findings;
+}
+
 export type PrioritizableFinding = {
   id: string;
   ruleId: string;
@@ -242,7 +427,10 @@ const SEVERITY_POINTS: Record<RiskSeverity, number> = {
 };
 
 const RULES_BY_ID = new Map<string, RiskRuleDefinition>(
-  Object.values(M365_RULES).map((rule) => [rule.id, rule]),
+  [...Object.values(M365_RULES), ...Object.values(DOMAIN_RULES)].map((rule) => [
+    rule.id,
+    rule,
+  ]),
 );
 
 function roundRiskPoints(value: number) {
@@ -261,7 +449,7 @@ export function prioritizeFindings(
       }
 
       const riskPoints = roundRiskPoints(
-        SEVERITY_POINTS[finding.severity] * rule.privilegeMultiplier,
+        SEVERITY_POINTS[finding.severity] * rule.contextMultiplier,
       );
 
       return [
@@ -271,9 +459,9 @@ export function prioritizeFindings(
           riskPoints,
           remediation: rule.remediation,
           rationale:
-            `${finding.severity} severity × ${rule.privilegeMultiplier.toFixed(
+            `${finding.severity} severity × ${rule.contextMultiplier.toFixed(
               2,
-            )} privilege context = ${riskPoints.toFixed(1)} risk points.`,
+            )} context multiplier = ${riskPoints.toFixed(1)} risk points.`,
         },
       ];
     })

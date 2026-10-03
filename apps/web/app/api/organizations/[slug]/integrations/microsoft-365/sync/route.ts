@@ -80,6 +80,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           roleDefinitions: result.roleDefinitions,
           roleAssignments: result.roleAssignments,
           authenticationRegistrations: result.authenticationRegistrations,
+          domains: result.domains,
         },
       },
     });

@@ -428,3 +428,85 @@ h1 {
   color: #aeb8ca;
   line-height: 1.5;
 }
+
+.domain-section {
+  margin-top: 40px;
+}
+
+.domain-list {
+  display: grid;
+  gap: 12px;
+}
+
+.domain-card {
+  padding: 22px;
+  border: 1px solid #283143;
+  border-radius: 18px;
+  background: #0d121c;
+}
+
+.domain-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.domain-heading h3 {
+  margin: 0;
+}
+
+.domain-heading p,
+.domain-note {
+  margin: 7px 0 0;
+  color: #8f9bb0;
+  line-height: 1.5;
+}
+
+.domain-observed {
+  color: #7f8ba0;
+  font-size: 12px;
+  text-align: right;
+}
+
+.domain-signals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 0;
+}
+
+.domain-signals div {
+  padding: 14px;
+  border: 1px solid #283143;
+  border-radius: 12px;
+  background: #080b12;
+}
+
+.domain-signals dt {
+  color: #7f8ba0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.domain-signals dd {
+  margin: 7px 0 0;
+  color: #d7deea;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .domain-heading {
+    display: grid;
+  }
+
+  .domain-observed {
+    text-align: left;
+  }
+
+  .domain-signals {
+    grid-template-columns: 1fr;
+  }
+}

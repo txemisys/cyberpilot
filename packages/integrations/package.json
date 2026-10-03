@@ -3,15 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "exports": {
-    "./microsoft-365": "./src/microsoft-365/index.ts"
+    "./microsoft-365": "./src/microsoft-365/index.ts",
+    "./domain-security": "./src/domain-security/index.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "5.0.3"
   }
 }

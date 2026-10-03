@@ -57,6 +57,31 @@ enum FindingStatus {
   RESOLVED
 }
 
+enum DomainSpfStatus {
+  UNKNOWN
+  MISSING
+  PRESENT
+  MULTIPLE
+  ERROR
+}
+
+enum DomainDmarcStatus {
+  UNKNOWN
+  MISSING
+  MONITORING
+  ENFORCING
+  INVALID
+  ERROR
+}
+
+enum DomainDkimStatus {
+  UNKNOWN
+  MISSING
+  PARTIAL
+  PUBLISHED
+  ERROR
+}
+
 model User {
   id            String       @id @default(cuid())
   name          String
@@ -131,6 +156,7 @@ model Organization {
   integrations             Integration[]
   integrationConsentStates IntegrationConsentState[]
   findings                 SecurityFinding[]
+  domains                  Domain[]
 }
 
 model Membership {
@@ -169,6 +195,7 @@ model Integration {
   roleDefinitions DirectoryRoleDefinition[]
   roleAssignments DirectoryRoleAssignment[]
   findings        SecurityFinding[]
+  domains         Domain[]
 
   @@unique([organizationId, provider])
   @@unique([provider, externalTenantId])
@@ -239,6 +266,33 @@ model DirectoryRoleAssignment {
 }
 
 
+
+
+model Domain {
+  id             String            @id @default(cuid())
+  organizationId String
+  integrationId  String?
+  name           String
+  isDefault      Boolean           @default(false)
+  isInitial      Boolean           @default(false)
+  spfStatus      DomainSpfStatus   @default(UNKNOWN)
+  spfRecords     Json?
+  dmarcStatus    DomainDmarcStatus @default(UNKNOWN)
+  dmarcPolicy    String?
+  dmarcRecords   Json?
+  dkimStatus     DomainDkimStatus  @default(UNKNOWN)
+  dkimSelectors  Json?
+  dnsObservedAt  DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration  Integration? @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([integrationId])
+  @@index([organizationId, isInitial])
+}
 
 model SecurityFinding {
   id             String          @id @default(cuid())
