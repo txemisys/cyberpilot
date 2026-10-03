@@ -16,7 +16,8 @@ export default async function OrganizationPage({
   const { slug } = await params;
   const { membership } = await requireOrganizationAccess(slug);
 
-  const [integration, findings, administratorIdentities] = await Promise.all([
+  const [integration, findings, administratorIdentities, domains] =
+    await Promise.all([
     db.integration.findUnique({
       where: {
         organizationId_provider: {
@@ -74,6 +75,30 @@ export default async function OrganizationPage({
         authenticationObservedAt: true,
       },
     }),
+    db.domain.findMany({
+      where: {
+        organizationId: membership.organization.id,
+      },
+      orderBy: [
+        {
+          isDefault: "desc",
+        },
+        {
+          name: "asc",
+        },
+      ],
+      select: {
+        id: true,
+        name: true,
+        isDefault: true,
+        isInitial: true,
+        spfStatus: true,
+        dmarcStatus: true,
+        dmarcPolicy: true,
+        dkimStatus: true,
+        dnsObservedAt: true,
+      },
+    }),
   ]);
 
   const administratorsWithMfaEvidence = administratorIdentities.filter(
@@ -94,9 +119,18 @@ export default async function OrganizationPage({
   );
 
   const hasCompletedScan = integration?.lastSyncAt !== null && integration?.lastSyncAt !== undefined;
+  const domainCoverageIsPartial = domains.some(
+    (domain) =>
+      !domain.isInitial &&
+      (domain.spfStatus === "ERROR" ||
+        domain.dmarcStatus === "ERROR" ||
+        domain.dkimStatus === "ERROR"),
+  );
+
   const scoreCoverageIsPartial =
     integration?.mfaEvidenceStatus === "PERMISSION_REQUIRED" ||
     integration?.mfaEvidenceStatus === "ERROR" ||
+    domainCoverageIsPartial ||
     cyberScore.unsupportedFindingCount > 0;
 
   const canManageIntegrations =
@@ -221,6 +255,73 @@ export default async function OrganizationPage({
           )}
         </div>
 
+
+
+        <section className="domain-section">
+          <div className="section-heading">
+            <p className="eyebrow">Domain security</p>
+            <h2>Email authentication posture</h2>
+          </div>
+
+          {domains.length === 0 ? (
+            <div className="empty-state">
+              <p>
+                No verified Microsoft 365 domains have been synchronized yet.
+              </p>
+            </div>
+          ) : (
+            <div className="domain-list">
+              {domains.map((domain) => (
+                <article className="domain-card" key={domain.id}>
+                  <div className="domain-heading">
+                    <div>
+                      <h3>{domain.name}</h3>
+                      <p>
+                        {domain.isInitial
+                          ? "Microsoft initial domain"
+                          : domain.isDefault
+                            ? "Default custom domain"
+                            : "Verified custom domain"}
+                      </p>
+                    </div>
+                    {domain.dnsObservedAt ? (
+                      <span className="domain-observed">
+                        Checked {domain.dnsObservedAt.toISOString()}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <dl className="domain-signals">
+                    <div>
+                      <dt>SPF</dt>
+                      <dd>{domain.spfStatus}</dd>
+                    </div>
+                    <div>
+                      <dt>DMARC</dt>
+                      <dd>
+                        {domain.dmarcStatus}
+                        {domain.dmarcPolicy
+                          ? ` (p=${domain.dmarcPolicy})`
+                          : ""}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Microsoft 365 DKIM DNS</dt>
+                      <dd>{domain.dkimStatus}</dd>
+                    </div>
+                  </dl>
+
+                  {domain.isInitial ? (
+                    <p className="domain-note">
+                      CyberPilot records this domain for inventory but does not
+                      create custom-domain email-authentication findings for it.
+                    </p>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="priority-section">
           <div className="section-heading">
