@@ -241,7 +241,7 @@ const SEVERITY_POINTS: Record<RiskSeverity, number> = {
   CRITICAL: 25,
 };
 
-const RULES_BY_ID = new Map(
+const RULES_BY_ID = new Map<string, RiskRuleDefinition>(
   Object.values(M365_RULES).map((rule) => [rule.id, rule]),
 );
 
