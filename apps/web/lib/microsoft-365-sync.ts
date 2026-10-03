@@ -1,10 +1,13 @@
 import { db } from "@cyberpilot/database";
+import { observeDomainSecurity } from "@cyberpilot/integrations/domain-security";
 import {
   MicrosoftGraphClient,
   MicrosoftGraphError,
   type MicrosoftUserRegistrationDetails,
 } from "@cyberpilot/integrations/microsoft-365";
 import {
+  DOMAIN_RULE_IDS,
+  evaluateDomainSecurityFindings,
   evaluateM365IdentityFindings,
   M365_RULE_IDS,
 } from "@cyberpilot/risk-engine";
@@ -82,6 +85,26 @@ export async function syncMicrosoft365Integration(integrationId: string) {
   }
 
   const observedAt = new Date();
+  const verifiedDomains = (organization.verifiedDomains ?? []).flatMap(
+    (domain) =>
+      domain.name
+        ? [
+            {
+              name: domain.name.trim().toLowerCase(),
+              isDefault: domain.isDefault === true,
+              isInitial: domain.isInitial === true,
+            },
+          ]
+        : [],
+  );
+
+  const domainObservations = await Promise.all(
+    verifiedDomains.map(async (domain) => ({
+      domain,
+      observation: await observeDomainSecurity(domain.name),
+    })),
+  );
+
   const registrationByUserId = new Map(
     registrationDetails.map((registration) => [registration.id, registration]),
   );
@@ -93,6 +116,7 @@ export async function syncMicrosoft365Integration(integrationId: string) {
   const roleAssignmentIds = new Set(
     persistedRoleAssignments.map((assignment) => assignment.id),
   );
+  const domainNames = new Set(verifiedDomains.map((domain) => domain.name));
 
   await forEachWithConcurrency(users, WRITE_CONCURRENCY, async (user) => {
     const registration = registrationByUserId.get(user.id);
@@ -205,6 +229,50 @@ export async function syncMicrosoft365Integration(integrationId: string) {
     },
   );
 
+
+  await forEachWithConcurrency(
+    domainObservations,
+    WRITE_CONCURRENCY,
+    async ({ domain, observation }) => {
+      await db.domain.upsert({
+        where: {
+          organizationId_name: {
+            organizationId: integration.organizationId,
+            name: domain.name,
+          },
+        },
+        create: {
+          organizationId: integration.organizationId,
+          integrationId: integration.id,
+          name: domain.name,
+          isDefault: domain.isDefault,
+          isInitial: domain.isInitial,
+          spfStatus: observation.spf.status,
+          spfRecords: observation.spf.records,
+          dmarcStatus: observation.dmarc.status,
+          dmarcPolicy: observation.dmarc.policy,
+          dmarcRecords: observation.dmarc.records,
+          dkimStatus: observation.dkim.status,
+          dkimSelectors: observation.dkim.selectors,
+          dnsObservedAt: observedAt,
+        },
+        update: {
+          integrationId: integration.id,
+          isDefault: domain.isDefault,
+          isInitial: domain.isInitial,
+          spfStatus: observation.spf.status,
+          spfRecords: observation.spf.records,
+          dmarcStatus: observation.dmarc.status,
+          dmarcPolicy: observation.dmarc.policy,
+          dmarcRecords: observation.dmarc.records,
+          dkimStatus: observation.dkim.status,
+          dkimSelectors: observation.dkim.selectors,
+          dnsObservedAt: observedAt,
+        },
+      });
+    },
+  );
+
   await db.$transaction(async (tx) => {
     if (roleAssignmentIds.size === 0) {
       await tx.directoryRoleAssignment.deleteMany({
@@ -257,6 +325,24 @@ export async function syncMicrosoft365Integration(integrationId: string) {
       });
     }
 
+
+    if (domainNames.size === 0) {
+      await tx.domain.deleteMany({
+        where: {
+          integrationId: integration.id,
+        },
+      });
+    } else {
+      await tx.domain.deleteMany({
+        where: {
+          integrationId: integration.id,
+          name: {
+            notIn: [...domainNames],
+          },
+        },
+      });
+    }
+
     await tx.integration.update({
       where: { id: integration.id },
       data: {
@@ -277,6 +363,7 @@ export async function syncMicrosoft365Integration(integrationId: string) {
     roleDefinitions: roleDefinitions.length,
     roleAssignments: persistedRoleAssignments.length,
     authenticationRegistrations: registrationDetails.length,
+    domains: domainObservations.length,
     observedAt,
   };
 }
@@ -316,6 +403,16 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
           roleDefinitionExternalId: true,
         },
       },
+      domains: {
+        select: {
+          name: true,
+          isInitial: true,
+          spfStatus: true,
+          dmarcStatus: true,
+          dmarcPolicy: true,
+          dkimStatus: true,
+        },
+      },
     },
   });
 
@@ -323,7 +420,7 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
     throw new Error("Integration not found.");
   }
 
-  const findings = evaluateM365IdentityFindings({
+  const identityFindings = evaluateM365IdentityFindings({
     identities: integration.identities.map((identity) => ({
       ...identity,
       methodsRegistered: Array.isArray(identity.methodsRegistered)
@@ -335,6 +432,9 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
     roleDefinitions: integration.roleDefinitions,
     roleAssignments: integration.roleAssignments,
   });
+
+  const domainFindings = evaluateDomainSecurityFindings(integration.domains);
+  const findings = [...identityFindings, ...domainFindings];
 
   const now = new Date();
   const observedFindingKeys = findings.map((finding) => finding.key);
@@ -376,7 +476,7 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
       organizationId: integration.organizationId,
       integrationId: integration.id,
       ruleId: {
-        in: [...M365_RULE_IDS],
+        in: [...M365_RULE_IDS, ...DOMAIN_RULE_IDS],
       },
       status: "OPEN",
       ...(observedFindingKeys.length > 0
