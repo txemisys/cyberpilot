@@ -1,0 +1,23 @@
+{
+  "name": "@cyberpilot/database",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    ".": "./src/client.ts"
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "build": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "prisma": "^6.0.0",
+    "typescript": "^5.7.2"
+  }
+}
