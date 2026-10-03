@@ -9,10 +9,6 @@ const labAuthEnabled =
   process.env.NODE_ENV !== "production" &&
   process.env.LAB_AUTH_ENABLED === "true";
 
-const labAuthEnabled =
-  process.env.NODE_ENV !== "production" &&
-  process.env.LAB_AUTH_ENABLED === "true";
-
 const microsoftProvider =
   microsoftClientId && microsoftClientSecret
     ? {
