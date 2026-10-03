@@ -1,4 +1,5 @@
 import { db } from "@cyberpilot/database";
+import { isMicrosoftRemediationExecutorConfigured } from "@cyberpilot/integrations/microsoft-365";
 import { calculateCyberScore } from "@cyberpilot/risk-engine";
 import Link from "next/link";
 
@@ -16,8 +17,14 @@ export default async function OrganizationPage({
   const { slug } = await params;
   const { membership } = await requireOrganizationAccess(slug);
 
-  const [integration, findings, administratorIdentities, domains, scoreHistory] =
-    await Promise.all([
+  const [
+    integration,
+    findings,
+    administratorIdentities,
+    domains,
+    scoreHistory,
+    remediations,
+  ] = await Promise.all([
     db.integration.findUnique({
       where: {
         organizationId_provider: {
@@ -118,6 +125,41 @@ export default async function OrganizationPage({
         calculatedAt: true,
       },
     }),
+    db.remediation.findMany({
+      where: {
+        organizationId: membership.organization.id,
+        status: {
+          in: ["PROPOSED", "APPROVED", "EXECUTING", "FAILED", "VERIFIED"],
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 12,
+      select: {
+        id: true,
+        playbookId: true,
+        mode: true,
+        status: true,
+        title: true,
+        summary: true,
+        steps: true,
+        verification: true,
+        actionType: true,
+        failureCode: true,
+        approvedAt: true,
+        completedAt: true,
+        createdAt: true,
+        finding: {
+          select: {
+            id: true,
+            title: true,
+            severity: true,
+            status: true,
+          },
+        },
+      },
+    }),
   ]);
 
   const administratorsWithMfaEvidence = administratorIdentities.filter(
@@ -163,6 +205,8 @@ export default async function OrganizationPage({
 
   const canManageIntegrations =
     membership.role === "OWNER" || membership.role === "ADMIN";
+  const remediationExecutorConfigured =
+    isMicrosoftRemediationExecutorConfigured();
 
   return (
     <main className="shell">
@@ -285,6 +329,141 @@ export default async function OrganizationPage({
 
 
 
+
+
+        <section className="remediation-section">
+          <div className="section-heading">
+            <p className="eyebrow">Fix</p>
+            <h2>Remediation playbooks</h2>
+          </div>
+
+          {remediations.length === 0 ? (
+            <div className="empty-state">
+              <p>
+                CyberPilot will propose a remediation playbook when a supported
+                finding is detected.
+              </p>
+            </div>
+          ) : (
+            <div className="remediation-list">
+              {remediations.map((remediation) => {
+                const steps = Array.isArray(remediation.steps)
+                  ? remediation.steps.filter(
+                      (step): step is string => typeof step === "string",
+                    )
+                  : [];
+                const verification = Array.isArray(remediation.verification)
+                  ? remediation.verification.filter(
+                      (step): step is string => typeof step === "string",
+                    )
+                  : [];
+
+                return (
+                  <article className="remediation-card" key={remediation.id}>
+                    <div className="remediation-heading">
+                      <div>
+                        <p className="priority-score">
+                          {remediation.mode} · {remediation.status}
+                        </p>
+                        <h3>{remediation.title}</h3>
+                      </div>
+                      <span className="role-badge">
+                        {remediation.finding.severity}
+                      </span>
+                    </div>
+
+                    <p>{remediation.summary}</p>
+                    <p className="remediation-source">
+                      Finding: {remediation.finding.title}
+                    </p>
+
+                    <div className="remediation-columns">
+                      <div>
+                        <h4>Steps</h4>
+                        <ol>
+                          {steps.map((step, index) => (
+                            <li key={`${remediation.id}-step-${index}`}>
+                              {step}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                      <div>
+                        <h4>Verification</h4>
+                        <ol>
+                          {verification.map((step, index) => (
+                            <li key={`${remediation.id}-verify-${index}`}>
+                              {step}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    </div>
+
+                    {remediation.failureCode ? (
+                      <p className="auth-error">
+                        Last execution failed: {remediation.failureCode}
+                      </p>
+                    ) : null}
+
+                    {canManageIntegrations &&
+                    remediation.status === "PROPOSED" &&
+                    remediation.finding.status === "OPEN" ? (
+                      <form
+                        action={`/api/organizations/${membership.organization.slug}/remediations/${remediation.id}/approve`}
+                        method="post"
+                        className="remediation-actions"
+                      >
+                        <button className="primary-button" type="submit">
+                          Approve playbook
+                        </button>
+                      </form>
+                    ) : null}
+
+                    {canManageIntegrations &&
+                    remediation.mode === "AUTOMATED" &&
+                    remediation.status === "APPROVED" &&
+                    remediation.finding.status === "OPEN" ? (
+                      remediationExecutorConfigured ? (
+                        <form
+                          action={`/api/organizations/${membership.organization.slug}/remediations/${remediation.id}/execute`}
+                          method="post"
+                          className="remediation-actions"
+                        >
+                          <button className="primary-button" type="submit">
+                            Execute approved remediation
+                          </button>
+                        </form>
+                      ) : (
+                        <p className="permission-warning">
+                          Automated execution is approved but the isolated
+                          Microsoft remediation executor is not configured.
+                        </p>
+                      )
+                    ) : null}
+
+                    {remediation.mode === "GUIDED" &&
+                    remediation.status === "APPROVED" ? (
+                      <p className="remediation-status">
+                        Approved for guided execution. Complete the steps above,
+                        then synchronize CyberPilot to verify the control.
+                      </p>
+                    ) : null}
+
+                    {remediation.status === "VERIFIED" ? (
+                      <p className="remediation-status">
+                        Verified successfully
+                        {remediation.completedAt
+                          ? ` at ${remediation.completedAt.toISOString()}`
+                          : ""}.
+                      </p>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
         <section className="history-section">
           <div className="section-heading">
