@@ -510,3 +510,66 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+.history-section {
+  margin-top: 40px;
+}
+
+.history-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.history-summary > div {
+  padding: 18px;
+  border: 1px solid #283143;
+  border-radius: 14px;
+  background: #0d121c;
+}
+
+.history-coverage {
+  margin: 7px 0 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 18px;
+  border: 1px solid #283143;
+  border-radius: 14px;
+  background: #0a0f17;
+}
+
+.history-row > div {
+  display: grid;
+  gap: 4px;
+}
+
+.history-row strong {
+  font-size: 20px;
+}
+
+.history-row span,
+.history-row time {
+  color: #8f9bb0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .history-summary,
+  .history-row {
+    grid-template-columns: 1fr;
+  }
+}
