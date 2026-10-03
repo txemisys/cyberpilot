@@ -5,6 +5,10 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 const microsoftClientId = process.env.MICROSOFT_CLIENT_ID;
 const microsoftClientSecret = process.env.MICROSOFT_CLIENT_SECRET;
 
+const labAuthEnabled =
+  process.env.NODE_ENV !== "production" &&
+  process.env.LAB_AUTH_ENABLED === "true";
+
 const microsoftProvider =
   microsoftClientId && microsoftClientSecret
     ? {
@@ -23,5 +27,12 @@ export const auth = betterAuth({
   database: prismaAdapter(db, {
     provider: "postgresql",
   }),
+  ...(labAuthEnabled
+    ? {
+        emailAndPassword: {
+          enabled: true,
+        },
+      }
+    : {}),
   ...microsoftProvider,
 });
