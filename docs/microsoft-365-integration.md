@@ -158,3 +158,14 @@ CyberPilot does not currently label `isPasswordlessCapable` as "phishing-resista
 Adding `AuditLog.Read.All` to the scanner application's configured Microsoft Graph application permissions requires administrator consent.
 
 Existing customer tenants must grant the expanded consent before MFA evidence can be synchronized.
+
+
+## Separate remediation application
+
+CyberPilot does not grant write permissions to the read-only Microsoft 365 scanner.
+
+Automated Microsoft 365 remediation uses a separate Entra application and separate client credentials.
+
+The first remediation action removes one exact Microsoft Entra directory-role assignment after explicit CyberPilot approval. Microsoft Graph requires `RoleManagement.ReadWrite.Directory` for this operation.
+
+Because that permission can manage directory RBAC, CyberPilot treats it as a distinct high-impact trust boundary rather than adding it to the scanning application.
