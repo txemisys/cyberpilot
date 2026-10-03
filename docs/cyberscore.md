@@ -29,7 +29,7 @@ Each supported open finding receives base risk points from its severity:
 | HIGH | 15 |
 | CRITICAL | 25 |
 
-A rule then applies a documented privilege-context multiplier.
+A rule then applies a documented context multiplier.
 
 Conceptually:
 
@@ -115,3 +115,19 @@ It does not yet incorporate:
 - customer-specific context.
 
 The model should remain visibly versioned until coverage and calibration are mature.
+
+
+## Domain-security controls
+
+CyberScore v0 also supports evidence-backed domain and email-authentication rules.
+
+The first domain controls cover:
+
+- missing or invalid DMARC;
+- monitoring-only DMARC (`p=none`);
+- missing or multiple SPF policy records;
+- missing or incomplete Microsoft 365 DKIM selector DNS records.
+
+The domain rules use lower context multipliers where the DNS signal alone cannot prove the full mail flow. In particular, absence of Microsoft 365 DKIM selector CNAMEs does not prove that a domain never signs mail if another provider is responsible for outbound mail.
+
+DNS lookup errors are treated as unknown/error coverage. They are not converted into security findings that claim a record is missing.
