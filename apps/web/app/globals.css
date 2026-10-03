@@ -222,3 +222,54 @@ h1 {
 .back-link a {
   color: #c9d1df;
 }
+
+.sync-form {
+  margin-top: 20px;
+}
+
+.findings-section {
+  margin-top: 40px;
+}
+
+.section-heading {
+  margin-bottom: 18px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  letter-spacing: -0.03em;
+}
+
+.finding-list {
+  display: grid;
+  gap: 12px;
+}
+
+.finding-card {
+  padding: 22px;
+  border: 1px solid #283143;
+  border-radius: 18px;
+  background: #0d121c;
+}
+
+.finding-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.finding-header h3 {
+  margin: 0;
+}
+
+.finding-card > p {
+  margin: 12px 0 0;
+  color: #aeb8ca;
+  line-height: 1.5;
+}
+
+.finding-meta {
+  font-size: 13px;
+}

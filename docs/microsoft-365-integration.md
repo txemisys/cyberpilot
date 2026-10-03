@@ -1,0 +1,119 @@
+# Microsoft 365 security integration
+
+CyberPilot uses two separate Microsoft Entra application concerns.
+
+## 1. CyberPilot sign-in
+
+The application sign-in integration authenticates users who access CyberPilot.
+
+It must not be used as the background security scanner.
+
+Environment variables:
+
+```text
+MICROSOFT_CLIENT_ID
+MICROSOFT_CLIENT_SECRET
+```
+
+## 2. Microsoft 365 security scanner
+
+The scanner is a separate multi-tenant Entra application intended for app-only Microsoft Graph access after a customer administrator grants tenant-wide consent.
+
+Environment variables:
+
+```text
+M365_GRAPH_CLIENT_ID
+M365_GRAPH_CLIENT_SECRET
+M365_GRAPH_REDIRECT_URI
+```
+
+The scanner obtains access tokens with the OAuth 2.0 client credentials flow using:
+
+```text
+scope=https://graph.microsoft.com/.default
+```
+
+No user refresh token is required for this background scanning model.
+
+## Initial application permissions
+
+The first inventory slice should request only:
+
+- `Organization.Read.All`
+- `User.Read.All`
+- `RoleManagement.Read.Directory`
+
+These permissions support the initial organization, user, role-definition, and role-assignment inventory.
+
+Broader permissions such as `Directory.Read.All` should not be requested merely for convenience when narrower permissions are sufficient.
+
+## Initial data collected
+
+CyberPilot initially normalizes:
+
+- Microsoft tenant ID;
+- tenant display name;
+- verified domains;
+- directory users;
+- account enabled state;
+- user type;
+- directory role definitions;
+- directory role assignments.
+
+The first implementation intentionally excludes mailbox contents, files, Teams content, and other customer data that is not required for the security outcome.
+
+## Consent flow
+
+The customer administrator will be redirected to Microsoft's admin-consent endpoint.
+
+The callback must:
+
+1. validate a cryptographically protected state value;
+2. require an authenticated CyberPilot user;
+3. require sufficient CyberPilot organization privileges;
+4. validate the returned tenant ID;
+5. obtain an app-only Graph token;
+6. call Microsoft Graph to verify the tenant;
+7. persist the tenant connection;
+8. create an audit event.
+
+A tenant ID received from the callback must never be trusted without verification.
+
+## Security constraints
+
+- Never log access tokens or client secrets.
+- Never expose scanner credentials to browser JavaScript.
+- Keep the Graph base URL fixed.
+- Validate tenant IDs before constructing Microsoft identity URLs.
+- Use explicit Graph fields with `$select`.
+- Persist normalized evidence rather than unnecessary raw directory payloads.
+- Treat integration errors as tenant-scoped data.
+
+## First evidence-backed findings
+
+The first scanner rules intentionally use only evidence available through the initial least-privilege permission set.
+
+### M365_GLOBAL_ADMIN_COUNT_HIGH
+
+CyberPilot opens a high-severity finding when five or more active user identities hold the Global Administrator role.
+
+The rule follows Microsoft's current Microsoft Entra role guidance to keep the number of Global Administrators below five.
+
+### M365_GUEST_GLOBAL_ADMIN
+
+CyberPilot opens a critical finding for each active guest identity that holds the Global Administrator role.
+
+Microsoft guidance for increased tenant security states that guests should not be assigned highly privileged directory roles.
+
+### Finding lifecycle
+
+Findings use stable organization-scoped keys.
+
+On each successful synchronization:
+
+- currently observed risks are opened or refreshed;
+- evidence and `lastSeenAt` are updated;
+- findings from these rules that are no longer observed are marked `RESOLVED`;
+- failed scans do not automatically resolve findings.
+
+This prevents a temporary Microsoft Graph failure from being interpreted as remediation.
