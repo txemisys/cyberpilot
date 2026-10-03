@@ -41,6 +41,8 @@ export default async function OrganizationPage({
         lastErrorAt: true,
         mfaEvidenceStatus: true,
         mfaEvidenceCheckedAt: true,
+        remediationStatus: true,
+        remediationCheckedAt: true,
       },
     }),
     db.securityFinding.findMany({
@@ -207,6 +209,9 @@ export default async function OrganizationPage({
     membership.role === "OWNER" || membership.role === "ADMIN";
   const remediationExecutorConfigured =
     isMicrosoftRemediationExecutorConfigured();
+  const remediationExecutorAvailable =
+    remediationExecutorConfigured &&
+    integration?.remediationStatus === "AVAILABLE";
 
   return (
     <main className="shell">
@@ -289,6 +294,36 @@ export default async function OrganizationPage({
                   ) : null}
                 </div>
               ) : null}
+
+              <div className="remediation-capability">
+                <strong>Automated remediation</strong>
+                <p>
+                  Status: {integration.remediationStatus}
+                  {integration.remediationCheckedAt
+                    ? ` · checked ${integration.remediationCheckedAt.toISOString()}`
+                    : ""}
+                </p>
+
+                {!remediationExecutorConfigured ? (
+                  <p>
+                    The isolated remediation application is not configured on
+                    the CyberPilot server.
+                  </p>
+                ) : integration.remediationStatus !== "AVAILABLE" &&
+                  canManageIntegrations ? (
+                  <p className="action-link">
+                    <Link
+                      href={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/remediation/connect`}
+                    >
+                      Grant remediation permission
+                    </Link>
+                  </p>
+                ) : integration.remediationStatus === "AVAILABLE" ? (
+                  <p>
+                    Tenant-scoped remediation permission has been verified.
+                  </p>
+                ) : null}
+              </div>
 
               {canManageIntegrations ? (
                 <form
@@ -424,7 +459,7 @@ export default async function OrganizationPage({
                     remediation.mode === "AUTOMATED" &&
                     remediation.status === "APPROVED" &&
                     remediation.finding.status === "OPEN" ? (
-                      remediationExecutorConfigured ? (
+                      remediationExecutorAvailable ? (
                         <form
                           action={`/api/organizations/${membership.organization.slug}/remediations/${remediation.id}/execute`}
                           method="post"
@@ -436,8 +471,9 @@ export default async function OrganizationPage({
                         </form>
                       ) : (
                         <p className="permission-warning">
-                          Automated execution is approved but the isolated
-                          Microsoft remediation executor is not configured.
+                          Automated execution is approved, but the isolated
+                          Microsoft remediation permission has not been verified
+                          for this tenant.
                         </p>
                       )
                     ) : null}
