@@ -1,0 +1,17 @@
+{
+  "name": "@cyberpilot/integrations",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./microsoft-365": "./src/microsoft-365/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

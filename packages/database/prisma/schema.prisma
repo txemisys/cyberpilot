@@ -20,6 +20,36 @@ enum AuditActorType {
   INTEGRATION
 }
 
+enum IntegrationProvider {
+  MICROSOFT_365
+}
+
+enum IntegrationStatus {
+  PENDING
+  CONNECTED
+  ERROR
+  DISCONNECTED
+}
+
+enum DirectoryIdentityType {
+  MEMBER
+  GUEST
+  UNKNOWN
+}
+
+enum FindingSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FindingStatus {
+  OPEN
+  RESOLVED
+}
+
 model User {
   id            String       @id @default(cuid())
   name          String
@@ -31,8 +61,9 @@ model User {
 
   sessions    Session[]
   accounts    Account[]
-  memberships Membership[]
-  auditEvents AuditEvent[] @relation("AuditUser")
+  memberships              Membership[]
+  auditEvents              AuditEvent[]             @relation("AuditUser")
+  integrationConsentStates IntegrationConsentState[]
 }
 
 model Session {
@@ -83,13 +114,16 @@ model Verification {
 }
 
 model Organization {
-  id          String       @id @default(cuid())
-  name        String
-  slug        String       @unique
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  memberships Membership[]
-  auditEvents AuditEvent[]
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  memberships              Membership[]
+  auditEvents              AuditEvent[]
+  integrations             Integration[]
+  integrationConsentStates IntegrationConsentState[]
+  findings                 SecurityFinding[]
 }
 
 model Membership {
@@ -105,6 +139,131 @@ model Membership {
 
   @@unique([organizationId, userId])
   @@index([userId])
+}
+
+model Integration {
+  id               String              @id @default(cuid())
+  organizationId   String
+  provider         IntegrationProvider
+  status           IntegrationStatus   @default(PENDING)
+  externalTenantId String?
+  displayName      String?
+  connectedAt      DateTime?
+  lastSyncAt       DateTime?
+  lastErrorAt      DateTime?
+  lastErrorCode    String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  identities      DirectoryIdentity[]
+  roleDefinitions DirectoryRoleDefinition[]
+  roleAssignments DirectoryRoleAssignment[]
+  findings        SecurityFinding[]
+
+  @@unique([organizationId, provider])
+  @@unique([provider, externalTenantId])
+  @@index([organizationId])
+}
+
+model DirectoryIdentity {
+  id                String                @id @default(cuid())
+  integrationId     String
+  externalId        String
+  displayName       String?
+  userPrincipalName String?
+  accountEnabled    Boolean?
+  identityType      DirectoryIdentityType @default(UNKNOWN)
+  createdAtProvider DateTime?
+  observedAt        DateTime              @default(now())
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, externalId])
+  @@index([integrationId, accountEnabled])
+}
+
+model DirectoryRoleDefinition {
+  id            String   @id @default(cuid())
+  integrationId String
+  externalId    String
+  templateId    String?
+  displayName   String
+  isBuiltIn     Boolean?
+  observedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  integration Integration               @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  assignments DirectoryRoleAssignment[]
+
+  @@unique([integrationId, externalId])
+  @@index([integrationId])
+}
+
+model DirectoryRoleAssignment {
+  id                       String   @id @default(cuid())
+  integrationId            String
+  externalId               String
+  principalExternalId      String
+  roleDefinitionExternalId String
+  directoryScopeId         String?
+  observedAt               DateTime @default(now())
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  integration    Integration             @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  roleDefinition DirectoryRoleDefinition @relation(fields: [integrationId, roleDefinitionExternalId], references: [integrationId, externalId], onDelete: Cascade)
+
+  @@unique([integrationId, externalId])
+  @@index([integrationId, principalExternalId])
+  @@index([integrationId, roleDefinitionExternalId])
+}
+
+
+
+model SecurityFinding {
+  id             String          @id @default(cuid())
+  organizationId String
+  integrationId  String?
+  key            String
+  ruleId         String
+  title          String
+  description    String
+  severity       FindingSeverity
+  status         FindingStatus   @default(OPEN)
+  evidence       Json?
+  firstSeenAt    DateTime        @default(now())
+  lastSeenAt     DateTime        @default(now())
+  resolvedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration  Integration? @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+  @@index([organizationId, status, severity])
+  @@index([integrationId])
+}
+
+model IntegrationConsentState {
+  id             String              @id @default(cuid())
+  organizationId String
+  userId         String
+  provider       IntegrationProvider
+  nonceHash      String              @unique
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime            @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, provider, expiresAt])
+  @@index([userId, expiresAt])
 }
 
 model AuditEvent {
