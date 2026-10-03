@@ -54,6 +54,7 @@ export type M365RoleDefinitionEvidence = {
 };
 
 export type M365RoleAssignmentEvidence = {
+  externalId?: string;
   principalExternalId: string;
   roleDefinitionExternalId: string;
 };
@@ -425,6 +426,13 @@ export function evaluateM365IdentityFindings(input: {
       GLOBAL_ADMIN_TEMPLATE_ID,
   );
 
+  const globalAdminAssignmentByPrincipal = new Map(
+    globalAdminAssignments.map((assignment) => [
+      assignment.principalExternalId,
+      assignment,
+    ]),
+  );
+
   const activeGlobalAdmins = new Map(
     globalAdminAssignments
       .map((assignment) => identities.get(assignment.principalExternalId))
@@ -497,6 +505,9 @@ export function evaluateM365IdentityFindings(input: {
         userId: identity.externalId,
         displayName: identity.displayName ?? null,
         userPrincipalName: identity.userPrincipalName ?? null,
+        roleAssignmentId:
+          globalAdminAssignmentByPrincipal.get(identity.externalId)?.externalId ??
+          null,
       },
     });
   }
