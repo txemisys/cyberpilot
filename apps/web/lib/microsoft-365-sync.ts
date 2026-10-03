@@ -43,14 +43,19 @@ export async function syncMicrosoft365Integration(integrationId: string) {
       organizationId: true,
       externalTenantId: true,
       status: true,
+      mode: true,
     },
   });
 
-  if (
-    !integration ||
-    integration.status !== "CONNECTED" ||
-    !integration.externalTenantId
-  ) {
+  if (!integration || integration.status !== "CONNECTED") {
+    throw new Error("Microsoft 365 integration is not connected.");
+  }
+
+  if (integration.mode === "LAB") {
+    return syncMicrosoft365LabIntegration(integration.id, integration.organizationId);
+  }
+
+  if (!integration.externalTenantId) {
     throw new Error("Microsoft 365 integration is not connected.");
   }
 
@@ -373,7 +378,7 @@ export async function syncMicrosoft365Integration(integrationId: string) {
   };
 }
 
-async function evaluateMicrosoft365Findings(integrationId: string) {
+export async function evaluateMicrosoft365Findings(integrationId: string) {
   const integration = await db.integration.findUnique({
     where: { id: integrationId },
     select: {
@@ -508,7 +513,7 @@ async function evaluateMicrosoft365Findings(integrationId: string) {
 }
 
 
-async function snapshotSecurityScore(organizationId: string) {
+export async function snapshotSecurityScore(organizationId: string) {
   const [findings, integration, domains] = await Promise.all([
     db.securityFinding.findMany({
       where: {
@@ -654,4 +659,75 @@ async function ensureRemediationProposal(input: {
       ...(actionPayload ? { actionPayload } : {}),
     },
   });
+}
+
+
+async function syncMicrosoft365LabIntegration(
+  integrationId: string,
+  organizationId: string,
+) {
+  const observedAt = new Date();
+
+  await db.integration.update({
+    where: {
+      id: integrationId,
+    },
+    data: {
+      lastSyncAt: observedAt,
+      lastErrorAt: null,
+      lastErrorCode: null,
+      mfaEvidenceStatus: "AVAILABLE",
+      mfaEvidenceCheckedAt: observedAt,
+      remediationStatus: "AVAILABLE",
+      remediationCheckedAt: observedAt,
+    },
+  });
+
+  await db.directoryIdentity.updateMany({
+    where: {
+      integrationId,
+    },
+    data: {
+      observedAt,
+    },
+  });
+
+  await db.directoryRoleDefinition.updateMany({
+    where: {
+      integrationId,
+    },
+    data: {
+      observedAt,
+    },
+  });
+
+  await db.directoryRoleAssignment.updateMany({
+    where: {
+      integrationId,
+    },
+    data: {
+      observedAt,
+    },
+  });
+
+  await evaluateMicrosoft365Findings(integrationId);
+  const scoreSnapshot = await snapshotSecurityScore(organizationId);
+
+  const [users, roleDefinitions, roleAssignments, domains] = await Promise.all([
+    db.directoryIdentity.count({ where: { integrationId } }),
+    db.directoryRoleDefinition.count({ where: { integrationId } }),
+    db.directoryRoleAssignment.count({ where: { integrationId } }),
+    db.domain.count({ where: { integrationId } }),
+  ]);
+
+  return {
+    users,
+    roleDefinitions,
+    roleAssignments,
+    authenticationRegistrations: users,
+    domains,
+    cyberScore: scoreSnapshot.score,
+    scoreCoverage: scoreSnapshot.coverage,
+    observedAt,
+  };
 }
