@@ -116,3 +116,49 @@ CyberPilot currently defines playbooks for:
 - publishing or completing Microsoft 365 DKIM selector DNS.
 
 Only the guest Global Administrator role-assignment removal is currently marked as automation-capable. The others remain guided until CyberPilot has a safe provider-specific write path and verification strategy.
+
+
+## Tenant remediation activation
+
+Write-capable remediation must be activated independently for each connected Microsoft 365 tenant.
+
+The activation flow is:
+
+```text
+Connected read-only tenant
+  ↓
+CyberPilot OWNER/ADMIN starts remediation consent
+  ↓
+Microsoft admin consent for the remediation app
+  ↓
+Callback verifies the returned tenant matches the connected tenant
+  ↓
+CyberPilot acquires an app-only token
+  ↓
+Non-destructive RBAC read probe
+  ↓
+remediationStatus = AVAILABLE
+```
+
+The consent request uses the already connected tenant ID rather than a generic tenant selector.
+
+The remediation application requests its configured Microsoft Graph application permissions through:
+
+```text
+scope=https://graph.microsoft.com/.default
+```
+
+The current executor requires `RoleManagement.ReadWrite.Directory`. Microsoft documents this as an application permission requiring admin consent and cautions that it can manage directory RBAC and grant privileges.
+
+### Capability states
+
+CyberPilot persists one of:
+
+- `UNKNOWN`: remediation has not been verified or a new consent attempt has started;
+- `AVAILABLE`: an app-only token was acquired and a non-destructive directory-role-assignment read succeeded;
+- `PERMISSION_REQUIRED`: consent was denied, the RBAC probe returned HTTP 403, or a later execution shows the permission was revoked;
+- `ERROR`: the capability could not be verified for another reason.
+
+Automated execution requires both server-side executor credentials and tenant state `AVAILABLE`.
+
+A configured client secret alone never enables a tenant.
