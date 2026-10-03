@@ -372,6 +372,7 @@ model Remediation {
   finding        SecurityFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
   approvedByUser User?           @relation("RemediationApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
+  @@unique([findingId, playbookId])
   @@index([organizationId, status, createdAt])
   @@index([findingId])
 }
