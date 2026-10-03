@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   calculateCyberScore,
+  evaluateDomainSecurityFindings,
   evaluateM365IdentityFindings,
   prioritizeFindings,
 } from "./index";
@@ -293,5 +294,75 @@ describe("calculateCyberScore", () => {
     expect(result.score).toBe(100);
     expect(result.supportedFindingCount).toBe(0);
     expect(result.unsupportedFindingCount).toBe(1);
+  });
+});
+
+
+describe("evaluateDomainSecurityFindings", () => {
+  it("skips the Microsoft initial domain", () => {
+    const findings = evaluateDomainSecurityFindings([
+      {
+        name: "tenant.onmicrosoft.com",
+        isInitial: true,
+        spfStatus: "MISSING",
+        dmarcStatus: "MISSING",
+        dkimStatus: "MISSING",
+      },
+    ]);
+
+    expect(findings).toEqual([]);
+  });
+
+  it("flags missing DMARC and SPF on a custom domain", () => {
+    const findings = evaluateDomainSecurityFindings([
+      {
+        name: "example.com",
+        isInitial: false,
+        spfStatus: "MISSING",
+        dmarcStatus: "MISSING",
+        dkimStatus: "PUBLISHED",
+      },
+    ]);
+
+    expect(findings.map((finding) => finding.rule.id)).toEqual(
+      expect.arrayContaining(["DOMAIN_DMARC_MISSING", "DOMAIN_SPF_MISSING"]),
+    );
+  });
+
+  it("flags DMARC monitoring without calling it invalid", () => {
+    const findings = evaluateDomainSecurityFindings([
+      {
+        name: "example.com",
+        isInitial: false,
+        spfStatus: "PRESENT",
+        dmarcStatus: "MONITORING",
+        dmarcPolicy: "none",
+        dkimStatus: "PUBLISHED",
+      },
+    ]);
+
+    expect(findings.map((finding) => finding.rule.id)).toContain(
+      "DOMAIN_DMARC_MONITORING_ONLY",
+    );
+    expect(findings.map((finding) => finding.rule.id)).not.toContain(
+      "DOMAIN_DMARC_INVALID",
+    );
+  });
+
+  it("adds low-severity DKIM evidence findings without claiming signing state", () => {
+    const findings = evaluateDomainSecurityFindings([
+      {
+        name: "example.com",
+        isInitial: false,
+        spfStatus: "PRESENT",
+        dmarcStatus: "ENFORCING",
+        dmarcPolicy: "reject",
+        dkimStatus: "MISSING",
+      },
+    ]);
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.rule.id).toBe("DOMAIN_M365_DKIM_SELECTORS_MISSING");
+    expect(findings[0]?.rule.severity).toBe("LOW");
   });
 });
