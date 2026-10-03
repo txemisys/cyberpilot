@@ -340,3 +340,91 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+.score-caption {
+  margin: 6px 0 0;
+  color: #7f8ba0;
+  font-size: 12px;
+}
+
+.priority-section {
+  margin-top: 40px;
+}
+
+.priority-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: priority;
+}
+
+.priority-card {
+  counter-increment: priority;
+  padding: 22px;
+  border: 1px solid #283143;
+  border-radius: 18px;
+  background: #0d121c;
+}
+
+.priority-card::before {
+  content: counter(priority);
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 14px;
+  border: 1px solid #344055;
+  border-radius: 999px;
+  color: #c9d1df;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.priority-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.priority-header h3 {
+  margin: 4px 0 0;
+}
+
+.priority-score {
+  margin: 0;
+  color: #7f8ba0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.priority-card > p {
+  margin: 14px 0 0;
+  color: #aeb8ca;
+  line-height: 1.5;
+}
+
+.priority-rationale {
+  font-size: 13px;
+}
+
+.score-details {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #283143;
+  border-radius: 14px;
+  background: #0a0f17;
+}
+
+.score-details summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.score-details > p {
+  color: #aeb8ca;
+  line-height: 1.5;
+}

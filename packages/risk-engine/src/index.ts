@@ -16,6 +16,9 @@ export type RiskRuleDefinition = {
   severity: RiskSeverity;
   title: string;
   description: string;
+  remediation: string;
+  privilegeMultiplier: number;
+  perRuleCap: number;
 };
 
 export type M365IdentityEvidence = {
@@ -60,6 +63,10 @@ export const M365_RULES = {
     title: "Too many Global Administrators",
     description:
       "Microsoft recommends assigning the Global Administrator role to fewer than five people.",
+    remediation:
+      "Reduce permanent Global Administrator assignments and keep only the minimum number required for emergency and operational access.",
+    privilegeMultiplier: 1.3,
+    perRuleCap: 30,
   },
   guestGlobalAdmin: {
     id: "M365_GUEST_GLOBAL_ADMIN",
@@ -67,6 +74,10 @@ export const M365_RULES = {
     title: "Guest user is a Global Administrator",
     description:
       "A guest identity has the Global Administrator role. Microsoft guidance recommends that guests are not assigned highly privileged directory roles.",
+    remediation:
+      "Remove the Global Administrator assignment from the guest identity and replace it with the least-privileged role required for its legitimate task.",
+    privilegeMultiplier: 1.6,
+    perRuleCap: 40,
   },
   globalAdminMfaNotCapable: {
     id: "M365_GLOBAL_ADMIN_MFA_NOT_CAPABLE",
@@ -74,6 +85,10 @@ export const M365_RULES = {
     title: "Global Administrator is not MFA-capable",
     description:
       "This active Global Administrator does not have an MFA method that Microsoft currently considers capable under the tenant authentication-method policy.",
+    remediation:
+      "Register and permit a strong MFA method for this Global Administrator, then re-run the CyberPilot Microsoft 365 sync to verify the control.",
+    privilegeMultiplier: 1.6,
+    perRuleCap: 40,
   },
   adminMfaNotCapable: {
     id: "M365_ADMIN_MFA_NOT_CAPABLE",
@@ -81,6 +96,10 @@ export const M365_RULES = {
     title: "Administrator is not MFA-capable",
     description:
       "This active administrator does not have an MFA method that Microsoft currently considers capable under the tenant authentication-method policy.",
+    remediation:
+      "Register and permit a strong MFA method for this administrator, then re-run the CyberPilot Microsoft 365 sync to verify the control.",
+    privilegeMultiplier: 1.35,
+    perRuleCap: 30,
   },
 } as const satisfies Record<string, RiskRuleDefinition>;
 
@@ -181,4 +200,155 @@ export function evaluateM365IdentityFindings(input: {
   }
 
   return findings;
+}
+
+
+export type PrioritizableFinding = {
+  id: string;
+  ruleId: string;
+  severity: RiskSeverity;
+  title: string;
+  description: string;
+};
+
+export type PrioritizedFinding = PrioritizableFinding & {
+  priorityScore: number;
+  riskPoints: number;
+  remediation: string;
+  rationale: string;
+};
+
+export type CyberScoreResult = {
+  score: number;
+  totalRiskPoints: number;
+  supportedFindingCount: number;
+  unsupportedFindingCount: number;
+  topActions: PrioritizedFinding[];
+  contributions: Array<{
+    ruleId: string;
+    findingCount: number;
+    uncappedRiskPoints: number;
+    appliedRiskPoints: number;
+    cap: number;
+  }>;
+};
+
+const SEVERITY_POINTS: Record<RiskSeverity, number> = {
+  INFO: 1,
+  LOW: 3,
+  MEDIUM: 7,
+  HIGH: 15,
+  CRITICAL: 25,
+};
+
+const RULES_BY_ID = new Map<string, RiskRuleDefinition>(
+  Object.values(M365_RULES).map((rule) => [rule.id, rule]),
+);
+
+function roundRiskPoints(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+export function prioritizeFindings(
+  findings: PrioritizableFinding[],
+): PrioritizedFinding[] {
+  return findings
+    .flatMap((finding) => {
+      const rule = RULES_BY_ID.get(finding.ruleId);
+
+      if (!rule) {
+        return [];
+      }
+
+      const riskPoints = roundRiskPoints(
+        SEVERITY_POINTS[finding.severity] * rule.privilegeMultiplier,
+      );
+
+      return [
+        {
+          ...finding,
+          priorityScore: riskPoints,
+          riskPoints,
+          remediation: rule.remediation,
+          rationale:
+            `${finding.severity} severity × ${rule.privilegeMultiplier.toFixed(
+              2,
+            )} privilege context = ${riskPoints.toFixed(1)} risk points.`,
+        },
+      ];
+    })
+    .sort(
+      (left, right) =>
+        right.priorityScore - left.priorityScore ||
+        left.ruleId.localeCompare(right.ruleId) ||
+        left.id.localeCompare(right.id),
+    );
+}
+
+export function calculateCyberScore(
+  findings: PrioritizableFinding[],
+): CyberScoreResult {
+  const supported = prioritizeFindings(findings);
+  const contributionsByRule = new Map<
+    string,
+    {
+      findingCount: number;
+      uncappedRiskPoints: number;
+      appliedRiskPoints: number;
+      cap: number;
+    }
+  >();
+
+  for (const finding of supported) {
+    const rule = RULES_BY_ID.get(finding.ruleId);
+
+    if (!rule) {
+      continue;
+    }
+
+    const current = contributionsByRule.get(finding.ruleId) ?? {
+      findingCount: 0,
+      uncappedRiskPoints: 0,
+      appliedRiskPoints: 0,
+      cap: rule.perRuleCap,
+    };
+
+    current.findingCount += 1;
+    current.uncappedRiskPoints = roundRiskPoints(
+      current.uncappedRiskPoints + finding.riskPoints,
+    );
+    current.appliedRiskPoints = Math.min(
+      current.uncappedRiskPoints,
+      current.cap,
+    );
+
+    contributionsByRule.set(finding.ruleId, current);
+  }
+
+  const contributions = [...contributionsByRule.entries()]
+    .map(([ruleId, contribution]) => ({
+      ruleId,
+      ...contribution,
+    }))
+    .sort(
+      (left, right) =>
+        right.appliedRiskPoints - left.appliedRiskPoints ||
+        left.ruleId.localeCompare(right.ruleId),
+    );
+
+  const totalRiskPoints = roundRiskPoints(
+    contributions.reduce(
+      (total, contribution) => total + contribution.appliedRiskPoints,
+      0,
+    ),
+  );
+
+  return {
+    score: Math.max(0, Math.round(100 - totalRiskPoints)),
+    totalRiskPoints,
+    supportedFindingCount: supported.length,
+    unsupportedFindingCount: findings.length - supported.length,
+    topActions: supported.slice(0, 3),
+    contributions,
+  };
 }

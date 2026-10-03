@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateM365IdentityFindings } from "./index";
+import {
+  calculateCyberScore,
+  evaluateM365IdentityFindings,
+  prioritizeFindings,
+} from "./index";
 
 const globalAdminRole = {
   externalId: "role-global-admin",
@@ -152,5 +156,142 @@ describe("evaluateM365IdentityFindings", () => {
     expect(findings.map((finding) => finding.rule.id)).toContain(
       "M365_GLOBAL_ADMIN_COUNT_HIGH",
     );
+  });
+});
+
+
+describe("prioritizeFindings", () => {
+  it("prioritizes critical privileged findings above high findings", () => {
+    const prioritized = prioritizeFindings([
+      {
+        id: "high",
+        ruleId: "M365_ADMIN_MFA_NOT_CAPABLE",
+        severity: "HIGH",
+        title: "Admin MFA",
+        description: "High",
+      },
+      {
+        id: "critical",
+        ruleId: "M365_GLOBAL_ADMIN_MFA_NOT_CAPABLE",
+        severity: "CRITICAL",
+        title: "Global Admin MFA",
+        description: "Critical",
+      },
+    ]);
+
+    expect(prioritized.map((finding) => finding.id)).toEqual([
+      "critical",
+      "high",
+    ]);
+    expect(prioritized[0]?.remediation.length).toBeGreaterThan(0);
+    expect(prioritized[0]?.rationale).toContain("risk points");
+  });
+
+  it("ignores unsupported findings instead of inventing scoring metadata", () => {
+    const prioritized = prioritizeFindings([
+      {
+        id: "unknown",
+        ruleId: "FUTURE_RULE",
+        severity: "HIGH",
+        title: "Future",
+        description: "Not in the current registry",
+      },
+    ]);
+
+    expect(prioritized).toEqual([]);
+  });
+});
+
+describe("calculateCyberScore", () => {
+  it("starts from 100 and deducts transparent risk contributions", () => {
+    const result = calculateCyberScore([
+      {
+        id: "global-admin-mfa",
+        ruleId: "M365_GLOBAL_ADMIN_MFA_NOT_CAPABLE",
+        severity: "CRITICAL",
+        title: "Global Admin MFA",
+        description: "Critical",
+      },
+    ]);
+
+    expect(result.score).toBe(60);
+    expect(result.totalRiskPoints).toBe(40);
+    expect(result.supportedFindingCount).toBe(1);
+    expect(result.unsupportedFindingCount).toBe(0);
+  });
+
+  it("caps repeated findings from the same rule", () => {
+    const result = calculateCyberScore(
+      Array.from({ length: 5 }, (_, index) => ({
+        id: `admin-${index}`,
+        ruleId: "M365_ADMIN_MFA_NOT_CAPABLE",
+        severity: "HIGH" as const,
+        title: "Admin MFA",
+        description: "High",
+      })),
+    );
+
+    const contribution = result.contributions.find(
+      (item) => item.ruleId === "M365_ADMIN_MFA_NOT_CAPABLE",
+    );
+
+    expect(contribution?.findingCount).toBe(5);
+    expect(contribution?.uncappedRiskPoints).toBeGreaterThan(30);
+    expect(contribution?.appliedRiskPoints).toBe(30);
+    expect(result.score).toBe(70);
+  });
+
+  it("returns at most three recommended actions", () => {
+    const result = calculateCyberScore([
+      {
+        id: "one",
+        ruleId: "M365_GLOBAL_ADMIN_MFA_NOT_CAPABLE",
+        severity: "CRITICAL",
+        title: "One",
+        description: "One",
+      },
+      {
+        id: "two",
+        ruleId: "M365_GUEST_GLOBAL_ADMIN",
+        severity: "CRITICAL",
+        title: "Two",
+        description: "Two",
+      },
+      {
+        id: "three",
+        ruleId: "M365_ADMIN_MFA_NOT_CAPABLE",
+        severity: "HIGH",
+        title: "Three",
+        description: "Three",
+      },
+      {
+        id: "four",
+        ruleId: "M365_GLOBAL_ADMIN_COUNT_HIGH",
+        severity: "HIGH",
+        title: "Four",
+        description: "Four",
+      },
+    ]);
+
+    expect(result.topActions).toHaveLength(3);
+    expect(result.topActions[0]?.priorityScore).toBeGreaterThanOrEqual(
+      result.topActions[1]?.priorityScore ?? 0,
+    );
+  });
+
+  it("reports unsupported findings separately from the score", () => {
+    const result = calculateCyberScore([
+      {
+        id: "unsupported",
+        ruleId: "FUTURE_RULE",
+        severity: "CRITICAL",
+        title: "Future",
+        description: "Unsupported",
+      },
+    ]);
+
+    expect(result.score).toBe(100);
+    expect(result.supportedFindingCount).toBe(0);
+    expect(result.unsupportedFindingCount).toBe(1);
   });
 });

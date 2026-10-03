@@ -1,4 +1,5 @@
 import { db } from "@cyberpilot/database";
+import { calculateCyberScore } from "@cyberpilot/risk-engine";
 import Link from "next/link";
 
 import { requireOrganizationAccess } from "../../../lib/organizations";
@@ -82,6 +83,22 @@ export default async function OrganizationPage({
     (identity) => identity.isMfaCapable === true,
   );
 
+  const cyberScore = calculateCyberScore(
+    findings.map((finding) => ({
+      id: finding.id,
+      ruleId: finding.ruleId,
+      severity: finding.severity,
+      title: finding.title,
+      description: finding.description,
+    })),
+  );
+
+  const hasCompletedScan = integration?.lastSyncAt !== null && integration?.lastSyncAt !== undefined;
+  const scoreCoverageIsPartial =
+    integration?.mfaEvidenceStatus === "PERMISSION_REQUIRED" ||
+    integration?.mfaEvidenceStatus === "ERROR" ||
+    cyberScore.unsupportedFindingCount > 0;
+
   const canManageIntegrations =
     membership.role === "OWNER" || membership.role === "ADMIN";
 
@@ -96,6 +113,19 @@ export default async function OrganizationPage({
         </p>
 
         <div className="panel">
+          <div>
+            <p className="panel-label">CyberScore v0</p>
+            <p className="panel-value">
+              {hasCompletedScan ? cyberScore.score : "—"}
+            </p>
+            <p className="score-caption">
+              {hasCompletedScan
+                ? scoreCoverageIsPartial
+                  ? "Partial evidence coverage"
+                  : "Current supported controls"
+                : "Run the first scan"}
+            </p>
+          </div>
           <div>
             <p className="panel-label">Open findings</p>
             <p className="panel-value">{findings.length}</p>
@@ -190,6 +220,74 @@ export default async function OrganizationPage({
             </>
           )}
         </div>
+
+
+        <section className="priority-section">
+          <div className="section-heading">
+            <p className="eyebrow">Priorities</p>
+            <h2>Top actions</h2>
+          </div>
+
+          {!hasCompletedScan ? (
+            <div className="empty-state">
+              <p>
+                Run a Microsoft 365 synchronization before CyberPilot can
+                prioritize security actions.
+              </p>
+            </div>
+          ) : cyberScore.topActions.length === 0 ? (
+            <div className="empty-state">
+              <p>
+                No supported open findings currently require prioritized
+                action.
+              </p>
+            </div>
+          ) : (
+            <ol className="priority-list">
+              {cyberScore.topActions.map((action) => (
+                <li className="priority-card" key={action.id}>
+                  <div className="priority-header">
+                    <div>
+                      <p className="priority-score">
+                        {action.priorityScore.toFixed(1)} risk points
+                      </p>
+                      <h3>{action.title}</h3>
+                    </div>
+                    <span className="role-badge">{action.severity}</span>
+                  </div>
+                  <p>{action.remediation}</p>
+                  <p className="priority-rationale">{action.rationale}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {hasCompletedScan ? (
+            <details className="score-details">
+              <summary>How this CyberScore was calculated</summary>
+              <p>
+                CyberScore v0 starts at 100 and deducts risk points only for
+                rules currently supported by CyberPilot. Repeated findings from
+                the same rule are capped to avoid one control dominating the
+                entire posture score.
+              </p>
+              <dl className="finding-evidence">
+                <div>
+                  <dt>Risk points</dt>
+                  <dd>{cyberScore.totalRiskPoints.toFixed(1)}</dd>
+                </div>
+                <div>
+                  <dt>Scored findings</dt>
+                  <dd>{cyberScore.supportedFindingCount}</dd>
+                </div>
+                <div>
+                  <dt>Unscored findings</dt>
+                  <dd>{cyberScore.unsupportedFindingCount}</dd>
+                </div>
+              </dl>
+            </details>
+          ) : null}
+        </section>
 
         <section className="findings-section">
           <div className="section-heading">
