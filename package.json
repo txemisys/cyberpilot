@@ -9,6 +9,7 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "db:generate": "pnpm --filter @cyberpilot/database db:generate",
-    "db:push": "pnpm --filter @cyberpilot/database db:push"
+    "db:push": "pnpm --filter @cyberpilot/database db:push",
+    "test": "pnpm -r test --if-present"
   }
 }

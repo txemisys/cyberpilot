@@ -31,6 +31,13 @@ enum IntegrationStatus {
   DISCONNECTED
 }
 
+enum IntegrationCapabilityStatus {
+  UNKNOWN
+  AVAILABLE
+  PERMISSION_REQUIRED
+  ERROR
+}
+
 enum DirectoryIdentityType {
   MEMBER
   GUEST
@@ -152,6 +159,8 @@ model Integration {
   lastSyncAt       DateTime?
   lastErrorAt      DateTime?
   lastErrorCode    String?
+  mfaEvidenceStatus IntegrationCapabilityStatus @default(UNKNOWN)
+  mfaEvidenceCheckedAt DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
@@ -173,9 +182,16 @@ model DirectoryIdentity {
   displayName       String?
   userPrincipalName String?
   accountEnabled    Boolean?
-  identityType      DirectoryIdentityType @default(UNKNOWN)
-  createdAtProvider DateTime?
-  observedAt        DateTime              @default(now())
+  identityType              DirectoryIdentityType @default(UNKNOWN)
+  createdAtProvider         DateTime?
+  isAdmin                   Boolean?
+  isMfaRegistered           Boolean?
+  isMfaCapable              Boolean?
+  isPasswordlessCapable     Boolean?
+  methodsRegistered         Json?
+  authenticationObservedAt  DateTime?
+  authenticationUpdatedAt   DateTime?
+  observedAt                DateTime              @default(now())
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
 

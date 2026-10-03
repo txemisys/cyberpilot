@@ -15,7 +15,8 @@
     "next": "16.3.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@cyberpilot/integrations": "workspace:*"
+    "@cyberpilot/integrations": "workspace:*",
+    "@cyberpilot/risk-engine": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -5,6 +5,7 @@ import type {
   MicrosoftOrganization,
   MicrosoftRoleAssignment,
   MicrosoftRoleDefinition,
+  MicrosoftUserRegistrationDetails,
 } from "./types";
 
 const GRAPH_BASE_URL = new URL("https://graph.microsoft.com/v1.0/");
@@ -105,6 +106,14 @@ export class MicrosoftGraphClient {
   async listRoleAssignments(): Promise<MicrosoftRoleAssignment[]> {
     return this.listAll<MicrosoftRoleAssignment>(
       "/roleManagement/directory/roleAssignments?$select=id,principalId,roleDefinitionId,directoryScopeId&$top=999",
+    );
+  }
+
+  async listUserRegistrationDetails(): Promise<
+    MicrosoftUserRegistrationDetails[]
+  > {
+    return this.listAll<MicrosoftUserRegistrationDetails>(
+      "/reports/authenticationMethods/userRegistrationDetails",
     );
   }
 }

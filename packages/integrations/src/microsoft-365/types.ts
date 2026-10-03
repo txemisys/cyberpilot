@@ -37,3 +37,15 @@ export type MicrosoftGraphCollection<T> = {
   value: T[];
   "@odata.nextLink"?: string;
 };
+
+export type MicrosoftUserRegistrationDetails = {
+  id: string;
+  isAdmin?: boolean | null;
+  isMfaRegistered?: boolean | null;
+  isMfaCapable?: boolean | null;
+  isPasswordlessCapable?: boolean | null;
+  methodsRegistered?: string[] | null;
+  lastUpdatedDateTime?: string | null;
+  userPrincipalName?: string | null;
+  userType?: string | null;
+};
