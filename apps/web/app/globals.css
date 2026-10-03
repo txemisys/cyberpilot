@@ -709,3 +709,45 @@ h1 {
   font: inherit;
   cursor: pointer;
 }
+
+.lab-auth {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0;
+  padding: 18px;
+  border: 1px solid #3b4a63;
+  border-radius: 14px;
+  background: #0a0f17;
+}
+
+.lab-auth-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.lab-auth-heading span {
+  color: #8f9bb0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lab-auth label {
+  color: #aeb8ca;
+  font-size: 13px;
+}
+
+.lab-auth input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.lab-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
