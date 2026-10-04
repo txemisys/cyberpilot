@@ -62,14 +62,27 @@ The repository pins pnpm 9.15.4 through the root `packageManager` field.
 
 ## 4. Prepare the database
 
-For local development:
+For a fresh local database:
 
 ```bash
 pnpm db:generate
-pnpm db:push
+pnpm db:migrate:deploy
 ```
 
-`db:push` is currently a local-development convenience. Production should use versioned Prisma migrations.
+If the database was created before the migration baseline existed and already matches the current Prisma schema, mark the baseline as applied once:
+
+```bash
+pnpm db:migrate:baseline
+pnpm db:migrate:status
+```
+
+For future schema development, create versioned migrations with:
+
+```bash
+pnpm db:migrate:dev
+```
+
+`db:push` remains available only as a local-development escape hatch and must not be used for staging or production deployment.
 
 ## 5. Start CyberPilot
 

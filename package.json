@@ -10,6 +10,10 @@
     "typecheck": "pnpm -r typecheck",
     "db:generate": "pnpm --filter @cyberpilot/database db:generate",
     "db:push": "pnpm --filter @cyberpilot/database db:push",
-    "test": "pnpm -r test --if-present"
+    "test": "pnpm -r test --if-present",
+    "db:migrate:dev": "pnpm --filter @cyberpilot/database db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @cyberpilot/database db:migrate:deploy",
+    "db:migrate:status": "pnpm --filter @cyberpilot/database db:migrate:status",
+    "db:migrate:baseline": "pnpm --filter @cyberpilot/database db:migrate:baseline"
   }
 }

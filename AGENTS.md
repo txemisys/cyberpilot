@@ -543,46 +543,34 @@ Included:
 
 ## Critical technical debt — do not forget
 
-### 1. Finding resolution lifecycle correctness
+### 1. Finding resolution lifecycle correctness — fixed in PR #13
 
-This is the most important known correctness issue before using a real tenant.
+Finding resolution is now evidence-aware.
 
-The current Microsoft 365 finding lifecycle has historically resolved open supported findings by comparing the combined set of currently observed finding keys.
-
-That behavior is unsafe when evidence is unavailable.
-
-Examples:
-
-- if MFA evidence becomes `PERMISSION_REQUIRED` or `ERROR`, prior MFA findings must **not** automatically resolve
-- if DNS observation returns `ERROR`, prior domain findings must **not** automatically resolve
-- if an evidence source produces zero findings because the source is unknown/unavailable, that is not proof of a secure state
-
-Desired semantics:
+Semantics:
 
 ```text
 explicit bad evidence → open/update finding
 explicit good evidence → resolve finding
-unknown/error/unavailable evidence → keep prior finding open/stale, do not resolve
+unknown/error/unavailable evidence → keep prior finding open
 ```
 
-Finding resolution should be source-aware/evidence-scope-aware.
+MFA and SPF/DMARC/DKIM evidence scopes resolve independently, and identity/role findings do not depend on MFA availability.
 
-Before a destructive or meaningful LIVE tenant test, create a dedicated correctness PR for this lifecycle.
+Keep this behavior covered by regression tests.
 
-Do not claim the finding lifecycle is fully safe until this is fixed and tested.
+### 2. Prisma migrations — baseline introduced after PR #13
 
-### 2. Prisma migrations
+The repository now has a versioned Prisma baseline and CI applies migrations to a fresh PostgreSQL service.
 
-The project currently relies on Prisma generation and local `db:push` for development.
+Use:
 
-There is no mature versioned migration/deployment workflow yet.
+- `pnpm db:migrate:dev` to create future development migrations
+- `pnpm db:migrate:deploy` for staging/production deployment
+- `pnpm db:migrate:status` to verify state
+- `pnpm db:migrate:baseline` only once for an existing database that was previously created with `db:push` and already matches the baseline
 
-Before persistent staging/production deployment:
-
-- create proper Prisma migration history
-- define deployment migration procedure
-- test upgrade paths
-- do not rely on ad-hoc `db push` in production
+Do not use ad-hoc `db:push` for staging or production.
 
 ### 3. No real Microsoft tenant E2E test yet
 
