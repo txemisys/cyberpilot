@@ -7,11 +7,10 @@ import {
 } from "@cyberpilot/integrations/microsoft-365";
 import {
   calculateCyberScore,
-  DOMAIN_RULE_IDS,
   evaluateDomainSecurityFindings,
   evaluateM365IdentityFindings,
   getRemediationPlaybook,
-  M365_RULE_IDS,
+  getResolvableFindingKeys,
 } from "@cyberpilot/risk-engine";
 
 const GLOBAL_ADMIN_TEMPLATE_ID =
@@ -384,6 +383,7 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
     select: {
       id: true,
       organizationId: true,
+      mfaEvidenceStatus: true,
       identities: {
         select: {
           externalId: true,
@@ -489,27 +489,50 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
     });
   }
 
-  await db.securityFinding.updateMany({
+  const openFindings = await db.securityFinding.findMany({
     where: {
       organizationId: integration.organizationId,
       integrationId: integration.id,
-      ruleId: {
-        in: [...M365_RULE_IDS, ...DOMAIN_RULE_IDS],
-      },
       status: "OPEN",
-      ...(observedFindingKeys.length > 0
-        ? {
-            key: {
-              notIn: observedFindingKeys,
-            },
-          }
-        : {}),
     },
-    data: {
-      status: "RESOLVED",
-      resolvedAt: now,
+    select: {
+      key: true,
     },
   });
+
+  const resolvableFindingKeys = getResolvableFindingKeys({
+    openFindingKeys: openFindings.map((finding) => finding.key),
+    observedFindingKeys,
+    mfaEvidenceStatus: integration.mfaEvidenceStatus,
+    identities: integration.identities.map((identity) => ({
+      ...identity,
+      methodsRegistered: Array.isArray(identity.methodsRegistered)
+        ? identity.methodsRegistered.filter(
+            (method): method is string => typeof method === "string",
+          )
+        : [],
+    })),
+    roleDefinitions: integration.roleDefinitions,
+    roleAssignments: integration.roleAssignments,
+    domains: integration.domains,
+  });
+
+  if (resolvableFindingKeys.length > 0) {
+    await db.securityFinding.updateMany({
+      where: {
+        organizationId: integration.organizationId,
+        integrationId: integration.id,
+        status: "OPEN",
+        key: {
+          in: resolvableFindingKeys,
+        },
+      },
+      data: {
+        status: "RESOLVED",
+        resolvedAt: now,
+      },
+    });
+  }
 }
 
 
