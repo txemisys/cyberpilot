@@ -10,7 +10,12 @@
     "db:push": "prisma db push",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "build": "prisma generate"
+    "build": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:baseline": "prisma migrate resolve --applied 20261004160000_baseline",
+    "db:validate": "prisma validate"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0"
