@@ -408,6 +408,188 @@ export const DOMAIN_RULE_IDS = Object.values(DOMAIN_RULES).map(
   (rule) => rule.id,
 );
 
+export type M365FindingResolutionContext = {
+  openFindingKeys: string[];
+  observedFindingKeys: string[];
+  mfaEvidenceStatus:
+    | "UNKNOWN"
+    | "AVAILABLE"
+    | "PERMISSION_REQUIRED"
+    | "ERROR";
+  identities: M365IdentityEvidence[];
+  roleDefinitions: M365RoleDefinitionEvidence[];
+  roleAssignments: M365RoleAssignmentEvidence[];
+  domains: DomainSecurityEvidence[];
+};
+
+function suffixAfterPrefix(key: string, prefix: string) {
+  return key.startsWith(prefix) ? key.slice(prefix.length) : null;
+}
+
+export function getResolvableFindingKeys(
+  input: M365FindingResolutionContext,
+): string[] {
+  const observed = new Set(input.observedFindingKeys);
+  const identities = new Map(
+    input.identities.map((identity) => [identity.externalId, identity]),
+  );
+  const roles = new Map(
+    input.roleDefinitions.map((role) => [role.externalId, role]),
+  );
+  const globalAdminPrincipals = new Set(
+    input.roleAssignments
+      .filter(
+        (assignment) =>
+          roles.get(assignment.roleDefinitionExternalId)?.templateId ===
+          GLOBAL_ADMIN_TEMPLATE_ID,
+      )
+      .map((assignment) => assignment.principalExternalId),
+  );
+  const domains = new Map(input.domains.map((domain) => [domain.name, domain]));
+
+  function domainSignalIsResolvable(
+    key: string,
+    prefixes: string[],
+    signal: "spf" | "dmarc" | "dkim",
+  ) {
+    const prefix = prefixes.find((candidate) => key.startsWith(candidate));
+
+    if (!prefix) {
+      return null;
+    }
+
+    const domainName = suffixAfterPrefix(key, prefix);
+
+    if (!domainName) {
+      return false;
+    }
+
+    const domain = domains.get(domainName);
+
+    if (!domain || domain.isInitial) {
+      return true;
+    }
+
+    const status =
+      signal === "spf"
+        ? domain.spfStatus
+        : signal === "dmarc"
+          ? domain.dmarcStatus
+          : domain.dkimStatus;
+
+    return status !== "UNKNOWN" && status !== "ERROR";
+  }
+
+  return input.openFindingKeys.filter((key) => {
+    if (observed.has(key)) {
+      return false;
+    }
+
+    if (key === "m365:global-admin-count-high") {
+      return true;
+    }
+
+    const guestUserId = suffixAfterPrefix(key, "m365:guest-global-admin:");
+
+    if (guestUserId !== null) {
+      const identity = identities.get(guestUserId);
+
+      return (
+        !identity ||
+        identity.accountEnabled === false ||
+        identity.identityType !== "GUEST" ||
+        !globalAdminPrincipals.has(guestUserId)
+      );
+    }
+
+    const globalAdminMfaUserId = suffixAfterPrefix(
+      key,
+      "m365:global-admin-mfa-not-capable:",
+    );
+
+    if (globalAdminMfaUserId !== null) {
+      if (input.mfaEvidenceStatus !== "AVAILABLE") {
+        return false;
+      }
+
+      const identity = identities.get(globalAdminMfaUserId);
+
+      if (!identity || identity.accountEnabled === false) {
+        return true;
+      }
+
+      if (!globalAdminPrincipals.has(globalAdminMfaUserId)) {
+        return true;
+      }
+
+      return identity.isMfaCapable === true;
+    }
+
+    const adminMfaUserId = suffixAfterPrefix(
+      key,
+      "m365:admin-mfa-not-capable:",
+    );
+
+    if (adminMfaUserId !== null) {
+      if (input.mfaEvidenceStatus !== "AVAILABLE") {
+        return false;
+      }
+
+      const identity = identities.get(adminMfaUserId);
+
+      if (!identity || identity.accountEnabled === false) {
+        return true;
+      }
+
+      if (globalAdminPrincipals.has(adminMfaUserId)) {
+        return true;
+      }
+
+      if (identity.isAdmin !== true) {
+        return true;
+      }
+
+      return identity.isMfaCapable === true;
+    }
+
+    const dmarcResolvable = domainSignalIsResolvable(
+      key,
+      [
+        "domain:dmarc-missing:",
+        "domain:dmarc-invalid:",
+        "domain:dmarc-monitoring:",
+      ],
+      "dmarc",
+    );
+
+    if (dmarcResolvable !== null) {
+      return dmarcResolvable;
+    }
+
+    const spfResolvable = domainSignalIsResolvable(
+      key,
+      ["domain:spf-missing:", "domain:spf-multiple:"],
+      "spf",
+    );
+
+    if (spfResolvable !== null) {
+      return spfResolvable;
+    }
+
+    const dkimResolvable = domainSignalIsResolvable(
+      key,
+      ["domain:m365-dkim-missing:", "domain:m365-dkim-partial:"],
+      "dkim",
+    );
+
+    if (dkimResolvable !== null) {
+      return dkimResolvable;
+    }
+
+    return false;
+  });
+}
+
 export function evaluateM365IdentityFindings(input: {
   identities: M365IdentityEvidence[];
   roleDefinitions: M365RoleDefinitionEvidence[];

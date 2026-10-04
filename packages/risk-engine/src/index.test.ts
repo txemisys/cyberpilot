@@ -5,6 +5,7 @@ import {
   evaluateDomainSecurityFindings,
   evaluateM365IdentityFindings,
   getRemediationPlaybook,
+  getResolvableFindingKeys,
   prioritizeFindings,
 } from "./index";
 
@@ -521,5 +522,148 @@ describe("Microsoft 365 lab scenario", () => {
     expect(guestFinding?.evidence.roleAssignmentId).toBe(
       "lab-assignment-guest-ga",
     );
+  });
+});
+
+
+describe("finding resolution lifecycle", () => {
+  const baseContext = {
+    openFindingKeys: [] as string[],
+    observedFindingKeys: [] as string[],
+    mfaEvidenceStatus: "AVAILABLE" as const,
+    identities: [] as Parameters<typeof getResolvableFindingKeys>[0]["identities"],
+    roleDefinitions: [] as Parameters<typeof getResolvableFindingKeys>[0]["roleDefinitions"],
+    roleAssignments: [] as Parameters<typeof getResolvableFindingKeys>[0]["roleAssignments"],
+    domains: [] as Parameters<typeof getResolvableFindingKeys>[0]["domains"],
+  };
+
+  it("does not resolve an existing MFA finding when permission is unavailable", () => {
+    const key = "m365:admin-mfa-not-capable:user-1";
+
+    expect(
+      getResolvableFindingKeys({
+        ...baseContext,
+        openFindingKeys: [key],
+        mfaEvidenceStatus: "PERMISSION_REQUIRED",
+        identities: [
+          identity({
+            externalId: "user-1",
+            isAdmin: true,
+            isMfaCapable: null,
+          }),
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("does not resolve an existing MFA finding when MFA collection errors", () => {
+    const key = "m365:admin-mfa-not-capable:user-1";
+
+    expect(
+      getResolvableFindingKeys({
+        ...baseContext,
+        openFindingKeys: [key],
+        mfaEvidenceStatus: "ERROR",
+        identities: [
+          identity({
+            externalId: "user-1",
+            isAdmin: true,
+            isMfaCapable: null,
+          }),
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("resolves an MFA finding only with explicit healthy evidence", () => {
+    const key = "m365:admin-mfa-not-capable:user-1";
+
+    expect(
+      getResolvableFindingKeys({
+        ...baseContext,
+        openFindingKeys: [key],
+        identities: [
+          identity({
+            externalId: "user-1",
+            isAdmin: true,
+            isMfaCapable: true,
+          }),
+        ],
+      }),
+    ).toEqual([key]);
+  });
+
+  it("does not resolve a domain finding when that DNS signal errors", () => {
+    const key = "domain:dmarc-monitoring:example.com";
+
+    expect(
+      getResolvableFindingKeys({
+        ...baseContext,
+        openFindingKeys: [key],
+        domains: [
+          {
+            name: "example.com",
+            isInitial: false,
+            spfStatus: "PRESENT",
+            dmarcStatus: "ERROR",
+            dkimStatus: "PUBLISHED",
+          },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("resolves a domain finding when the same signal has explicit healthy evidence", () => {
+    const key = "domain:dmarc-monitoring:example.com";
+
+    expect(
+      getResolvableFindingKeys({
+        ...baseContext,
+        openFindingKeys: [key],
+        domains: [
+          {
+            name: "example.com",
+            isInitial: false,
+            spfStatus: "PRESENT",
+            dmarcStatus: "ENFORCING",
+            dmarcPolicy: "reject",
+            dkimStatus: "PUBLISHED",
+          },
+        ],
+      }),
+    ).toEqual([key]);
+  });
+
+  it("resolves identity and role findings independently from unavailable MFA evidence", () => {
+    const countKey = "m365:global-admin-count-high";
+    const guestKey = "m365:guest-global-admin:guest-1";
+    const mfaKey = "m365:admin-mfa-not-capable:admin-1";
+
+    expect(
+      getResolvableFindingKeys({
+        ...baseContext,
+        openFindingKeys: [countKey, guestKey, mfaKey],
+        mfaEvidenceStatus: "ERROR",
+        identities: [
+          identity({
+            externalId: "admin-1",
+            isAdmin: true,
+            isMfaCapable: null,
+          }),
+        ],
+      }),
+    ).toEqual([countKey, guestKey]);
+  });
+
+  it("never resolves a finding that is still observed", () => {
+    const key = "m365:global-admin-count-high";
+
+    expect(
+      getResolvableFindingKeys({
+        ...baseContext,
+        openFindingKeys: [key],
+        observedFindingKeys: [key],
+      }),
+    ).toEqual([]);
   });
 });
