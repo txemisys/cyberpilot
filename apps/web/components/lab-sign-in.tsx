@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { authClient } from "../lib/auth-client";
 
 export function LabSignIn() {
+  const router = useRouter();
   const [name, setName] = useState("CyberPilot Lab User");
   const [email, setEmail] = useState("lab@cyberpilot.local");
   const [password, setPassword] = useState("");
@@ -27,7 +29,11 @@ export function LabSignIn() {
       if (result.error) {
         setError(result.error.message ?? "Lab account creation failed.");
         setPending(null);
+        return;
       }
+
+      router.push("/dashboard");
+      router.refresh();
     } catch {
       setError("Lab account creation failed.");
       setPending(null);
@@ -48,7 +54,11 @@ export function LabSignIn() {
       if (result.error) {
         setError(result.error.message ?? "Lab sign-in failed.");
         setPending(null);
+        return;
       }
+
+      router.push("/dashboard");
+      router.refresh();
     } catch {
       setError("Lab sign-in failed.");
       setPending(null);
