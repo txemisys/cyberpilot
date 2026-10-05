@@ -31,6 +31,13 @@ export const auth = betterAuth({
     ? {
         emailAndPassword: {
           enabled: true,
+          revokeSessionsOnPasswordReset: true,
+          resetPasswordTokenExpiresIn: 600,
+          sendResetPassword: async ({ user, url }) => {
+            console.info(
+              `[CyberPilot Local Lab] Password reset requested for ${user.email}. Open this URL:\n${url}`,
+            );
+          },
         },
       }
     : {}),

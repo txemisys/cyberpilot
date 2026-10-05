@@ -10,13 +10,17 @@ export function LabSignIn() {
   const [name, setName] = useState("CyberPilot Lab User");
   const [email, setEmail] = useState("lab@cyberpilot.local");
   const [password, setPassword] = useState("");
-  const [pending, setPending] = useState<"signin" | "signup" | null>(null);
+  const [pending, setPending] = useState<
+    "signin" | "signup" | "reset" | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function signUp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending("signup");
     setError(null);
+    setNotice(null);
 
     try {
       const result = await authClient.signUp.email({
@@ -43,6 +47,7 @@ export function LabSignIn() {
   async function signIn() {
     setPending("signin");
     setError(null);
+    setNotice(null);
 
     try {
       const result = await authClient.signIn.email({
@@ -61,6 +66,33 @@ export function LabSignIn() {
       router.refresh();
     } catch {
       setError("Lab sign-in failed.");
+      setPending(null);
+    }
+  }
+
+  async function requestPasswordReset() {
+    setPending("reset");
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await authClient.requestPasswordReset({
+        email,
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (result.error) {
+        setError(result.error.message ?? "Password reset request failed.");
+        setPending(null);
+        return;
+      }
+
+      setNotice(
+        "If this Local Lab account exists, a one-time reset URL was printed in the terminal running pnpm dev.",
+      );
+    } catch {
+      setError("Password reset request failed.");
+    } finally {
       setPending(null);
     }
   }
@@ -124,12 +156,23 @@ export function LabSignIn() {
         >
           {pending === "signin" ? "Signing in…" : "Sign in"}
         </button>
+
+        <button
+          className="secondary-button"
+          type="button"
+          disabled={pending !== null || email.length === 0}
+          onClick={requestPasswordReset}
+        >
+          {pending === "reset" ? "Creating reset link…" : "Forgot password?"}
+        </button>
       </div>
 
       <p className="auth-note">
         Credentials are stored only in your local CyberPilot database. Do not
         enable this mode in production.
       </p>
+
+      {notice ? <p className="auth-note">{notice}</p> : null}
 
       {error ? (
         <p className="auth-error" role="alert">

@@ -117,3 +117,15 @@ Local Lab authentication is ignored when `NODE_ENV=production`.
 Microsoft 365 Lab Mode does not call Microsoft Graph or modify a real tenant.
 
 Do not reuse local development passwords or secrets for real accounts.
+
+
+## Recover a Local Lab password
+
+Local Lab password recovery is development-only and does not send real email.
+
+1. On the login page, enter the Local Lab account email and choose **Forgot password?**
+2. CyberPilot prints a one-time reset URL in the terminal running `pnpm dev`.
+3. Open that URL and choose a new password.
+4. The reset token expires after 10 minutes and existing sessions are revoked.
+
+Never expose or copy the reset URL into shared logs. Production deployments must use a real delivery channel rather than the Local Lab terminal flow.
