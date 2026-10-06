@@ -43,6 +43,7 @@ export default async function OrganizationPage({
         connectedAt: true,
         lastSyncAt: true,
         lastErrorAt: true,
+        lastErrorCode: true,
         mfaEvidenceStatus: true,
         mfaEvidenceCheckedAt: true,
         remediationStatus: true,
@@ -289,7 +290,10 @@ export default async function OrganizationPage({
 
               {integration.lastErrorAt ? (
                 <p className="auth-error">
-                  The last inventory synchronization failed.
+                  The latest Microsoft 365 operation reported an issue
+                  {integration.lastErrorCode
+                    ? `: ${integration.lastErrorCode}`
+                    : "."}
                 </p>
               ) : null}
 
