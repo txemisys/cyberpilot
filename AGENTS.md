@@ -854,3 +854,25 @@ Added:
 - deployment/runbook documentation in `docs/deployment-readiness.md`.
 
 A mature CSP, rate limiting, centralized monitoring, backup restore testing and deployment protection remain outstanding. Do not claim production hardening is complete.
+
+
+### PR #24 — first customer pilot onboarding
+
+CyberPilot now has a product-level first-pilot checklist at:
+
+`/organizations/[slug]/pilot`
+
+The checklist derives readiness from real persisted state rather than manual checkboxes.
+
+It distinguishes:
+
+- scanner server configuration;
+- real LIVE tenant connection;
+- latest read-only Graph probe result;
+- first LIVE evidence sync;
+- immutable score/report evidence;
+- whether Microsoft write/remediation credentials are configured.
+
+Lab Mode is explicitly blocked from counting as a real customer pilot.
+
+The first pilot definition remains read-only. See `docs/first-customer-pilot.md`.
