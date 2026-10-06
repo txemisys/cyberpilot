@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "../../../../../../../lib/auth";
 import { syncMicrosoft365Integration } from "../../../../../../../lib/microsoft-365-sync";
+import { executeLabRoleAssignmentRemoval } from "../../../../../../../lib/remediation-execution";
 
 type RouteContext = {
   params: Promise<{
@@ -156,52 +157,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   try {
     if (integration.mode === "LAB") {
-      const currentAssignment = await db.directoryRoleAssignment.findUnique({
-        where: {
-          integrationId_externalId: {
-            integrationId: integration.id,
-            externalId: payload.roleAssignmentId,
-          },
-        },
-        select: {
-          principalExternalId: true,
-          roleDefinitionExternalId: true,
-        },
-      });
-
-      if (currentAssignment) {
-        if (
-          currentAssignment.principalExternalId !== payload.userId ||
-          currentAssignment.roleDefinitionExternalId !== payload.roleDefinitionId
-        ) {
-          throw new Error("REMEDIATION_EVIDENCE_MISMATCH");
-        }
-
-        await db.directoryRoleAssignment.delete({
-          where: {
-            integrationId_externalId: {
-              integrationId: integration.id,
-              externalId: payload.roleAssignmentId,
-            },
-          },
-        });
-      }
-
-      const verification = await db.directoryRoleAssignment.findUnique({
-        where: {
-          integrationId_externalId: {
-            integrationId: integration.id,
-            externalId: payload.roleAssignmentId,
-          },
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (verification) {
-        throw new Error("REMEDIATION_VERIFICATION_FAILED");
-      }
+      await executeLabRoleAssignmentRemoval(integration.id, payload);
     } else {
       const client = new MicrosoftRemediationClient(
         integration.externalTenantId!,
