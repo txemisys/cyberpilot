@@ -231,11 +231,18 @@ export default async function OrganizationPage({
           Organization access verified. Your current role is{" "}
           <strong>{membership.role}</strong>.
         </p>
-        <p className="action-link no-print">
-          <Link href={`/organizations/${membership.organization.slug}/report`}>
-            Open executive report
-          </Link>
-        </p>
+        <div className="workspace-links no-print">
+          <p className="action-link">
+            <Link href={`/organizations/${membership.organization.slug}/report`}>
+              Open executive report
+            </Link>
+          </p>
+          <p className="action-link">
+            <Link href={`/organizations/${membership.organization.slug}/pilot`}>
+              First customer pilot checklist
+            </Link>
+          </p>
+        </div>
 
         <div className="panel">
           <div>
