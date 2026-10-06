@@ -20,8 +20,14 @@ export default async function ExecutiveReportPage({
   const { slug } = await params;
   const { membership } = await requireOrganizationAccess(slug);
 
-  const [integration, findings, domains, snapshots, remediations] =
-    await Promise.all([
+  const [
+    integration,
+    findings,
+    domains,
+    snapshots,
+    baselineSnapshot,
+    remediations,
+  ] = await Promise.all([
       db.integration.findUnique({
         where: {
           organizationId_provider: {
@@ -82,6 +88,21 @@ export default async function ExecutiveReportPage({
           calculatedAt: true,
         },
       }),
+      db.securityScore.findFirst({
+        where: {
+          organizationId: membership.organization.id,
+        },
+        orderBy: {
+          calculatedAt: "asc",
+        },
+        select: {
+          score: true,
+          riskPoints: true,
+          coverage: true,
+          modelVersion: true,
+          calculatedAt: true,
+        },
+      }),
       db.remediation.findMany({
         where: {
           organizationId: membership.organization.id,
@@ -98,6 +119,7 @@ export default async function ExecutiveReportPage({
           finding: {
             select: {
               title: true,
+              status: true,
             },
           },
         },
@@ -111,15 +133,22 @@ export default async function ExecutiveReportPage({
     lastSyncAt: integration?.lastSyncAt ?? null,
     snapshot: snapshots[0] ?? null,
     previousSnapshot: snapshots[1] ?? null,
+    baselineSnapshot: baselineSnapshot ?? null,
     findings: findings as ExecutiveReportFinding[],
     domains,
-    remediations: remediations.map((remediation) => ({
-      title: remediation.title,
-      mode: remediation.mode,
-      status: remediation.status,
-      completedAt: remediation.completedAt,
-      findingTitle: remediation.finding.title,
-    })),
+    remediations: remediations
+      .filter(
+        (remediation) =>
+          remediation.status === "VERIFIED" ||
+          remediation.finding.status === "OPEN",
+      )
+      .map((remediation) => ({
+        title: remediation.title,
+        mode: remediation.mode,
+        status: remediation.status,
+        completedAt: remediation.completedAt,
+        findingTitle: remediation.finding.title,
+      })),
   });
 
   const score = report.snapshot?.score ?? null;
@@ -128,6 +157,10 @@ export default async function ExecutiveReportPage({
   return (
     <main className="report-shell">
       <div className="report-toolbar no-print">
+        <div className="report-print-note">
+          For a clean PDF, disable <strong>Headers and footers</strong> in the
+          browser print dialog.
+        </div>
         <Link href={`/organizations/${slug}`} className="secondary-button">
           Back to workspace
         </Link>
@@ -174,13 +207,13 @@ export default async function ExecutiveReportPage({
             </strong>
           </div>
           <div>
-            <span>Score change</span>
+            <span>Improvement since baseline</span>
             <strong>
-              {report.scoreDelta === null
+              {report.baselineDelta === null
                 ? "—"
-                : report.scoreDelta > 0
-                  ? `+${report.scoreDelta}`
-                  : report.scoreDelta}
+                : report.baselineDelta > 0
+                  ? `+${report.baselineDelta}`
+                  : report.baselineDelta}
             </strong>
           </div>
           <div>
@@ -197,6 +230,9 @@ export default async function ExecutiveReportPage({
             {report.snapshot
               ? ` The latest immutable CyberScore snapshot is ${report.snapshot.score}/100 with ${report.snapshot.coverage.toLowerCase()} evidence coverage.`
               : " No immutable CyberScore snapshot is available yet."}
+            {report.baselineDelta !== null && report.baselineDelta !== 0
+              ? ` This is a ${report.baselineDelta > 0 ? "+" : ""}${report.baselineDelta}-point change from the first comparable snapshot.`
+              : ""}
           </p>
           <p>
             This report prioritizes only controls currently supported by
