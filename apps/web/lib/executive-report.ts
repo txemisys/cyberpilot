@@ -50,6 +50,7 @@ export type ExecutiveReportInput = {
   lastSyncAt: Date | null;
   snapshot: ExecutiveReportSnapshot | null;
   previousSnapshot: ExecutiveReportSnapshot | null;
+  baselineSnapshot: ExecutiveReportSnapshot | null;
   findings: ExecutiveReportFinding[];
   domains: ExecutiveReportDomain[];
   remediations: ExecutiveReportRemediation[];
@@ -91,12 +92,20 @@ export function buildExecutiveReport(input: ExecutiveReportInput) {
       ? input.snapshot.score - input.previousSnapshot.score
       : null;
 
+  const baselineDelta =
+    input.snapshot &&
+    input.baselineSnapshot &&
+    input.snapshot.modelVersion === input.baselineSnapshot.modelVersion
+      ? input.snapshot.score - input.baselineSnapshot.score
+      : null;
+
   return {
     ...input,
     currentRisk,
     severityCounts,
     verifiedRemediations,
     scoreDelta,
+    baselineDelta,
     generatedAt: new Date(),
     isLab: input.integrationMode === "LAB",
   };
