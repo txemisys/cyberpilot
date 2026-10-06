@@ -56,3 +56,21 @@ export async function acquireMicrosoftGraphToken(tenantId: string) {
 
   return token;
 }
+
+
+export function getMicrosoftGraphScannerConfiguration() {
+  const missing: string[] = [];
+
+  if (!process.env.M365_GRAPH_CLIENT_ID) {
+    missing.push("M365_GRAPH_CLIENT_ID");
+  }
+
+  if (!process.env.M365_GRAPH_CLIENT_SECRET) {
+    missing.push("M365_GRAPH_CLIENT_SECRET");
+  }
+
+  return {
+    configured: missing.length === 0,
+    missing,
+  };
+}
