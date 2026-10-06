@@ -835,3 +835,22 @@ Prove v2.1:
 - preserves the explicit page break before **Top priorities**.
 
 Target output: a compact 3-page PDF where page 1 is executive, page 2 starts technical priorities/findings, and page 3 contains domain/remediation evidence.
+
+
+### PR #23 — staging / operational readiness v1
+
+CyberPilot now has a provider-neutral minimum deployment baseline.
+
+Added:
+
+- production configuration validation;
+- production rejection of Local Lab auth;
+- HTTPS requirements for public auth/scanner callback URLs;
+- required dedicated login + read-only scanner credentials;
+- all-or-nothing remediation executor configuration;
+- `GET /api/health` with a real database connectivity check and no sensitive metadata;
+- baseline HTTP security headers;
+- HSTS in production;
+- deployment/runbook documentation in `docs/deployment-readiness.md`.
+
+A mature CSP, rate limiting, centralized monitoring, backup restore testing and deployment protection remain outstanding. Do not claim production hardening is complete.
