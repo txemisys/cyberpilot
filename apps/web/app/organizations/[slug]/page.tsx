@@ -1,5 +1,8 @@
 import { db } from "@cyberpilot/database";
-import { isMicrosoftRemediationExecutorConfigured } from "@cyberpilot/integrations/microsoft-365";
+import {
+  getMicrosoftGraphScannerConfiguration,
+  isMicrosoftRemediationExecutorConfigured,
+} from "@cyberpilot/integrations/microsoft-365";
 import { calculateCyberScore } from "@cyberpilot/risk-engine";
 import Link from "next/link";
 
@@ -208,6 +211,10 @@ export default async function OrganizationPage({
 
   const canManageIntegrations =
     membership.role === "OWNER" || membership.role === "ADMIN";
+  const scannerConfiguration = getMicrosoftGraphScannerConfiguration();
+  const scannerRedirectConfigured = Boolean(process.env.M365_GRAPH_REDIRECT_URI);
+  const scannerConfigured =
+    scannerConfiguration.configured && scannerRedirectConfigured;
   const remediationExecutorConfigured =
     isMicrosoftRemediationExecutorConfigured();
   const remediationExecutorAvailable =
@@ -304,6 +311,35 @@ export default async function OrganizationPage({
                       </Link>
                     </p>
                   ) : null}
+                </div>
+              ) : null}
+
+              {integration.mode === "LIVE" ? (
+                <div className="remediation-capability">
+                  <strong>Read-only scanner readiness</strong>
+                  <p>
+                    Server configuration: {scannerConfigured ? "READY" : "INCOMPLETE"}.
+                  </p>
+                  {!scannerConfigured ? (
+                    <p className="auth-error">
+                      The Microsoft 365 scanner credentials or redirect URI are
+                      incomplete on the CyberPilot server.
+                    </p>
+                  ) : canManageIntegrations ? (
+                    <form
+                      action={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/test`}
+                      method="post"
+                      className="sync-form"
+                    >
+                      <button className="secondary-button" type="submit">
+                        Test read-only Microsoft access
+                      </button>
+                    </form>
+                  ) : null}
+                  <p>
+                    This test performs Microsoft Graph GET requests only. It
+                    does not invoke the remediation application.
+                  </p>
                 </div>
               ) : null}
 
