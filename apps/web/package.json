@@ -8,7 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "production:check": "node -e \"process.env.NODE_ENV='production'; import('./lib/production-config.ts').then(m => m.assertProductionConfiguration())\""
+    "production:check": "node --experimental-strip-types -e \"process.env.NODE_ENV='production'; import('./lib/production-config.ts').then(m => m.assertProductionConfiguration())\""
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "1.7.7",
