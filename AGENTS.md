@@ -658,3 +658,89 @@ When continuing development:
 - do not expose secrets in chat, logs, commits, or screenshots
 - keep explanations concise and practical
 - communicate with the product owner in Spanish unless asked otherwise
+
+
+## Recent changes after PR #15
+
+### PR #16 — PostgreSQL Lab remediation E2E
+
+CyberPilot now has a database-backed regression test for the full deterministic Lab flow:
+
+```text
+seed Lab
+→ CyberScore 11
+→ approve guest Global Administrator remediation
+→ execute exact Lab role-assignment removal
+→ verify absence
+→ re-sync
+→ CyberScore 70
+```
+
+The test uses real PostgreSQL in CI and verifies:
+
+- five initial open findings
+- exact automated remediation payload
+- guest Global Administrator assignment removal
+- `M365_GUEST_GLOBAL_ADMIN` resolution
+- `M365_GLOBAL_ADMIN_COUNT_HIGH` resolution
+- three unrelated findings remain open
+- score history records 11 → 70
+
+The LIVE Microsoft Graph remediation path is not exercised or modified by this E2E.
+
+### Local Lab password recovery
+
+Local Lab authentication supports development-only password recovery.
+
+- `Forgot password?` requests a Better Auth reset token.
+- The one-time reset URL is printed only to the local `pnpm dev` terminal.
+- Token lifetime is 10 minutes.
+- Existing sessions are revoked after password reset.
+- This terminal delivery mechanism is disabled in production.
+
+### LIVE read-only readiness
+
+The next production-facing phase is read-only Microsoft 365 validation before any real write capability.
+
+The scanner remains separate from the remediation executor.
+
+Required scanner application permissions:
+
+- `Organization.Read.All`
+- `User.Read.All`
+- `RoleManagement.Read.Directory`
+- `AuditLog.Read.All`
+
+A connected LIVE tenant can run a non-destructive readiness probe that uses only Microsoft Graph GET requests against:
+
+- organization
+- users
+- directory role definitions
+- directory role assignments
+- authentication registration report
+
+The probe must never invoke the remediation executor.
+
+Per-scope outcomes:
+
+```text
+200/success → AVAILABLE
+403         → PERMISSION_REQUIRED
+other error → ERROR
+```
+
+Do not persist access tokens, secrets, or raw probe payloads.
+
+## Immediate next production milestone
+
+After the LIVE read-only readiness probe is merged and validated, the next milestone is a first real tenant read-only test:
+
+1. configure a dedicated scanner Entra application
+2. grant only the documented read-only application permissions
+3. connect one controlled test tenant
+4. run the read-only readiness probe
+5. run the first inventory sync
+6. compare normalized CyberPilot evidence with the tenant
+7. keep remediation credentials unconfigured during this phase
+
+Do not enable real Microsoft 365 write remediation until the read-only path has been validated independently.

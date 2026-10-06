@@ -169,3 +169,31 @@ Automated Microsoft 365 remediation uses a separate Entra application and separa
 The first remediation action removes one exact Microsoft Entra directory-role assignment after explicit CyberPilot approval. Microsoft Graph requires `RoleManagement.ReadWrite.Directory` for this operation.
 
 Because that permission can manage directory RBAC, CyberPilot treats it as a distinct high-impact trust boundary rather than adding it to the scanning application.
+
+
+## LIVE read-only readiness check
+
+Before relying on a connected tenant, an organization owner or administrator can run **Test read-only Microsoft access**.
+
+The probe uses only Microsoft Graph `GET` requests and tests these evidence scopes independently:
+
+| Evidence | Probe | Required application permission |
+| --- | --- | --- |
+| Tenant identity | `GET /organization` | `Organization.Read.All` |
+| Users | `GET /users?...&$top=1` | `User.Read.All` |
+| Entra role definitions | `GET /roleManagement/directory/roleDefinitions?...&$top=1` | `RoleManagement.Read.Directory` |
+| Entra role assignments | `GET /roleManagement/directory/roleAssignments?...&$top=1` | `RoleManagement.Read.Directory` |
+| Authentication registration | filtered `GET /reports/authenticationMethods/userRegistrationDetails` | `AuditLog.Read.All` |
+
+The probe never calls the remediation executor and never sends POST, PATCH, PUT, or DELETE requests to Microsoft Graph.
+
+A `403` is recorded as `PERMISSION_REQUIRED`; other failures are recorded as `ERROR`. CyberPilot stores only the resulting capability status and audit metadata, not access tokens or raw Graph responses.
+
+### Production configuration expectations
+
+- Scanner and remediation are separate Entra applications.
+- Scanner credentials are server-only and must not be exposed to browser JavaScript.
+- `LAB_AUTH_ENABLED` must remain disabled in production.
+- Public application and consent callback URLs should use HTTPS.
+- Secrets must come from the deployment secret manager rather than source control.
+- Do not configure the remediation app merely to make read-only scanning work.
