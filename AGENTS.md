@@ -803,3 +803,21 @@ Fixes include:
 - verified remediations remain visible as historical evidence
 
 Browser-generated date/URL/page-number headers are controlled by the browser print dialog, not reliably by page CSS.
+
+
+### PR #21 — Prove v2 commercial executive report
+
+The executive report now has a commercial first page designed for owners, management and MSP handoff.
+
+Additions:
+
+- explicit executive posture classification:
+  - CRITICAL when any Critical finding is open
+  - NEEDS ATTENTION when a High finding is open or CyberScore < 80
+  - HEALTHY only when no Critical/High findings are open and CyberScore >= 80
+- visible security progress from first comparable immutable snapshot to current score
+- compact CyberScore trend from immutable snapshots
+- dedicated **What CyberPilot fixed** section using VERIFIED remediations
+- print page break after the executive first page so technical evidence starts on a separate page
+
+The posture label is a prioritization aid, not certification or compliance attestation.
