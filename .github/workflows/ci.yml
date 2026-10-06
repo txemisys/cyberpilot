@@ -67,6 +67,9 @@ jobs:
       - name: Verify migration status
         run: pnpm db:migrate:status
 
+      - name: Production configuration check
+        run: pnpm production:check
+
       - name: Typecheck
         run: pnpm typecheck
 
