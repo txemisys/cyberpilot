@@ -2,6 +2,12 @@ import { db } from "@cyberpilot/database";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 
+import { assertProductionConfiguration } from "./production-config";
+
+if (process.env.NODE_ENV === "production") {
+  assertProductionConfiguration();
+}
+
 const microsoftClientId = process.env.MICROSOFT_CLIENT_ID;
 const microsoftClientSecret = process.env.MICROSOFT_CLIENT_SECRET;
 
