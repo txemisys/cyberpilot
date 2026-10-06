@@ -32,7 +32,12 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cyberpilot
       AUTH_SECRET: ci-only-secret-not-used-in-production
-      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_URL: https://ci.cyberpilot.example
+      MICROSOFT_CLIENT_ID: ci-login-client
+      MICROSOFT_CLIENT_SECRET: ci-login-secret
+      M365_GRAPH_CLIENT_ID: ci-scanner-client
+      M365_GRAPH_CLIENT_SECRET: ci-scanner-secret
+      M365_GRAPH_REDIRECT_URI: https://ci.cyberpilot.example/api/integrations/microsoft-365/callback
 
     steps:
       - name: Checkout
@@ -61,6 +66,9 @@ jobs:
 
       - name: Verify migration status
         run: pnpm db:migrate:status
+
+      - name: Production configuration check
+        run: pnpm production:check
 
       - name: Typecheck
         run: pnpm typecheck

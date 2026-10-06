@@ -14,6 +14,7 @@
     "db:migrate:dev": "pnpm --filter @cyberpilot/database db:migrate:dev",
     "db:migrate:deploy": "pnpm --filter @cyberpilot/database db:migrate:deploy",
     "db:migrate:status": "pnpm --filter @cyberpilot/database db:migrate:status",
-    "db:migrate:baseline": "pnpm --filter @cyberpilot/database db:migrate:baseline"
+    "db:migrate:baseline": "pnpm --filter @cyberpilot/database db:migrate:baseline",
+    "production:check": "pnpm --filter @cyberpilot/web production:check"
   }
 }
