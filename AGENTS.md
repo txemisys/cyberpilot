@@ -763,3 +763,28 @@ The Microsoft consent route also requires complete scanner credentials, not only
 Runbook: `docs/first-live-tenant-runbook.md`.
 
 For the first real tenant, leave all `M365_REMEDIATION_*` variables empty and validate read-only access before any write capability.
+
+
+### PR #19 — Prove v1 executive security report
+
+CyberPilot now exposes a dedicated organization executive report at:
+
+`/organizations/[slug]/report`
+
+The report is server-rendered from stored organization evidence and uses the latest immutable `SecurityScore` snapshot as the headline score/coverage/time.
+
+It includes:
+
+- CyberScore snapshot and score delta
+- evidence coverage
+- open finding counts by severity
+- Top Actions generated from current supported open findings
+- Microsoft 365 source/mode and last sync
+- domain SPF/DMARC/M365-DKIM posture
+- remediation status and verified remediation evidence
+- explicit CyberScore non-certification disclaimer
+- prominent LAB synthetic-evidence warning when applicable
+
+The report has print CSS and a **Print / Save as PDF** action using the browser's native print-to-PDF path. No server-side PDF binary generation is required for v1.
+
+Do not present a LAB report as evidence from a real tenant.
