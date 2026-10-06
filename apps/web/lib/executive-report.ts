@@ -51,6 +51,7 @@ export type ExecutiveReportInput = {
   snapshot: ExecutiveReportSnapshot | null;
   previousSnapshot: ExecutiveReportSnapshot | null;
   baselineSnapshot: ExecutiveReportSnapshot | null;
+  scoreHistory: ExecutiveReportSnapshot[];
   findings: ExecutiveReportFinding[];
   domains: ExecutiveReportDomain[];
   remediations: ExecutiveReportRemediation[];
@@ -85,6 +86,25 @@ export function buildExecutiveReport(input: ExecutiveReportInput) {
     (remediation) => remediation.status === "VERIFIED",
   );
 
+  const headlineScore = input.snapshot?.score ?? currentRisk.score;
+  const postureStatus =
+    severityCounts.CRITICAL > 0
+      ? "CRITICAL"
+      : severityCounts.HIGH > 0 || headlineScore < 80
+        ? "NEEDS_ATTENTION"
+        : "HEALTHY";
+
+  const comparableHistory = input.scoreHistory
+    .filter(
+      (snapshot) =>
+        !input.snapshot || snapshot.modelVersion === input.snapshot.modelVersion,
+    )
+    .slice()
+    .sort(
+      (left, right) =>
+        left.calculatedAt.getTime() - right.calculatedAt.getTime(),
+    );
+
   const scoreDelta =
     input.snapshot &&
     input.previousSnapshot &&
@@ -104,6 +124,8 @@ export function buildExecutiveReport(input: ExecutiveReportInput) {
     currentRisk,
     severityCounts,
     verifiedRemediations,
+    postureStatus,
+    comparableHistory,
     scoreDelta,
     baselineDelta,
     generatedAt: new Date(),

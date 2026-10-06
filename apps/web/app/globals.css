@@ -1003,3 +1003,156 @@ h1 {
     padding-bottom: 0 !important;
   }
 }
+
+
+.report-front-page {
+  break-after: page;
+  page-break-after: always;
+}
+
+.report-executive-status {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 14px;
+  margin: 24px 0;
+}
+
+.report-executive-status > div {
+  border: 2px solid #111827;
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.report-executive-status span,
+.report-section-title-row span {
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.report-executive-status strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.7rem;
+}
+
+.report-executive-status p {
+  margin: 8px 0 0;
+  color: #4b5563;
+  line-height: 1.45;
+}
+
+.report-score-story strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.report-section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.report-section-title-row h2 {
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+
+.report-trend {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  min-height: 150px;
+  margin-top: 18px;
+}
+
+.report-trend-point {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  text-align: center;
+}
+
+.report-trend-track {
+  height: 92px;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid #9ca3af;
+}
+
+.report-trend-bar {
+  width: 100%;
+  min-height: 4px;
+  background: #111827;
+  border-radius: 5px 5px 0 0;
+}
+
+.report-trend-point strong {
+  font-size: 0.95rem;
+}
+
+.report-trend-point time {
+  color: #6b7280;
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+.report-fixed-list {
+  display: grid;
+  gap: 10px;
+}
+
+.report-fixed-list > div {
+  border-left: 4px solid #111827;
+  padding: 8px 0 8px 14px;
+}
+
+.report-fixed-list span {
+  display: block;
+  color: #6b7280;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.report-fixed-list strong {
+  display: block;
+  margin-top: 3px;
+}
+
+.report-fixed-list p,
+.report-fixed-list small {
+  display: block;
+  margin: 4px 0 0;
+  color: #6b7280;
+}
+
+.report-detail-page {
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .report-executive-status {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .report-front-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .report-trend-section,
+  .report-fixed-section {
+    break-inside: avoid;
+  }
+
+  .report-trend-track {
+    height: 72px;
+  }
+}

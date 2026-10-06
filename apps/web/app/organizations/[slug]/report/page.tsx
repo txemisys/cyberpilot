@@ -26,6 +26,7 @@ export default async function ExecutiveReportPage({
     domains,
     snapshots,
     baselineSnapshot,
+    scoreHistory,
     remediations,
   ] = await Promise.all([
       db.integration.findUnique({
@@ -103,6 +104,22 @@ export default async function ExecutiveReportPage({
           calculatedAt: true,
         },
       }),
+      db.securityScore.findMany({
+        where: {
+          organizationId: membership.organization.id,
+        },
+        orderBy: {
+          calculatedAt: "desc",
+        },
+        take: 8,
+        select: {
+          score: true,
+          riskPoints: true,
+          coverage: true,
+          modelVersion: true,
+          calculatedAt: true,
+        },
+      }),
       db.remediation.findMany({
         where: {
           organizationId: membership.organization.id,
@@ -134,6 +151,7 @@ export default async function ExecutiveReportPage({
     snapshot: snapshots[0] ?? null,
     previousSnapshot: snapshots[1] ?? null,
     baselineSnapshot: baselineSnapshot ?? null,
+    scoreHistory,
     findings: findings as ExecutiveReportFinding[],
     domains,
     remediations: remediations
@@ -153,6 +171,12 @@ export default async function ExecutiveReportPage({
 
   const score = report.snapshot?.score ?? null;
   const coverage = report.snapshot?.coverage ?? null;
+  const postureLabel =
+    report.postureStatus === "CRITICAL"
+      ? "Critical"
+      : report.postureStatus === "HEALTHY"
+        ? "Healthy"
+        : "Needs attention";
 
   return (
     <main className="report-shell">
@@ -168,6 +192,7 @@ export default async function ExecutiveReportPage({
       </div>
 
       <article className="executive-report">
+        <div className="report-front-page">
         <header className="report-header">
           <div>
             <p className="eyebrow">CyberPilot · Executive Security Report</p>
@@ -192,6 +217,31 @@ export default async function ExecutiveReportPage({
             </p>
           </section>
         ) : null}
+
+        <section className="report-executive-status">
+          <div>
+            <span>Current posture</span>
+            <strong>{postureLabel}</strong>
+            <p>
+              {report.postureStatus === "CRITICAL"
+                ? "At least one critical evidence-backed risk requires urgent attention."
+                : report.postureStatus === "HEALTHY"
+                  ? "No Critical or High findings are open and the current CyberScore is at least 80."
+                  : "Material risks remain open and should be worked through the prioritized action plan."}
+            </p>
+          </div>
+          <div className="report-score-story">
+            <span>Security progress</span>
+            <strong>
+              {report.baselineSnapshot?.score ?? "—"} → {score ?? "—"}
+            </strong>
+            <p>
+              {report.baselineDelta === null
+                ? "A comparable baseline is not available yet."
+                : `${report.baselineDelta >= 0 ? "+" : ""}${report.baselineDelta} CyberScore points since the first comparable snapshot.`}
+            </p>
+          </div>
+        </section>
 
         <section className="report-summary-grid">
           <div>
@@ -220,6 +270,53 @@ export default async function ExecutiveReportPage({
             <span>Verified remediations</span>
             <strong>{report.verifiedRemediations.length}</strong>
           </div>
+        </section>
+
+        <section className="report-section report-trend-section">
+          <div className="report-section-title-row">
+            <h2>CyberScore trend</h2>
+            <span>{report.comparableHistory.length} snapshots</span>
+          </div>
+          {report.comparableHistory.length === 0 ? (
+            <p>No comparable score history is available.</p>
+          ) : (
+            <div className="report-trend" aria-label="CyberScore trend">
+              {report.comparableHistory.map((snapshot) => (
+                <div className="report-trend-point" key={snapshot.calculatedAt.toISOString()}>
+                  <div className="report-trend-track">
+                    <div
+                      className="report-trend-bar"
+                      style={{ height: `${Math.max(4, snapshot.score)}%` }}
+                    />
+                  </div>
+                  <strong>{snapshot.score}</strong>
+                  <time dateTime={snapshot.calculatedAt.toISOString()}>
+                    {snapshot.calculatedAt.toISOString().slice(0, 10)}
+                  </time>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="report-section report-fixed-section">
+          <h2>What CyberPilot fixed</h2>
+          {report.verifiedRemediations.length === 0 ? (
+            <p>No verified remediations have been recorded yet.</p>
+          ) : (
+            <div className="report-fixed-list">
+              {report.verifiedRemediations.map((remediation, index) => (
+                <div key={`${remediation.title}-fixed-${index}`}>
+                  <span>VERIFIED</span>
+                  <strong>{remediation.title}</strong>
+                  <p>{remediation.findingTitle}</p>
+                  <small>
+                    Completed {remediation.completedAt?.toISOString() ?? "—"}
+                  </small>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="report-section">
@@ -263,8 +360,9 @@ export default async function ExecutiveReportPage({
             </div>
           </dl>
         </section>
+        </div>
 
-        <section className="report-section">
+        <section className="report-section report-detail-page">
           <h2>Top priorities</h2>
           {report.currentRisk.topActions.length === 0 ? (
             <p>No currently supported open findings require prioritized action.</p>
