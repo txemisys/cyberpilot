@@ -417,24 +417,59 @@ export default async function OrganizationPage({
               </p>
 
               {canManageIntegrations ? (
-                <div className="integration-choice">
-                  <p className="action-link">
-                    <Link
-                      href={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/connect`}
+                <>
+                  <div className="remediation-capability">
+                    <strong>LIVE connection preflight</strong>
+                    <p>
+                      Scanner server configuration:{" "}
+                      {scannerConfigured ? "READY" : "INCOMPLETE"}.
+                    </p>
+                    <p>
+                      Microsoft tenant administrator: REQUIRED at consent time.
+                    </p>
+                    <p>
+                      Scanner scope: read-only organization, users, directory
+                      roles and authentication-registration posture.
+                    </p>
+                    <p>
+                      Automated remediation:{" "}
+                      {remediationExecutorConfigured
+                        ? "CONFIGURED — keep disabled for the first tenant test"
+                        : "NOT CONFIGURED — preferred for the first tenant test"}.
+                    </p>
+                    <p>
+                      Required application permissions: Organization.Read.All,
+                      User.Read.All, RoleManagement.Read.Directory and
+                      AuditLog.Read.All.
+                    </p>
+                  </div>
+
+                  <div className="integration-choice">
+                    {scannerConfigured ? (
+                      <p className="action-link">
+                        <Link
+                          href={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/connect`}
+                        >
+                          Connect Microsoft 365 read-only
+                        </Link>
+                      </p>
+                    ) : (
+                      <p className="auth-error">
+                        Configure the dedicated Microsoft 365 scanner app on the
+                        CyberPilot server before starting LIVE consent.
+                      </p>
+                    )}
+                    <p>or</p>
+                    <form
+                      action={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/lab/activate`}
+                      method="post"
                     >
-                      Connect Microsoft 365
-                    </Link>
-                  </p>
-                  <p>or</p>
-                  <form
-                    action={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/lab/activate`}
-                    method="post"
-                  >
-                    <button className="primary-button" type="submit">
-                      Start Microsoft 365 Lab
-                    </button>
-                  </form>
-                </div>
+                      <button className="primary-button" type="submit">
+                        Start Microsoft 365 Lab
+                      </button>
+                    </form>
+                  </div>
+                </>
               ) : (
                 <p>
                   An organization owner or administrator must connect Microsoft

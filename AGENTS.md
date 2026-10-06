@@ -744,3 +744,22 @@ After the LIVE read-only readiness probe is merged and validated, the next miles
 7. keep remediation credentials unconfigured during this phase
 
 Do not enable real Microsoft 365 write remediation until the read-only path has been validated independently.
+
+
+### PR #18 — first LIVE tenant onboarding preflight
+
+Because there is currently no real Microsoft tenant available, CyberPilot prepares the first-customer LIVE path instead of pretending to validate Graph.
+
+The disconnected workspace UI now includes a LIVE preflight that clearly shows:
+
+- whether scanner server configuration is ready;
+- that a tenant administrator is required for consent;
+- the exact four read-only scanner permissions;
+- whether remediation credentials are configured;
+- a preference that remediation remains unconfigured for the first LIVE tenant.
+
+The Microsoft consent route also requires complete scanner credentials, not only client ID + redirect URI, before starting admin consent.
+
+Runbook: `docs/first-live-tenant-runbook.md`.
+
+For the first real tenant, leave all `M365_REMEDIATION_*` variables empty and validate read-only access before any write capability.

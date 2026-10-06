@@ -1,4 +1,5 @@
 import { db } from "@cyberpilot/database";
+import { getMicrosoftGraphScannerConfiguration } from "@cyberpilot/integrations/microsoft-365";
 import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -55,8 +56,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
   const clientId = process.env.M365_GRAPH_CLIENT_ID;
   const redirectUri = process.env.M365_GRAPH_REDIRECT_URI;
+  const scannerConfiguration = getMicrosoftGraphScannerConfiguration();
 
-  if (!clientId || !redirectUri) {
+  if (!scannerConfiguration.configured || !clientId || !redirectUri) {
     return new Response("Microsoft 365 integration is not configured.", {
       status: 503,
     });
