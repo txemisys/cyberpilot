@@ -964,3 +964,42 @@ h1 {
     break-inside: avoid;
   }
 }
+
+
+.report-print-note {
+  margin-right: auto;
+  max-width: 520px;
+  color: #9aa6bb;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+@media print {
+  html,
+  body,
+  main,
+  .report-shell,
+  .executive-report {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  html,
+  body {
+    min-height: auto !important;
+  }
+
+  .report-shell,
+  .executive-report {
+    min-height: 0 !important;
+  }
+
+  .executive-report {
+    box-shadow: none !important;
+  }
+
+  .report-footer {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+}

@@ -20,6 +20,13 @@ describe("buildExecutiveReport", () => {
         calculatedAt: new Date("2026-10-06T11:50:01.000Z"),
       },
       previousSnapshot: {
+        score: 70,
+        riskPoints: 29.7,
+        coverage: "COMPLETE",
+        modelVersion: "v0",
+        calculatedAt: new Date("2026-10-06T11:40:00.000Z"),
+      },
+      baselineSnapshot: {
         score: 11,
         riskPoints: 89.2,
         coverage: "COMPLETE",
@@ -68,7 +75,8 @@ describe("buildExecutiveReport", () => {
     });
 
     expect(report.snapshot?.score).toBe(70);
-    expect(report.scoreDelta).toBe(59);
+    expect(report.scoreDelta).toBe(0);
+    expect(report.baselineDelta).toBe(59);
     expect(report.currentRisk.score).toBe(70);
     expect(report.verifiedRemediations).toHaveLength(1);
     expect(report.severityCounts).toMatchObject({

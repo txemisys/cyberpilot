@@ -788,3 +788,18 @@ It includes:
 The report has print CSS and a **Print / Save as PDF** action using the browser's native print-to-PDF path. No server-side PDF binary generation is required for v1.
 
 Do not present a LAB report as evidence from a real tenant.
+
+
+### PR #20 — executive report polish after real PDF review
+
+A real browser-exported PDF revealed several presentation issues.
+
+Fixes include:
+
+- print CSS explicitly forces white backgrounds to prevent dark-theme bleed/black blocks
+- report UI warns users to disable browser **Headers and footers** for a clean PDF
+- headline improvement uses the first comparable immutable snapshot, so a Lab history such as 11 → 70 is shown as +59 even if the latest re-evaluation is 70 → 70
+- remediation evidence excludes stale non-verified playbooks whose finding is already resolved
+- verified remediations remain visible as historical evidence
+
+Browser-generated date/URL/page-number headers are controlled by the browser print dialog, not reliably by page CSS.
