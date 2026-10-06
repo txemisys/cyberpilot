@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { validateProductionConfiguration } from "./production-config";
 
 const validEnv: NodeJS.ProcessEnv = {
+  NODE_ENV: "production",
   DATABASE_URL: "postgresql://cyberpilot:secret@db.internal:5432/cyberpilot",
   AUTH_SECRET: "0123456789abcdef0123456789abcdef",
   BETTER_AUTH_URL: "https://staging.cyberpilot.example",
