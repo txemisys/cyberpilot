@@ -292,6 +292,7 @@ export default async function ExecutiveReportPage({
                   <strong>{snapshot.score}</strong>
                   <time dateTime={snapshot.calculatedAt.toISOString()}>
                     {snapshot.calculatedAt.toISOString().slice(0, 10)}
+                    <span>{snapshot.calculatedAt.toISOString().slice(11, 16)} UTC</span>
                   </time>
                 </div>
               ))}
@@ -299,6 +300,7 @@ export default async function ExecutiveReportPage({
           )}
         </section>
 
+        <div className="report-front-lower">
         <section className="report-section report-fixed-section">
           <h2>What CyberPilot fixed</h2>
           {report.verifiedRemediations.length === 0 ? (
@@ -360,6 +362,7 @@ export default async function ExecutiveReportPage({
             </div>
           </dl>
         </section>
+        </div>
         </div>
 
         <section className="report-section report-detail-page">

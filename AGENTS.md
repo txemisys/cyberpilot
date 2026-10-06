@@ -821,3 +821,17 @@ Additions:
 - print page break after the executive first page so technical evidence starts on a separate page
 
 The posture label is a prioritization aid, not certification or compliance attestation.
+
+
+### PR #22 — Prove v2.1 print layout polish
+
+A real Prove v2 PDF showed that the executive first page overflowed, pushing **What CyberPilot fixed** and the executive summary onto a mostly empty second page.
+
+Prove v2.1:
+
+- places **What CyberPilot fixed** and **Executive summary** in a compact two-column block on the first page;
+- reduces print spacing and trend height without removing evidence;
+- shows snapshot time as well as date in the CyberScore trend, so multiple snapshots from the same day are distinguishable;
+- preserves the explicit page break before **Top priorities**.
+
+Target output: a compact 3-page PDF where page 1 is executive, page 2 starts technical priorities/findings, and page 3 contains domain/remediation evidence.

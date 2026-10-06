@@ -1156,3 +1156,118 @@ h1 {
     height: 72px;
   }
 }
+
+
+.report-front-lower {
+  display: grid;
+  grid-template-columns: 0.9fr 1.35fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.report-front-lower .report-section {
+  margin-top: 24px;
+}
+
+.report-front-lower .report-section h2 {
+  font-size: 1.35rem;
+}
+
+.report-front-lower .report-fixed-list > div {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.report-front-lower .report-facts {
+  gap: 6px 16px;
+  font-size: 0.85rem;
+}
+
+.report-trend-point time span {
+  display: block;
+  margin-top: 2px;
+}
+
+@media (max-width: 720px) {
+  .report-front-lower {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  .report-front-page {
+    font-size: 9.5pt;
+  }
+
+  .report-front-page .report-header {
+    padding-bottom: 14px;
+  }
+
+  .report-front-page .report-warning,
+  .report-front-page .report-executive-status,
+  .report-front-page .report-summary-grid {
+    margin-top: 14px;
+    margin-bottom: 14px;
+  }
+
+  .report-front-page .report-warning {
+    padding: 10px 12px;
+  }
+
+  .report-front-page .report-executive-status > div,
+  .report-front-page .report-summary-grid > div {
+    padding: 11px 12px;
+  }
+
+  .report-front-page .report-executive-status strong {
+    font-size: 1.35rem;
+  }
+
+  .report-front-page .report-summary-grid strong {
+    font-size: 1.35rem;
+  }
+
+  .report-front-page .report-section {
+    margin-top: 16px;
+  }
+
+  .report-front-page .report-trend {
+    min-height: 88px;
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  .report-front-page .report-trend-track {
+    height: 48px;
+  }
+
+  .report-front-page .report-trend-point time {
+    font-size: 6.8pt;
+  }
+
+  .report-front-page .report-fixed-section,
+  .report-front-page .report-front-lower > .report-section {
+    break-inside: avoid;
+  }
+
+  .report-front-lower {
+    gap: 16px;
+  }
+
+  .report-front-lower .report-section h2 {
+    font-size: 14pt;
+    margin-top: 0;
+  }
+
+  .report-front-lower .report-section p {
+    margin-top: 6px;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .report-front-lower .report-facts {
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+    font-size: 7.8pt;
+  }
+}
