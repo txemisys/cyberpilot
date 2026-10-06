@@ -1271,3 +1271,104 @@ h1 {
     font-size: 7.8pt;
   }
 }
+
+
+.workspace-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.workspace-links .action-link {
+  margin-top: 0;
+}
+
+.pilot-onboarding {
+  width: min(900px, 100%);
+}
+
+.pilot-status,
+.pilot-callout {
+  margin: 28px 0;
+  padding: 20px;
+  border: 1px solid #283143;
+  border-radius: 16px;
+  background: #0d121c;
+}
+
+.pilot-status {
+  display: grid;
+  gap: 8px;
+}
+
+.pilot-status span {
+  color: #8f9bb0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pilot-status strong {
+  font-size: 30px;
+}
+
+.pilot-status p,
+.pilot-callout p {
+  margin: 0;
+  color: #aeb8ca;
+  line-height: 1.5;
+}
+
+.pilot-step-list {
+  display: grid;
+  gap: 12px;
+}
+
+.pilot-step {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #283143;
+  border-radius: 16px;
+  background: #0a0f17;
+}
+
+.pilot-step-index {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #344055;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.pilot-step-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.pilot-step-heading h2 {
+  margin: 3px 0 0;
+  font-size: 19px;
+}
+
+.pilot-step p {
+  margin: 8px 0 0;
+  color: #aeb8ca;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .pilot-step {
+    grid-template-columns: 1fr;
+  }
+
+  .pilot-step-heading {
+    display: grid;
+  }
+}
