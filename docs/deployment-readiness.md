@@ -17,7 +17,8 @@ It distinguishes what is already implemented from what still blocks staging, the
 | CodeQL | DONE | Runs on PRs, main and weekly schedule. |
 | Structured operational logging | PARTIAL | Redacted JSON events exist; managed collection/alerting is not yet configured. |
 | Dependency Review | BLOCKING PRODUCTION | Workflow prerequisite is GitHub Dependency Graph/alerts at repository level. |
-| Managed staging deployment | BLOCKING PILOT | A real HTTPS staging environment has not yet been established. |
+| Render staging Blueprint | DONE | Provider-specific web/PostgreSQL staging infrastructure is declared in `render.yaml`; provisioning is not yet performed. |
+| Managed staging deployment | BLOCKING PILOT | The Render resources still need to be provisioned, configured and smoke-tested. |
 | Centralized monitoring and alerting | BLOCKING PILOT | Required before relying on staging for a customer pilot. |
 | Backup/restore regression rehearsal | DONE | CI performs PostgreSQL dump/restore into an isolated database and verifies data through Prisma. |
 | Managed staging backup/restore exercise | BLOCKING PILOT | CI proves mechanics only; the chosen managed PostgreSQL platform must still be exercised operationally. |
@@ -126,6 +127,8 @@ Before the first customer pilot, configure a managed collector/error-monitoring 
 - deletion policy.
 
 See `docs/observability.md`.
+
+The current managed staging target is Render. See `docs/staging-render.md`.
 
 ## Database
 
