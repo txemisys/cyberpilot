@@ -1,0 +1,163 @@
+name: Backup restore rehearsal
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/backup-restore.yml"
+      - "packages/database/**"
+      - "docs/backup-restore.md"
+      - "docs/deployment-readiness.md"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/backup-restore.yml"
+      - "packages/database/**"
+      - "docs/backup-restore.md"
+      - "docs/deployment-readiness.md"
+  schedule:
+    - cron: "41 5 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    name: PostgreSQL dump / restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cyberpilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cyberpilot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGPASSWORD: postgres
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cyberpilot
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22.12.0"
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Apply migrations to source database
+        run: pnpm db:migrate:deploy
+
+      - name: Seed restore sentinel
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO "Organization" ("id", "name", "slug", "createdAt", "updatedAt")
+          VALUES (
+            'restore-rehearsal-org',
+            'Restore Rehearsal',
+            'restore-rehearsal',
+            NOW(),
+            NOW()
+          );
+
+          INSERT INTO "SecurityScore" (
+            "id",
+            "organizationId",
+            "modelVersion",
+            "score",
+            "riskPoints",
+            "coverage",
+            "supportedFindingCount",
+            "unsupportedFindingCount",
+            "details",
+            "calculatedAt"
+          )
+          VALUES (
+            'restore-rehearsal-score',
+            'restore-rehearsal-org',
+            'restore-rehearsal-v1',
+            73,
+            27,
+            'COMPLETE',
+            2,
+            0,
+            '{"source":"backup-restore-rehearsal"}'::jsonb,
+            NOW()
+          );
+          SQL
+
+      - name: Create logical backup
+        run: |
+          pg_dump             --format=custom             --no-owner             --no-privileges             --file="$RUNNER_TEMP/cyberpilot.dump"             "$DATABASE_URL"
+          test -s "$RUNNER_TEMP/cyberpilot.dump"
+
+      - name: Create isolated restore database
+        run: |
+          createdb             --host=localhost             --port=5432             --username=postgres             cyberpilot_restore
+
+      - name: Restore backup
+        run: |
+          pg_restore             --host=localhost             --port=5432             --username=postgres             --dbname=cyberpilot_restore             --no-owner             --no-privileges             --exit-on-error             "$RUNNER_TEMP/cyberpilot.dump"
+
+      - name: Verify restored migration state
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cyberpilot_restore
+        run: pnpm db:migrate:status
+
+      - name: Verify restored application data through Prisma
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cyberpilot_restore
+        run: |
+          pnpm --filter @cyberpilot/database exec node --input-type=module <<'NODE'
+          import { PrismaClient } from "@prisma/client";
+
+          const prisma = new PrismaClient();
+
+          try {
+            const organization = await prisma.organization.findUnique({
+              where: { id: "restore-rehearsal-org" },
+            });
+
+            const score = await prisma.securityScore.findUnique({
+              where: { id: "restore-rehearsal-score" },
+            });
+
+            if (!organization || organization.slug !== "restore-rehearsal") {
+              throw new Error("Restored organization sentinel is missing or invalid.");
+            }
+
+            if (
+              !score ||
+              score.organizationId !== organization.id ||
+              score.score !== 73 ||
+              score.modelVersion !== "restore-rehearsal-v1"
+            ) {
+              throw new Error("Restored CyberScore sentinel is missing or invalid.");
+            }
+
+            console.log("Restore rehearsal verified.");
+          } finally {
+            await prisma.$disconnect();
+          }
+          NODE
