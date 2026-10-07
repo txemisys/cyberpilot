@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: cyberpilot-staging
+    runtime: node
+    region: frankfurt
+    plan: 0.5c-512mb
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    preDeployCommand: pnpm db:migrate:deploy && pnpm db:migrate:status && pnpm production:check
+    startCommand: pnpm --filter @cyberpilot/web start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cyberpilot-staging-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: BETTER_AUTH_URL
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+      - key: M365_GRAPH_CLIENT_ID
+        sync: false
+      - key: M365_GRAPH_CLIENT_SECRET
+        sync: false
+      - key: M365_GRAPH_REDIRECT_URI
+        sync: false
+
+databases:
+  - name: cyberpilot-staging-db
+    postgresMajorVersion: "16"
+    region: frankfurt
+    plan: 0.1c-256mb
+    databaseName: cyberpilot
+    user: cyberpilot
+    ipAllowList: []
