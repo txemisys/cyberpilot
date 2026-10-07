@@ -8,7 +8,7 @@ services:
     preDeployCommand: pnpm db:migrate:deploy && pnpm db:migrate:status && pnpm production:check
     startCommand: pnpm --filter @cyberpilot/web start
     healthCheckPath: /api/health
-    autoDeployTrigger: commit
+    autoDeployTrigger: checksPass
     envVars:
       - key: NODE_ENV
         value: production
