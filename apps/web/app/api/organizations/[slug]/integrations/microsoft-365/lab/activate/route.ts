@@ -6,6 +6,10 @@ import {
   consumePersistentRateLimit,
   rateLimitedResponse,
 } from "../../../../../../../../lib/rate-limit";
+import {
+  consumePersistentRateLimit,
+  rateLimitedResponse,
+} from "../../../../../../../../lib/rate-limit";
 import { seedMicrosoft365Lab } from "../../../../../../../../lib/microsoft-365-lab";
 import { syncMicrosoft365Integration } from "../../../../../../../../lib/microsoft-365-sync";
 
@@ -50,6 +54,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
     return new Response("Forbidden.", { status: 403 });
+  }
+
+  const rateLimit = await consumePersistentRateLimit({
+    scope: "m365-lab-activate",
+    organizationId: membership.organization.id,
+    userId: session.user.id,
+    limit: 4,
+    windowMs: 5 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return rateLimitedResponse(rateLimit.retryAfterSeconds);
   }
 
   const rateLimit = await consumePersistentRateLimit({
