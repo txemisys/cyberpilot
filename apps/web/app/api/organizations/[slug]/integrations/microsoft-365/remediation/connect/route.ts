@@ -3,6 +3,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "../../../../../../../../lib/auth";
+import {
+  consumePersistentRateLimit,
+  rateLimitedResponse,
+} from "../../../../../../../../lib/rate-limit";
 
 const CONSENT_TTL_MS = 10 * 60 * 1000;
 
@@ -51,6 +55,18 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
   if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
     return new Response("Forbidden.", { status: 403 });
+  }
+
+  const rateLimit = await consumePersistentRateLimit({
+    scope: "m365-remediation-consent",
+    organizationId: membership.organization.id,
+    userId: session.user.id,
+    limit: 3,
+    windowMs: 5 * 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return rateLimitedResponse(rateLimit.retryAfterSeconds);
   }
 
   const integration = await db.integration.findUnique({
