@@ -19,7 +19,8 @@ It distinguishes what is already implemented from what still blocks staging, the
 | Dependency Review | BLOCKING PRODUCTION | Workflow prerequisite is GitHub Dependency Graph/alerts at repository level. |
 | Managed staging deployment | BLOCKING PILOT | A real HTTPS staging environment has not yet been established. |
 | Centralized monitoring and alerting | BLOCKING PILOT | Required before relying on staging for a customer pilot. |
-| Backup/restore ownership and restore test | BLOCKING PILOT | Backup existence is not enough; restore must be exercised. |
+| Backup/restore regression rehearsal | DONE | CI performs PostgreSQL dump/restore into an isolated database and verifies data through Prisma. |
+| Managed staging backup/restore exercise | BLOCKING PILOT | CI proves mechanics only; the chosen managed PostgreSQL platform must still be exercised operationally. |
 | Content Security Policy | BLOCKING PRODUCTION | Introduce a verified Next.js-compatible policy, preferably report-only first. |
 | Protected deployment environment | BLOCKING PRODUCTION | Production secrets/deployments need an explicit protected environment boundary. |
 | Secret rotation process | BLOCKING PRODUCTION | Manual or automated operational process still required. |
@@ -137,7 +138,9 @@ pnpm db:migrate:status
 
 Never run `db:push` in staging or production.
 
-Before the first customer pilot, define database backup ownership and complete at least one restore exercise into a separate environment.
+CyberPilot continuously rehearses logical dump/restore in CI. Before the first customer pilot, define database backup ownership and complete at least one restore exercise on the chosen managed PostgreSQL platform into a separate environment.
+
+See `docs/backup-restore.md`.
 
 ## Secret handling
 
