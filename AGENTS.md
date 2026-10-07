@@ -891,10 +891,9 @@ See `docs/rate-limiting.md`.
 
 ### Security CI baseline
 
-A dedicated security workflow adds:
+A dedicated security workflow adds CodeQL analysis for JavaScript/TypeScript on PRs, main, and a weekly schedule.
 
-- GitHub Dependency Review on pull requests, failing new high/critical vulnerable dependencies;
-- CodeQL analysis for JavaScript/TypeScript on PRs, main, and weekly schedule.
+Dependency Review was tested but GitHub rejected it because Dependency Graph is currently disabled at repository level. Re-enable the dependency-review action only after that repository setting is enabled.
 
 The repository still lacks a committed `pnpm-lock.yaml`. This is a significant supply-chain/reproducibility gap; dependency scanning is not considered complete until a lockfile is committed and CI uses `--frozen-lockfile`.
 
