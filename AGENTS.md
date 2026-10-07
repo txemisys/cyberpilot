@@ -895,7 +895,9 @@ A dedicated security workflow adds CodeQL analysis for JavaScript/TypeScript on 
 
 Dependency Review was tested but GitHub rejected it because Dependency Graph is currently disabled at repository level. Re-enable the dependency-review action only after that repository setting is enabled.
 
-The repository still lacks a committed `pnpm-lock.yaml`. This is a significant supply-chain/reproducibility gap; dependency scanning is not considered complete until a lockfile is committed and CI uses `--frozen-lockfile`.
+The repository commits `pnpm-lock.yaml` and CI installs with `pnpm install --frozen-lockfile`, so dependency resolution is reproducible for a given revision and manifest/lockfile drift fails CI.
+
+Dependency Review is still blocked on enabling GitHub Dependency Graph at repository level.
 
 See `docs/security-ci.md`.
 
