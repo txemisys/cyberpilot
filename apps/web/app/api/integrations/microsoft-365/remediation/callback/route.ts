@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "../../../../../../lib/auth";
+import { reportOperationalEvent } from "../../../../../../lib/operational-logging";
 
 function hashState(state: string) {
   return createHash("sha256").update(state).digest("hex");
@@ -223,6 +224,17 @@ export async function GET(request: NextRequest) {
       status === "PERMISSION_REQUIRED"
         ? "permission_required"
         : "verification_failed";
+
+    reportOperationalEvent({
+      event: "integration.microsoft_365.remediation_verification_failed",
+      organizationId: consent.organizationId,
+      resourceId: integration.id,
+      metadata: {
+        failureCode: code,
+        capabilityStatus: status,
+      },
+      error,
+    });
 
     await db.$transaction([
       db.integration.update({
