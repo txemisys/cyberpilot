@@ -1,6 +1,8 @@
 import { db } from "@cyberpilot/database";
 import { NextResponse } from "next/server";
 
+import { reportOperationalEvent } from "../../../lib/operational-logging";
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
@@ -19,7 +21,12 @@ export async function GET() {
         },
       },
     );
-  } catch {
+  } catch (error) {
+    reportOperationalEvent({
+      event: "health.database_unavailable",
+      error,
+    });
+
     return NextResponse.json(
       {
         status: "unavailable",
