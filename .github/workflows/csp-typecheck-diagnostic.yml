@@ -1,0 +1,35 @@
+name: CSP typecheck diagnostic
+
+on:
+  push:
+    branches:
+      - security/csp-report-only
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22.12.0"
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+      - name: Capture typecheck
+        shell: bash
+        run: |
+          set +e
+          output="$(pnpm --filter @cyberpilot/web typecheck 2>&1)"
+          status=$?
+          {
+            echo '### Typecheck output'
+            echo '```text'
+            printf '%s\n' "$output"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
