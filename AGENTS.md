@@ -596,7 +596,6 @@ Keep the executor isolated and require explicit admin consent.
 
 ### 6. Other known limitations
 
-- no `pnpm-lock.yaml` yet
 - no mature ESLint configuration
 - Microsoft sync is still synchronous
 - PIM eligible roles are not fully modeled
@@ -853,7 +852,7 @@ Added:
 - HSTS in production;
 - deployment/runbook documentation in `docs/deployment-readiness.md`.
 
-A mature CSP, rate limiting, centralized monitoring, backup restore testing and deployment protection remain outstanding. Do not claim production hardening is complete.
+Sensitive-route rate limiting is now implemented. Mature CSP, centralized monitoring, backup restore testing and deployment protection remain outstanding. Do not claim production hardening is complete.
 
 
 ### PR #24 — first customer pilot onboarding
@@ -919,3 +918,22 @@ Instrumented paths include health/database, Microsoft scanner connection, Micros
 A managed external log/error collector, alert routing, retention policy and incident ownership are still outstanding before production.
 
 See `docs/observability.md`.
+
+
+### Canonical readiness and architecture consolidation
+
+`docs/deployment-readiness.md` is the canonical operational readiness source.
+
+Readiness is explicitly classified as:
+
+- DONE
+- PARTIAL
+- BLOCKING PILOT
+- BLOCKING PRODUCTION
+- POST-PILOT
+
+Do not list PostgreSQL-backed sensitive-route rate limiting or dependency reproducibility as outstanding; both are implemented.
+
+The immediate architecture milestone is now real HTTPS staging with managed monitoring, a tested backup restore path, CSP validation and then one controlled LIVE Microsoft 365 read-only customer pilot.
+
+`docs/architecture.md` has been updated to describe the implemented authentication, Microsoft 365, Lab, Risk Engine, remediation, Prove and operational-control architecture rather than the original foundation-stage plan.
