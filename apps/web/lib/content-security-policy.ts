@@ -44,7 +44,7 @@ export function buildContentSecurityPolicy(reportUri?: string) {
   const normalizedReportUri = normalizeCspReportUri(reportUri);
 
   if (normalizedReportUri) {
-    directives.push(\`report-uri \${normalizedReportUri}\`);
+    directives.push("report-uri " + normalizedReportUri);
   }
 
   return directives.join("; ");
