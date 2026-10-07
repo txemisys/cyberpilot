@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "../../../../../lib/auth";
+import { reportOperationalEvent } from "../../../../../lib/operational-logging";
 
 function hashState(state: string) {
   return createHash("sha256").update(state).digest("hex");
@@ -223,7 +224,16 @@ export async function GET(request: NextRequest) {
     destination.searchParams.set("integration", "microsoft-365-connected");
 
     return NextResponse.redirect(destination);
-  } catch {
+  } catch (error) {
+    reportOperationalEvent({
+      event: "integration.microsoft_365.connection_failed",
+      organizationId: consent.organizationId,
+      metadata: {
+        failureCode: "M365_CONNECTION_FAILED",
+      },
+      error,
+    });
+
     await db.auditEvent.create({
       data: {
         organizationId: consent.organizationId,
