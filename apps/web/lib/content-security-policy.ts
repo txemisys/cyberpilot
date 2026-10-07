@@ -22,8 +22,7 @@ export function normalizeCspReportUri(value: string | undefined) {
     return undefined;
   }
 
-  if (/[
-;]/.test(candidate)) {
+  if (/[;\r\n]/.test(candidate)) {
     return undefined;
   }
 
@@ -45,7 +44,7 @@ export function buildContentSecurityPolicy(reportUri?: string) {
   const normalizedReportUri = normalizeCspReportUri(reportUri);
 
   if (normalizedReportUri) {
-    directives.push(`report-uri ${normalizedReportUri}`);
+    directives.push(\`report-uri \${normalizedReportUri}\`);
   }
 
   return directives.join("; ");
