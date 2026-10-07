@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { buildContentSecurityPolicy } from "./lib/content-security-policy";
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -10,6 +12,10 @@ const securityHeaders = [
   },
   ...(process.env.NODE_ENV === "production"
     ? [
+        {
+          key: "Content-Security-Policy-Report-Only",
+          value: buildContentSecurityPolicy(process.env.CSP_REPORT_URI),
+        },
         {
           key: "Strict-Transport-Security",
           value: "max-age=31536000; includeSubDomains",

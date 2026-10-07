@@ -22,7 +22,7 @@ It distinguishes what is already implemented from what still blocks staging, the
 | Centralized monitoring and alerting | BLOCKING PILOT | Required before relying on staging for a customer pilot. |
 | Backup/restore regression rehearsal | DONE | CI performs PostgreSQL dump/restore into an isolated database and verifies data through Prisma. |
 | Managed staging backup/restore exercise | BLOCKING PILOT | CI proves mechanics only; the chosen managed PostgreSQL platform must still be exercised operationally. |
-| Content Security Policy | BLOCKING PRODUCTION | Introduce a verified Next.js-compatible policy, preferably report-only first. |
+| Content Security Policy | PARTIAL | Production emits a report-only baseline; staging validation plus nonce/hash hardening are required before enforcement. |
 | Protected deployment environment | BLOCKING PRODUCTION | Production secrets/deployments need an explicit protected environment boundary. |
 | Secret rotation process | BLOCKING PRODUCTION | Manual or automated operational process still required. |
 | Shared auth rate-limit storage for horizontal scaling | POST-PILOT | Required before horizontally scaling Better Auth traffic. |
@@ -87,7 +87,9 @@ The web application sends:
 - restrictive `Permissions-Policy`
 - `Strict-Transport-Security` in production
 
-A Content Security Policy remains outstanding and should be introduced with a verified Next.js-compatible nonce/hash strategy. Prefer report-only validation before enforcement.
+A production-only Content Security Policy now runs in report-only mode. Enforcement remains outstanding until staging validates Next.js/auth flows and a nonce/hash strategy removes unnecessary inline-script/style allowances.
+
+See `docs/content-security-policy.md`.
 
 ## Rate limiting
 
