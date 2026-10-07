@@ -1,6 +1,9 @@
 name: Bootstrap lockfile
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - chore/reproducible-installs
