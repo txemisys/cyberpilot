@@ -2,6 +2,10 @@ import { db } from "@cyberpilot/database";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "../../../../../../../lib/auth";
+import {
+  consumePersistentRateLimit,
+  rateLimitedResponse,
+} from "../../../../../../../lib/rate-limit";
 
 type RouteContext = {
   params: Promise<{
@@ -45,6 +49,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
     return new Response("Forbidden.", { status: 403 });
+  }
+
+  const rateLimit = await consumePersistentRateLimit({
+    scope: "remediation-approve",
+    organizationId: membership.organization.id,
+    userId: session.user.id,
+    limit: 10,
+    windowMs: 60 * 1000,
+  });
+
+  if (!rateLimit.allowed) {
+    return rateLimitedResponse(rateLimit.retryAfterSeconds);
   }
 
   const remediation = await db.remediation.findFirst({
