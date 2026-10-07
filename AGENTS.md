@@ -887,3 +887,15 @@ Subjects are SHA-256 hashes of organization + user identifiers. Rejections retur
 Better Auth's authentication rate limiter remains a separate layer. Shared auth-rate-limit storage for horizontally scaled deployments is still outstanding.
 
 See `docs/rate-limiting.md`.
+
+
+### Security CI baseline
+
+A dedicated security workflow adds:
+
+- GitHub Dependency Review on pull requests, failing new high/critical vulnerable dependencies;
+- CodeQL analysis for JavaScript/TypeScript on PRs, main, and weekly schedule.
+
+The repository still lacks a committed `pnpm-lock.yaml`. This is a significant supply-chain/reproducibility gap; dependency scanning is not considered complete until a lockfile is committed and CI uses `--frozen-lockfile`.
+
+See `docs/security-ci.md`.
