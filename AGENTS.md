@@ -876,3 +876,16 @@ It distinguishes:
 Lab Mode is explicitly blocked from counting as a real customer pilot.
 
 The first pilot definition remains read-only. See `docs/first-customer-pilot.md`.
+
+
+### PR #25 — persistent sensitive-route rate limits
+
+Authenticated OWNER/ADMIN actions that create consent state, trigger Microsoft probes/syncs, activate Lab, or approve/execute remediation are protected by a PostgreSQL-backed fixed-window rate limiter.
+
+Rate-limit subjects are SHA-256 hashes of organization + user identifiers. Raw IP addresses are not stored by this CyberPilot limiter.
+
+Rejected requests return HTTP 429 with Retry-After.
+
+Better Auth's own production authentication rate limiting remains a separate layer; its shared-storage hardening for multi-instance deployments is still outstanding.
+
+See `docs/rate-limiting.md`.
