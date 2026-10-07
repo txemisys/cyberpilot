@@ -7,6 +7,7 @@ import {
   rateLimitedResponse,
 } from "../../../../../../../lib/rate-limit";
 import { syncMicrosoft365Integration } from "../../../../../../../lib/microsoft-365-sync";
+import { reportOperationalEvent } from "../../../../../../../lib/operational-logging";
 
 type RouteContext = {
   params: Promise<{
@@ -110,7 +111,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     url.searchParams.set("sync", "completed");
 
     return NextResponse.redirect(url, 303);
-  } catch {
+  } catch (error) {
+    reportOperationalEvent({
+      event: "integration.microsoft_365.sync_failed",
+      organizationId: membership.organization.id,
+      resourceId: integration.id,
+      metadata: {
+        failureCode: "SYNC_FAILED",
+      },
+      error,
+    });
+
     await db.integration.update({
       where: {
         id: integration.id,
