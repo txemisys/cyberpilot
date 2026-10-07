@@ -2,11 +2,23 @@
 
 CyberPilot uses a separate GitHub Actions security workflow in addition to the normal build/test workflow.
 
-## Dependency Review
+The current executable control is CodeQL. Dependency Review is prepared but blocked on the repository Dependency Graph setting.
 
-On pull requests, GitHub Dependency Review checks dependency changes and fails when a newly introduced dependency has a known **high** or **critical** severity vulnerability.
+## Dependency Review — repository setting required
 
-This is an admission control for new dependency changes, not a complete inventory of every historical package risk.
+The dependency-review action was exercised during implementation and GitHub rejected it because Dependency Graph is currently disabled for this repository.
+
+Enable it in:
+
+```text
+Repository Settings
+→ Advanced Security / Security and quality
+→ Dependency Graph / Dependabot alerts
+```
+
+After that setting is enabled, add `actions/dependency-review-action@v4` back to this workflow and fail pull requests on newly introduced high/critical vulnerable dependencies.
+
+Do not keep a permanently failing workflow while the repository-level prerequisite is disabled.
 
 ## CodeQL
 
