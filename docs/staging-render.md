@@ -74,7 +74,7 @@ Start:
 pnpm --filter @cyberpilot/web start
 ```
 
-Render injects the runtime `PORT` value used by the web service.
+Render injects the runtime `PORT` value used by the web service. The Next.js server must bind to the platform-provided port and remain reachable on `0.0.0.0`; Render's Node web-service runtime supplies this through the normal `PORT` environment variable.
 
 ## Health and TLS
 
