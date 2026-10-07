@@ -30,30 +30,23 @@ CodeQL analyzes JavaScript / TypeScript on:
 
 Results are uploaded to GitHub code scanning.
 
-## Important current limitation: no committed pnpm lockfile
+## Reproducible dependency installs
 
-The repository still does not commit `pnpm-lock.yaml`.
-
-That limits:
-
-- reproducible installs;
-- exact transitive dependency review;
-- deterministic build provenance;
-- confidence in dependency-diff analysis.
-
-Creating and committing a lockfile is a priority follow-up. CI should then switch from:
+The repository commits `pnpm-lock.yaml` and pins the package manager through:
 
 ```text
-pnpm install --no-frozen-lockfile
+pnpm@9.15.4
 ```
 
-to:
+Normal CI installs dependencies with:
 
 ```text
 pnpm install --frozen-lockfile
 ```
 
-Do not describe supply-chain hardening as complete until that is done.
+This makes dependency resolution deterministic for a given repository revision and causes CI to fail when a package manifest changes without the corresponding lockfile update.
+
+This closes the previous reproducibility gap. It does not by itself complete supply-chain hardening: Dependency Review still depends on the repository-level Dependency Graph setting described above.
 
 ## Secret scanning
 
