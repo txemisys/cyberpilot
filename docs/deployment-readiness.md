@@ -1,8 +1,31 @@
 # Staging and production readiness
 
-This document defines the minimum operational baseline before CyberPilot is exposed to a real customer.
+This document is the canonical operational-readiness source for CyberPilot.
 
-It deliberately does not choose a cloud provider yet.
+It distinguishes what is already implemented from what still blocks staging, the first customer pilot, or broader production use. It deliberately does not choose a cloud provider.
+
+## Readiness status
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Production configuration validation | DONE | Required secrets/URLs validated; Local Lab auth rejected in production. |
+| Versioned Prisma migrations | DONE | Staging/production use `db:migrate:deploy` and `db:migrate:status`. |
+| Database health endpoint | DONE | `GET /api/health` checks PostgreSQL and returns 503 on failure. |
+| Baseline HTTP security headers | DONE | Includes HSTS in production. |
+| Sensitive product-route rate limits | DONE | PostgreSQL-backed fixed-window limits protect consent, probe, sync, Lab and remediation actions. |
+| Reproducible dependency installs | DONE | `pnpm-lock.yaml` is committed and CI uses `pnpm install --frozen-lockfile`. |
+| CodeQL | DONE | Runs on PRs, main and weekly schedule. |
+| Structured operational logging | PARTIAL | Redacted JSON events exist; managed collection/alerting is not yet configured. |
+| Dependency Review | BLOCKING PRODUCTION | Workflow prerequisite is GitHub Dependency Graph/alerts at repository level. |
+| Managed staging deployment | BLOCKING PILOT | A real HTTPS staging environment has not yet been established. |
+| Centralized monitoring and alerting | BLOCKING PILOT | Required before relying on staging for a customer pilot. |
+| Backup/restore ownership and restore test | BLOCKING PILOT | Backup existence is not enough; restore must be exercised. |
+| Content Security Policy | BLOCKING PRODUCTION | Introduce a verified Next.js-compatible policy, preferably report-only first. |
+| Protected deployment environment | BLOCKING PRODUCTION | Production secrets/deployments need an explicit protected environment boundary. |
+| Secret rotation process | BLOCKING PRODUCTION | Manual or automated operational process still required. |
+| Shared auth rate-limit storage for horizontal scaling | POST-PILOT | Required before horizontally scaling Better Auth traffic. |
+| Background worker / async sync | POST-PILOT | Introduce only when real tenant latency/volume justifies it. |
+| LIVE Microsoft write remediation | POST-PILOT | First customer pilot remains read-only. |
 
 ## Deployment sequence
 
@@ -21,8 +44,6 @@ build artifact
 ```
 
 ## Required production configuration
-
-CyberPilot must not start a real production deployment with Local Lab settings.
 
 Required:
 
@@ -64,7 +85,46 @@ The web application sends:
 - restrictive `Permissions-Policy`
 - `Strict-Transport-Security` in production
 
-A Content Security Policy is still outstanding because it must be introduced together with a verified Next.js-compatible nonce/hash strategy rather than a policy that silently breaks authentication or framework scripts.
+A Content Security Policy remains outstanding and should be introduced with a verified Next.js-compatible nonce/hash strategy. Prefer report-only validation before enforcement.
+
+## Rate limiting
+
+Authenticated high-impact product actions are protected by a PostgreSQL-backed fixed-window limiter.
+
+See `docs/rate-limiting.md` for exact scopes and thresholds.
+
+This control is implemented and must no longer be listed as outstanding.
+
+## Security CI and dependency reproducibility
+
+CyberPilot commits `pnpm-lock.yaml` and normal CI installs with:
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+CodeQL is active.
+
+Dependency Review remains blocked until GitHub Dependency Graph / alerts are enabled at repository level.
+
+See `docs/security-ci.md`.
+
+## Operational observability
+
+CyberPilot emits redacted structured operational events for critical failures.
+
+Before the first customer pilot, configure a managed collector/error-monitoring platform and define:
+
+- transport;
+- retention;
+- access control;
+- alert destinations;
+- severity thresholds;
+- incident ownership;
+- regional/data-residency requirements;
+- deletion policy.
+
+See `docs/observability.md`.
 
 ## Database
 
@@ -76,6 +136,8 @@ pnpm db:migrate:status
 ```
 
 Never run `db:push` in staging or production.
+
+Before the first customer pilot, define database backup ownership and complete at least one restore exercise into a separate environment.
 
 ## Secret handling
 
@@ -92,7 +154,7 @@ Never put real values in:
 
 ## First staging acceptance checklist
 
-Before treating staging as usable:
+Staging is usable only when:
 
 - production configuration validation passes;
 - migrations apply from the released revision;
@@ -101,21 +163,37 @@ Before treating staging as usable:
 - Local Lab auth is unavailable;
 - Microsoft login redirects to the expected tenant/account flow;
 - organization membership boundaries still work;
-- no remediation credentials are configured unless explicitly testing them;
-- logs contain no access tokens or secrets;
-- database backup/restore ownership is defined;
-- error monitoring ownership is defined.
+- no remediation credentials are configured for the first pilot;
+- structured logs contain no access tokens or secrets;
+- centralized log/error collection is active;
+- alert ownership is defined;
+- database backup ownership is defined;
+- a restore exercise has succeeded.
 
-## Still required before production
+## First customer pilot gate
 
-The current readiness baseline does not yet provide:
+The first customer pilot remains read-only.
 
-- rate limiting;
-- mature CSP;
-- centralized application/error monitoring;
-- automated backup restore testing;
-- secret rotation automation;
-- dependency/SAST/secret scanning beyond the existing CI checks;
-- protected deployment environments.
+Before connecting a customer tenant:
 
-Those remain production-hardening work and must not be implied as complete.
+1. staging acceptance checklist is complete;
+2. managed monitoring/alerting is active;
+3. backup/restore has been exercised;
+4. dedicated scanner credentials are configured;
+5. all `M365_REMEDIATION_*` values remain unset;
+6. the documented four read-only Microsoft permissions are the only scanner permissions granted.
+
+See `docs/first-customer-pilot.md` and `docs/first-live-tenant-runbook.md`.
+
+## Production gate after the pilot
+
+Do not describe CyberPilot as production-hardened until at least the following are complete:
+
+- Dependency Review is active;
+- CSP is validated and enforced;
+- deployment environments are protected;
+- secret rotation ownership/process exists;
+- backup restore testing is repeatable;
+- operational monitoring and alert ownership are proven in practice.
+
+Items such as horizontal auth scaling, asynchronous workers and LIVE write remediation are intentionally deferred until real pilot evidence justifies them.
