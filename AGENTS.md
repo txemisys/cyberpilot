@@ -898,3 +898,22 @@ Dependency Review was tested but GitHub rejected it because Dependency Graph is 
 The repository still lacks a committed `pnpm-lock.yaml`. This is a significant supply-chain/reproducibility gap; dependency scanning is not considered complete until a lockfile is committed and CI uses `--frozen-lockfile`.
 
 See `docs/security-ci.md`.
+
+
+### Secure operational observability
+
+CyberPilot emits structured JSON operational events for critical failures.
+
+The logging layer:
+
+- hashes organization/resource identifiers;
+- recursively redacts secret-bearing metadata keys;
+- never logs raw `error.message` or stack traces;
+- records only safe error class/status summaries;
+- keeps business/security AuditEvent history separate from operational logs.
+
+Instrumented paths include health/database, Microsoft scanner connection, Microsoft sync, remediation capability verification, remediation execution, and post-verification sync.
+
+A managed external log/error collector, alert routing, retention policy and incident ownership are still outstanding before production.
+
+See `docs/observability.md`.

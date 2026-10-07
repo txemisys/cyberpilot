@@ -12,6 +12,7 @@ import {
 } from "../../../../../../../lib/rate-limit";
 import { syncMicrosoft365Integration } from "../../../../../../../lib/microsoft-365-sync";
 import { executeLabRoleAssignmentRemoval } from "../../../../../../../lib/remediation-execution";
+import { reportOperationalEvent } from "../../../../../../../lib/operational-logging";
 
 type RouteContext = {
   params: Promise<{
@@ -240,7 +241,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     try {
       await syncMicrosoft365Integration(integration.id);
-    } catch {
+    } catch (error) {
+      reportOperationalEvent({
+        event: "remediation.post_verification_sync_failed",
+        level: "warn",
+        organizationId: membership.organization.id,
+        resourceId: remediation.id,
+        metadata: {
+          failureCode: "POST_VERIFICATION_SYNC_FAILED",
+        },
+        error,
+      });
+
       await db.auditEvent.create({
         data: {
           organizationId: membership.organization.id,
@@ -268,6 +280,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         : permissionRevoked
           ? "M365_REMEDIATION_PERMISSION_REQUIRED"
           : "M365_REMEDIATION_FAILED";
+
+    reportOperationalEvent({
+      event: "remediation.execution_failed",
+      organizationId: membership.organization.id,
+      resourceId: remediation.id,
+      metadata: {
+        failureCode,
+        actionType: remediation.actionType,
+        permissionRevoked,
+      },
+      error,
+    });
 
     await db.$transaction([
       ...(permissionRevoked
