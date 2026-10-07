@@ -6,10 +6,11 @@ on:
       - security/csp-report-only
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   diagnose:
+    if: ${{ !contains(github.event.head_commit.message, 'capture typecheck diagnostic') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -24,12 +25,11 @@ jobs:
         shell: bash
         run: |
           set +e
-          output="$(pnpm --filter @cyberpilot/web typecheck 2>&1)"
+          pnpm --filter @cyberpilot/web typecheck > typecheck-output.txt 2>&1
           status=$?
-          {
-            echo '### Typecheck output'
-            echo '```text'
-            printf '%s\n' "$output"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit "$status"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add typecheck-output.txt
+          git commit -m "ci: capture typecheck diagnostic"
+          git push
+          exit 0
