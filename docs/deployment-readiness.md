@@ -15,12 +15,13 @@ It distinguishes what is already implemented from what still blocks staging, the
 | Sensitive product-route rate limits | DONE | PostgreSQL-backed fixed-window limits protect consent, probe, sync, Lab and remediation actions. |
 | Reproducible dependency installs | DONE | `pnpm-lock.yaml` is committed and CI uses `pnpm install --frozen-lockfile`. |
 | CodeQL | DONE | Runs on PRs, main and weekly schedule. |
-| Structured operational logging | PARTIAL | Redacted JSON events exist; managed collection/alerting is not yet configured. |
+| Structured operational logging | PARTIAL | Redacted JSON events exist; Render-native collection/notifications are defined but not yet tested on a provisioned service. |
 | Dependency Review | BLOCKING PRODUCTION | Workflow prerequisite is GitHub Dependency Graph/alerts at repository level. |
 | Render staging Blueprint | DONE | Provider-specific web/PostgreSQL staging infrastructure is declared in `render.yaml`; provisioning is not yet performed. |
 | Staging smoke automation | DONE | Manual workflow validates HTTPS, minimal DB-backed health response, HSTS and security/CSP headers against a deployed URL. |
 | Managed staging deployment | BLOCKING PILOT | The Render resources still need to be provisioned, configured and smoke-tested. |
-| Centralized monitoring and alerting | BLOCKING PILOT | Required before relying on staging for a customer pilot. |
+| Observability policy | DONE | Render-native logging, failure notifications and incident ownership requirements are documented. |
+| Centralized monitoring and alerting | BLOCKING PILOT | Must be enabled and tested on the provisioned Render staging service before the pilot. |
 | Backup/restore regression rehearsal | DONE | CI performs PostgreSQL dump/restore into an isolated database and verifies data through Prisma. |
 | Managed staging backup/restore exercise | BLOCKING PILOT | CI proves mechanics only; the chosen managed PostgreSQL platform must still be exercised operationally. |
 | Content Security Policy | PARTIAL | Production emits a report-only baseline; staging validation plus nonce/hash hardening are required before enforcement. |
@@ -129,7 +130,7 @@ Before the first customer pilot, configure a managed collector/error-monitoring 
 - regional/data-residency requirements;
 - deletion policy.
 
-See `docs/observability.md`.
+See `docs/observability.md` and `docs/observability-render.md`.
 
 The current managed staging target is Render. See `docs/staging-render.md`.
 
