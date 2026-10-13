@@ -1,0 +1,118 @@
+name: Staging smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "HTTPS base URL for the staging deployment"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: HTTPS / health / security headers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      STAGING_BASE_URL: ${{ inputs.base_url }}
+
+    steps:
+      - name: Validate target URL
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "$STAGING_BASE_URL" in
+            https://*) ;;
+            *)
+              echo "Staging URL must use HTTPS." >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ "$STAGING_BASE_URL" == *"@"* ]]; then
+            echo "Staging URL must not contain embedded credentials." >&2
+            exit 1
+          fi
+
+          echo "TARGET_URL=${STAGING_BASE_URL%/}" >> "$GITHUB_ENV"
+
+      - name: Verify application health
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response_file="$RUNNER_TEMP/health.json"
+          status="$(
+            curl               --silent               --show-error               --location               --max-time 20               --output "$response_file"               --write-out "%{http_code}"               "$TARGET_URL/api/health"
+          )"
+
+          test "$status" = "200"
+
+          node - "$response_file" <<'NODE'
+          const fs = require("node:fs");
+          const path = process.argv[2];
+          const body = JSON.parse(fs.readFileSync(path, "utf8"));
+
+          if (body.status !== "ok" || body.database !== "ok") {
+            throw new Error("Staging health response is not healthy.");
+          }
+
+          const keys = Object.keys(body).sort();
+          const expected = ["database", "status"];
+
+          if (JSON.stringify(keys) !== JSON.stringify(expected)) {
+            throw new Error(
+              "Health response exposes unexpected fields: " + keys.join(", "),
+            );
+          }
+
+          console.log("Health endpoint verified.");
+          NODE
+
+      - name: Verify production security headers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          headers="$RUNNER_TEMP/headers.txt"
+
+          curl             --silent             --show-error             --location             --max-time 20             --dump-header "$headers"             --output /dev/null             "$TARGET_URL/"
+
+          tr -d '\r' < "$headers" > "$headers.normalized"
+
+          require_header() {
+            local name="$1"
+            local pattern="$2"
+
+            if ! grep -Eqi "^$name:[[:space:]]*$pattern([[:space:]]|$)" "$headers.normalized"; then
+              echo "Missing or unexpected $name header." >&2
+              cat "$headers.normalized" >&2
+              exit 1
+            fi
+          }
+
+          require_header "x-content-type-options" "nosniff"
+          require_header "x-frame-options" "DENY"
+          require_header "referrer-policy" "strict-origin-when-cross-origin"
+
+          if ! grep -Eqi '^strict-transport-security:[[:space:]]*max-age=' "$headers.normalized"; then
+            echo "Missing production HSTS header." >&2
+            exit 1
+          fi
+
+          if ! grep -Eqi '^content-security-policy-report-only:' "$headers.normalized"; then
+            echo "Missing CSP report-only header." >&2
+            exit 1
+          fi
+
+          if grep -Eqi '^content-security-policy:' "$headers.normalized"; then
+            echo "Blocking CSP is enabled before the documented staging validation gate." >&2
+            exit 1
+          fi
+
+          echo "Production security headers verified."

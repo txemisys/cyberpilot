@@ -18,6 +18,7 @@ It distinguishes what is already implemented from what still blocks staging, the
 | Structured operational logging | PARTIAL | Redacted JSON events exist; managed collection/alerting is not yet configured. |
 | Dependency Review | BLOCKING PRODUCTION | Workflow prerequisite is GitHub Dependency Graph/alerts at repository level. |
 | Render staging Blueprint | DONE | Provider-specific web/PostgreSQL staging infrastructure is declared in `render.yaml`; provisioning is not yet performed. |
+| Staging smoke automation | DONE | Manual workflow validates HTTPS, minimal DB-backed health response, HSTS and security/CSP headers against a deployed URL. |
 | Managed staging deployment | BLOCKING PILOT | The Render resources still need to be provisioned, configured and smoke-tested. |
 | Centralized monitoring and alerting | BLOCKING PILOT | Required before relying on staging for a customer pilot. |
 | Backup/restore regression rehearsal | DONE | CI performs PostgreSQL dump/restore into an isolated database and verifies data through Prisma. |
@@ -163,6 +164,9 @@ Never put real values in:
 ## First staging acceptance checklist
 
 Staging is usable only when:
+
+Run the manual `Staging smoke test` workflow against the deployed HTTPS URL as part of this acceptance. See `docs/staging-smoke.md`.
+
 
 - production configuration validation passes;
 - migrations apply from the released revision;
