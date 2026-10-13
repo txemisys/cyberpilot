@@ -121,4 +121,6 @@ Before the first customer tenant:
 
 Render's platform logs, metrics, health checks and deployment notifications are useful infrastructure signals.
 
-CyberPilot's structured application events should also be routed to a managed log/error destination before the first customer pilot. The collector and alert destination remain a separate readiness item until configured and tested.
+CyberPilot's structured application events must be visible in Render's centralized logs before the first customer pilot, and Render failure notifications must be delivered to an explicitly named incident owner. External log streaming is deferred until retention, correlation, alerting or compliance requirements justify it.
+
+See `docs/observability-render.md`.

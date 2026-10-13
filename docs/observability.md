@@ -69,9 +69,17 @@ Current structured events include:
 
 Audit events remain a separate business/security history. Operational logs do not replace audit records.
 
+## Managed staging collection
+
+The first managed staging target is Render. Render's native centralized logs and service failure notifications are the minimum collection/alerting layer for the first controlled read-only pilot, provided they are configured and tested on the real service.
+
+See `docs/observability-render.md`.
+
+For broader production use, define whether native retention/alerting is sufficient or whether an external log stream is required.
+
 ## Production collector requirements
 
-Before a real production deployment, choose a managed collector/error-monitoring platform and define:
+Before broader production deployment, define:
 
 - log transport;
 - retention period;
