@@ -937,3 +937,19 @@ Do not list PostgreSQL-backed sensitive-route rate limiting or dependency reprod
 The immediate architecture milestone is now real HTTPS staging with managed monitoring, a tested backup restore path, CSP validation and then one controlled LIVE Microsoft 365 read-only customer pilot.
 
 `docs/architecture.md` has been updated to describe the implemented authentication, Microsoft 365, Lab, Risk Engine, remediation, Prove and operational-control architecture rather than the original foundation-stage plan.
+
+
+### Render staging observability policy
+
+For the first controlled read-only pilot, Render-native centralized logs plus explicit failure notifications are the minimum managed observability layer.
+
+This is only considered complete after a real staging service verifies:
+
+- structured CyberPilot JSON events are visible;
+- failed deploy/unhealthy-service notifications reach the named owner;
+- inspected logs contain no secrets/tokens/raw Graph payloads;
+- incident ownership is recorded.
+
+External log streaming remains a production-scale decision based on retention, correlation, alerting and compliance needs.
+
+See `docs/observability-render.md`.
