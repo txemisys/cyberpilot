@@ -190,7 +190,7 @@ jobs:
           restored="$(
             docker compose -f compose.dev.yml exec -T postgres \
               psql -U postgres -d cyberpilot_restore -Atc \
-              "SELECT COUNT(*) FROM \\"Organization\\" WHERE \\"id\\" = 'local-stack-e2e-org';"
+              'SELECT COUNT(*) FROM "Organization" WHERE "id" = '\''local-stack-e2e-org'\'';'
           )"
 
           test "$restored" = "1"
