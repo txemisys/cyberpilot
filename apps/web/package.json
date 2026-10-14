@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "production:check": "node --experimental-strip-types -e \"process.env.NODE_ENV='production'; import('./lib/production-config.ts').then(m => m.assertProductionConfiguration())\""
+    "production:check": "node --experimental-strip-types -e \"process.env.NODE_ENV='production'; import('./lib/production-config.ts').then(m => m.assertProductionConfiguration())\"",
+    "pilot:check": "node --experimental-strip-types -e \"import('./lib/first-live-preflight.ts').then(m => m.assertFirstLivePilotConfiguration())\""
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "1.7.7",
