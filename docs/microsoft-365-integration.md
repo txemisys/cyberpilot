@@ -197,3 +197,14 @@ A `403` is recorded as `PERMISSION_REQUIRED`; other failures are recorded as `ER
 - Public application and consent callback URLs should use HTTPS.
 - Secrets must come from the deployment secret manager rather than source control.
 - Do not configure the remediation app merely to make read-only scanning work.
+
+
+## Tenant-free LIVE simulation
+
+Before a real Microsoft tenant is available, CyberPilot exercises the normal LIVE synchronization path with mocked OAuth and Microsoft Graph responses rather than relying only on Lab Mode.
+
+The database integration remains `LIVE`, and `MicrosoftGraphClient`, normalization, persistence, findings and CyberScore all execute normally. Only external network responses are replaced inside the automated test.
+
+See `docs/microsoft-365-live-simulation.md`.
+
+This simulation does not count as customer validation. Real admin consent, real token issuance, callback behavior and evidence comparison still require an actual Microsoft tenant.
