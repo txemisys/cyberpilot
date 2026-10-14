@@ -396,3 +396,229 @@ describe("Microsoft 365 LIVE Graph simulation E2E", () => {
     expect(persisted.mfaEvidenceStatus).toBe("PERMISSION_REQUIRED");
   });
 });
+
+
+describe("Microsoft 365 LIVE change reconciliation", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+    await db.$disconnect();
+  });
+
+  it("removes stale identities and role assignments on the second LIVE sync", async () => {
+    let generation = 1;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return new Response(
+            JSON.stringify({
+              access_token: accessToken([
+                ...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES,
+              ]),
+              expires_in: 3600,
+              token_type: "Bearer",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/organization?")) {
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: TENANT_ID,
+                  displayName: "Changing Tenant",
+                  verifiedDomains: [],
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/users?")) {
+          const value =
+            generation === 1
+              ? [
+                  {
+                    id: "user-keep",
+                    displayName: "Keep User",
+                    userPrincipalName: "keep@example.test",
+                    accountEnabled: true,
+                    userType: "Member",
+                  },
+                  {
+                    id: "user-remove",
+                    displayName: "Remove User",
+                    userPrincipalName: "remove@example.test",
+                    accountEnabled: true,
+                    userType: "Guest",
+                  },
+                ]
+              : [
+                  {
+                    id: "user-keep",
+                    displayName: "Keep User Updated",
+                    userPrincipalName: "keep@example.test",
+                    accountEnabled: true,
+                    userType: "Member",
+                  },
+                ];
+
+          return new Response(JSON.stringify({ value }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        if (url.includes("/roleManagement/directory/roleDefinitions?")) {
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: GLOBAL_ADMIN_ROLE_ID,
+                  displayName: "Global Administrator",
+                  templateId: "62e90394-69f5-4237-9190-012177145e10",
+                  isBuiltIn: true,
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/roleManagement/directory/roleAssignments?")) {
+          const value =
+            generation === 1
+              ? [
+                  {
+                    id: "assignment-keep",
+                    principalId: "user-keep",
+                    roleDefinitionId: GLOBAL_ADMIN_ROLE_ID,
+                    directoryScopeId: "/",
+                  },
+                  {
+                    id: "assignment-remove",
+                    principalId: "user-remove",
+                    roleDefinitionId: GLOBAL_ADMIN_ROLE_ID,
+                    directoryScopeId: "/",
+                  },
+                ]
+              : [
+                  {
+                    id: "assignment-keep",
+                    principalId: "user-keep",
+                    roleDefinitionId: GLOBAL_ADMIN_ROLE_ID,
+                    directoryScopeId: "/",
+                  },
+                ];
+
+          return new Response(JSON.stringify({ value }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        if (url.includes("/reports/authenticationMethods/userRegistrationDetails")) {
+          const value =
+            generation === 1
+              ? [
+                  {
+                    id: "user-keep",
+                    isAdmin: true,
+                    isMfaRegistered: true,
+                    isMfaCapable: true,
+                    isPasswordlessCapable: false,
+                    methodsRegistered: ["microsoftAuthenticatorPush"],
+                  },
+                  {
+                    id: "user-remove",
+                    isAdmin: true,
+                    isMfaRegistered: true,
+                    isMfaCapable: true,
+                    isPasswordlessCapable: false,
+                    methodsRegistered: ["microsoftAuthenticatorPush"],
+                  },
+                ]
+              : [
+                  {
+                    id: "user-keep",
+                    isAdmin: true,
+                    isMfaRegistered: true,
+                    isMfaCapable: true,
+                    isPasswordlessCapable: false,
+                    methodsRegistered: ["microsoftAuthenticatorPush"],
+                  },
+                ];
+
+          return new Response(JSON.stringify({ value }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        throw new Error(`Unexpected mocked Microsoft request: ${url}`);
+      }),
+    );
+
+    const organization = await db.organization.create({
+      data: {
+        name: "Changing LIVE Workspace",
+        slug: "changing-live-workspace",
+      },
+    });
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        connectedAt: new Date(),
+      },
+    });
+
+    await syncMicrosoft365Integration(integration.id);
+
+    expect(
+      await db.directoryIdentity.count({ where: { integrationId: integration.id } }),
+    ).toBe(2);
+    expect(
+      await db.directoryRoleAssignment.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(2);
+
+    generation = 2;
+    await syncMicrosoft365Integration(integration.id);
+
+    const identities = await db.directoryIdentity.findMany({
+      where: { integrationId: integration.id },
+      select: { externalId: true, displayName: true },
+    });
+    const assignments = await db.directoryRoleAssignment.findMany({
+      where: { integrationId: integration.id },
+      select: { externalId: true },
+    });
+
+    expect(identities).toEqual([
+      { externalId: "user-keep", displayName: "Keep User Updated" },
+    ]);
+    expect(assignments).toEqual([{ externalId: "assignment-keep" }]);
+  });
+});
