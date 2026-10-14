@@ -31,11 +31,17 @@ export function inspectMicrosoftGraphApplicationRoles(accessToken: string) {
     throw new Error("Microsoft Graph access token is not a JWT.");
   }
 
+  const payloadPart = parts[1];
+
+  if (!payloadPart) {
+    throw new Error("Microsoft Graph access token is not a JWT.");
+  }
+
   let payload: AccessTokenPayload;
 
   try {
     payload = JSON.parse(
-      Buffer.from(parts[1], "base64url").toString("utf8"),
+      Buffer.from(payloadPart, "base64url").toString("utf8"),
     ) as AccessTokenPayload;
   } catch {
     throw new Error("Microsoft Graph access token payload is invalid.");
@@ -48,7 +54,7 @@ export function inspectMicrosoftGraphApplicationRoles(accessToken: string) {
   const granted = [...new Set(roles)].sort();
   const required = [...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES].sort();
   const grantedSet = new Set(granted);
-  const requiredSet = new Set(required);
+  const requiredSet = new Set<string>(required);
   const missing = required.filter((role) => !grantedSet.has(role));
   const unexpected = granted.filter((role) => !requiredSet.has(role));
 
