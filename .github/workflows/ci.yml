@@ -58,6 +58,9 @@ jobs:
       - name: Validate local development compose
         run: docker compose -f compose.dev.yml config --quiet
 
+      - name: Validate local development compose
+        run: docker compose -f compose.dev.yml config --quiet
+
       - name: Generate Prisma client
         run: pnpm db:generate
 
