@@ -50,3 +50,17 @@ pnpm test
 ```
 
 With PostgreSQL available and migrations applied, the LIVE simulation runs automatically as `microsoft-365-live-sim.e2e.test.ts`.
+
+
+## Resilience scenarios
+
+The simulation also exercises transport and reconciliation behavior that commonly differs in real tenants:
+
+- paginated Graph collections through `@odata.nextLink`;
+- rejection of off-origin pagination URLs;
+- bounded retry of HTTP 429 responses while honoring `Retry-After`;
+- bounded retry of transient 5xx responses;
+- rejection of unexpected application permissions in the Graph token;
+- reconciliation between consecutive LIVE syncs, including removal of stale identities and role assignments.
+
+Retries are intentionally bounded so a degraded Microsoft service cannot hold a CyberPilot request indefinitely.
