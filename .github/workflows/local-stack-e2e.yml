@@ -179,8 +179,8 @@ jobs:
           test -n "$backup_path"
           test -s "$backup_path"
 
-          relative_path="\${backup_path#"$GITHUB_WORKSPACE"/}"
-          pnpm dev:restore -- "$relative_path"
+          relative_path="${backup_path#"$GITHUB_WORKSPACE"/}"
+          pnpm dev:restore "$relative_path"
 
       - name: Verify isolated restore data and migrations
         shell: bash
