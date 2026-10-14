@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
-const input = process.argv[2];
+const input = process.argv.slice(2).find((argument) => argument !== "--");
 
 if (!input) {
   console.error("Usage: pnpm dev:restore -- backups/<file>.dump");
