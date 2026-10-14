@@ -1,8 +1,8 @@
 # Render staging deployment
 
-CyberPilot's first concrete managed staging target is Render.
+Render is an optional managed deployment example for CyberPilot. It is not part of the required development architecture and must not block feature development, Microsoft integration testing or the first controlled technical validation.
 
-This choice is intentionally narrow: one Node web service and one managed PostgreSQL 16 database. It does not introduce Kubernetes, a background worker, Redis, or additional infrastructure before pilot evidence requires them.
+The default development and LIVE integration path is local-first and documented in `docs/local-development.md`. Use Render only when managed hosting is intentionally desired.
 
 ## Infrastructure as code
 
@@ -33,7 +33,7 @@ The declared compute plans are:
 
 These are intended as a small paid staging baseline, not a production sizing recommendation.
 
-Applying the Blueprint can create billable Render resources. Do not provision it without explicit approval of the account/workspace and expected spend.
+Applying the Blueprint can create billable Render resources. It is entirely optional and must not be required by development documentation, CI, Microsoft OAuth testing, backup/restore testing or local observability.
 
 ## Required secrets before first successful deploy
 
@@ -90,9 +90,9 @@ Render provides HTTPS for the service URL and manages TLS for custom domains. If
 
 ## Database recovery
 
-The staging database must use a paid plan with recovery capability before it is accepted for a customer pilot.
+If Render is selected for a real production-like environment, choose a database plan with recovery capability appropriate to that environment.
 
-CyberPilot already rehearses logical `pg_dump` / `pg_restore` in CI. After the managed database exists, perform one provider-level restore into a separate database and validate:
+CyberPilot already rehearses logical `pg_dump` / `pg_restore` in CI. If a managed Render database is used, perform one provider-level restore into a separate database and validate:
 
 - migration status;
 - `/api/health`;
@@ -104,9 +104,9 @@ See `docs/backup-restore.md`.
 
 ## Operational acceptance
 
-A Render deployment is not considered pilot-ready merely because it serves HTTP.
+A Render deployment, when used, is not considered production-ready merely because it serves HTTP.
 
-Before the first customer tenant:
+Before relying on Render for a customer-facing environment:
 
 1. production configuration check passes;
 2. health checks remain stable;
