@@ -24,6 +24,7 @@ async function resetDatabase() {
   await db.directoryRoleDefinition.deleteMany();
   await db.directoryIdentity.deleteMany();
   await db.integrationConsentState.deleteMany();
+  await db.integrationSyncLease.deleteMany();
   await db.integration.deleteMany();
   await db.membership.deleteMany();
   await db.organization.deleteMany();
@@ -620,5 +621,241 @@ describe("Microsoft 365 LIVE change reconciliation", () => {
       { externalId: "user-keep", displayName: "Keep User Updated" },
     ]);
     expect(assignments).toEqual([{ externalId: "assignment-keep" }]);
+  });
+});
+
+
+describe("Microsoft 365 sync isolation and idempotency", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+    await db.$disconnect();
+  });
+
+  it("rejects a second sync while an active lease exists", async () => {
+    const organization = await db.organization.create({
+      data: {
+        name: "Locked Workspace",
+        slug: "locked-workspace",
+      },
+    });
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: "22222222-2222-2222-2222-222222222222",
+        connectedAt: new Date(),
+      },
+    });
+
+    await db.integrationSyncLease.create({
+      data: {
+        integrationId: integration.id,
+        leaseToken: "existing-lease",
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    await expect(syncMicrosoft365Integration(integration.id)).rejects.toMatchObject({
+      name: "Microsoft365SyncInProgressError",
+    });
+
+    expect(
+      await db.integrationSyncLease.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(1);
+  });
+
+  it("takes over an expired lease and releases it after sync", async () => {
+    mockMicrosoftGraph();
+
+    const organization = await db.organization.create({
+      data: {
+        name: "Expired Lease Workspace",
+        slug: "expired-lease-workspace",
+      },
+    });
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        connectedAt: new Date(),
+      },
+    });
+
+    await db.integrationSyncLease.create({
+      data: {
+        integrationId: integration.id,
+        leaseToken: "expired-lease",
+        expiresAt: new Date(Date.now() - 1_000),
+      },
+    });
+
+    await expect(syncMicrosoft365Integration(integration.id)).resolves.toMatchObject({
+      users: 5,
+    });
+
+    expect(
+      await db.integrationSyncLease.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(0);
+  });
+
+  it("keeps another organization's evidence untouched during sync", async () => {
+    mockMicrosoftGraph();
+
+    const [organizationA, organizationB] = await Promise.all([
+      db.organization.create({
+        data: { name: "Tenant A", slug: "tenant-a" },
+      }),
+      db.organization.create({
+        data: { name: "Tenant B", slug: "tenant-b" },
+      }),
+    ]);
+
+    const integrationA = await db.integration.create({
+      data: {
+        organizationId: organizationA.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        connectedAt: new Date(),
+      },
+    });
+
+    const integrationB = await db.integration.create({
+      data: {
+        organizationId: organizationB.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: "33333333-3333-3333-3333-333333333333",
+        connectedAt: new Date(),
+      },
+    });
+
+    await db.directoryIdentity.create({
+      data: {
+        integrationId: integrationB.id,
+        externalId: "tenant-b-user",
+        displayName: "Tenant B User",
+        userPrincipalName: "user@tenant-b.test",
+        accountEnabled: true,
+      },
+    });
+
+    await db.securityFinding.create({
+      data: {
+        organizationId: organizationB.id,
+        integrationId: integrationB.id,
+        key: "tenant-b-sentinel",
+        ruleId: "TENANT_B_SENTINEL",
+        title: "Tenant B Sentinel",
+        description: "Must remain untouched by Tenant A sync.",
+        severity: "LOW",
+      },
+    });
+
+    await syncMicrosoft365Integration(integrationA.id);
+
+    expect(
+      await db.directoryIdentity.findUnique({
+        where: {
+          integrationId_externalId: {
+            integrationId: integrationB.id,
+            externalId: "tenant-b-user",
+          },
+        },
+      }),
+    ).not.toBeNull();
+
+    expect(
+      await db.securityFinding.findUnique({
+        where: {
+          organizationId_key: {
+            organizationId: organizationB.id,
+            key: "tenant-b-sentinel",
+          },
+        },
+      }),
+    ).not.toBeNull();
+  });
+
+  it("is inventory-idempotent for identical consecutive LIVE syncs", async () => {
+    mockMicrosoftGraph();
+
+    const organization = await db.organization.create({
+      data: {
+        name: "Idempotent Workspace",
+        slug: "idempotent-workspace",
+      },
+    });
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        connectedAt: new Date(),
+      },
+    });
+
+    await syncMicrosoft365Integration(integration.id);
+
+    const firstCounts = await Promise.all([
+      db.directoryIdentity.count({ where: { integrationId: integration.id } }),
+      db.directoryRoleDefinition.count({
+        where: { integrationId: integration.id },
+      }),
+      db.directoryRoleAssignment.count({
+        where: { integrationId: integration.id },
+      }),
+      db.securityFinding.count({
+        where: { organizationId: organization.id, status: "OPEN" },
+      }),
+    ]);
+
+    await syncMicrosoft365Integration(integration.id);
+
+    const secondCounts = await Promise.all([
+      db.directoryIdentity.count({ where: { integrationId: integration.id } }),
+      db.directoryRoleDefinition.count({
+        where: { integrationId: integration.id },
+      }),
+      db.directoryRoleAssignment.count({
+        where: { integrationId: integration.id },
+      }),
+      db.securityFinding.count({
+        where: { organizationId: organization.id, status: "OPEN" },
+      }),
+    ]);
+
+    expect(secondCounts).toEqual(firstCounts);
+    expect(
+      await db.integrationSyncLease.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(0);
   });
 });
