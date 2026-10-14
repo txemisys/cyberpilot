@@ -20,7 +20,8 @@ It distinguishes what is already implemented from what still blocks staging, the
 | Zero-cost local integration environment | DONE | Docker Compose provides PostgreSQL + Alloy/Loki/Grafana; Tailscale Funnel is optional for public HTTPS callbacks. |
 | Optional Render deployment example | AVAILABLE | `render.yaml` remains an optional managed-hosting path, not a development or pilot prerequisite. |
 | Staging smoke automation | DONE | Manual workflow validates HTTPS, minimal DB-backed health response, HSTS and security/CSP headers against a deployed URL. |
-| Stable HTTPS integration endpoint | BLOCKING LIVE TEST ONLY | Required only for Microsoft OAuth/LIVE integration testing; may be supplied by Tailscale Funnel or another controlled HTTPS endpoint. |
+| Tenant-free LIVE Graph simulation | DONE | The normal LIVE sync path is exercised against Microsoft-shaped OAuth/Graph responses without a Microsoft account or tenant. |
+| Stable HTTPS integration endpoint | BLOCKING REAL-TENANT VALIDATION ONLY | Required only when moving from simulation to actual Microsoft OAuth/admin consent; may be supplied by Tailscale Funnel or another controlled HTTPS endpoint. |
 | Local observability stack | DONE | Alloy/Loki/Grafana run locally at zero infrastructure cost. |
 | Production monitoring and alert routing | BLOCKING PRODUCTION | Must be selected and tested before broader production operation; no vendor is required during development. |
 | Backup/restore regression rehearsal | DONE | CI performs PostgreSQL dump/restore into an isolated database and verifies data through Prisma. |
