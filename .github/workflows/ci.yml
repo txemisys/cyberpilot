@@ -82,6 +82,9 @@ jobs:
       - name: Production configuration check
         run: pnpm production:check
 
+      - name: First LIVE pilot static gate
+        run: pnpm pilot:check
+
       - name: Typecheck
         run: pnpm typecheck
 
