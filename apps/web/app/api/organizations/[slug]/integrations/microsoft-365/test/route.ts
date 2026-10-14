@@ -6,6 +6,7 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "../../../../../../../lib/auth";
+import { validateFirstLivePilotConfiguration } from "../../../../../../../lib/first-live-preflight";
 import {
   consumePersistentRateLimit,
   rateLimitedResponse,
@@ -68,8 +69,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   const scannerConfiguration = getMicrosoftGraphScannerConfiguration();
   const redirectConfigured = Boolean(process.env.M365_GRAPH_REDIRECT_URI);
+  const firstLiveConfig = validateFirstLivePilotConfiguration(process.env);
 
-  if (!scannerConfiguration.configured || !redirectConfigured) {
+  if (
+    !scannerConfiguration.configured ||
+    !redirectConfigured ||
+    !firstLiveConfig.ok
+  ) {
     return new Response("Microsoft 365 scanner is not fully configured.", {
       status: 503,
     });
@@ -108,7 +114,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     (check) => check.status === "PERMISSION_REQUIRED",
   );
   const hasError = checks.some((check) => check.status === "ERROR");
-  const result = hasError ? "ERROR" : hasPermissionRequired ? "PARTIAL" : "READY";
+  const permissionsExact = probe.applicationPermissions.status === "EXACT";
+  const result =
+    hasError || !permissionsExact
+      ? "ERROR"
+      : hasPermissionRequired
+        ? "PARTIAL"
+        : "READY";
   const mfaStatus = probe.checks.authenticationRegistration.status;
 
   await db.$transaction([
@@ -139,6 +151,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         resourceId: integration.id,
         metadata: {
           result,
+          applicationPermissions: probe.applicationPermissions,
           checks: probe.checks,
         },
       },
