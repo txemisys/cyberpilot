@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MicrosoftGraphClient } from "./client";
+import { MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES } from "./token";
+
+function accessToken(roles: string[]) {
+  const header = Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ roles })).toString("base64url");
+  return `${header}.${payload}.`;
+}
 
 describe("MicrosoftGraphClient read-only readiness probe", () => {
   beforeEach(() => {
@@ -23,7 +30,7 @@ describe("MicrosoftGraphClient read-only readiness probe", () => {
         if (url.includes("login.microsoftonline.com")) {
           return new Response(
             JSON.stringify({
-              access_token: "test-token",
+              access_token: accessToken([...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES]),
               expires_in: 3600,
               token_type: "Bearer",
             }),
@@ -59,6 +66,11 @@ describe("MicrosoftGraphClient read-only readiness probe", () => {
 
     const result = await client.probeReadOnlyAccess();
 
+    expect(result.applicationPermissions).toEqual({
+      status: "EXACT",
+      missing: [],
+      unexpected: [],
+    });
     expect(result.checks).toEqual({
       organization: { status: "AVAILABLE" },
       users: { status: "AVAILABLE" },
@@ -77,7 +89,7 @@ describe("MicrosoftGraphClient read-only readiness probe", () => {
         if (url.includes("login.microsoftonline.com")) {
           return new Response(
             JSON.stringify({
-              access_token: "test-token",
+              access_token: accessToken([...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES]),
               expires_in: 3600,
               token_type: "Bearer",
             }),
@@ -120,6 +132,7 @@ describe("MicrosoftGraphClient read-only readiness probe", () => {
 
     const result = await client.probeReadOnlyAccess();
 
+    expect(result.applicationPermissions.status).toBe("EXACT");
     expect(result.checks.organization.status).toBe("AVAILABLE");
     expect(result.checks.users.status).toBe("AVAILABLE");
     expect(result.checks.roleDefinitions.status).toBe("AVAILABLE");
