@@ -13,6 +13,32 @@ import type {
 } from "./types";
 
 const GRAPH_BASE_URL = new URL("https://graph.microsoft.com/v1.0/");
+const MAX_GRAPH_ATTEMPTS = 3;
+const TRANSIENT_GRAPH_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+function sleep(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function getRetryDelayMs(response: Response, attempt: number) {
+  const retryAfter = response.headers.get("retry-after");
+
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return seconds * 1000;
+    }
+
+    const date = Date.parse(retryAfter);
+
+    if (!Number.isNaN(date)) {
+      return Math.max(0, date - Date.now());
+    }
+  }
+
+  return 250 * 2 ** attempt;
+}
 
 export class MicrosoftGraphError extends Error {
   constructor(
@@ -75,27 +101,42 @@ export class MicrosoftGraphClient {
   constructor(private readonly tenantId: string) {}
 
   private async request<T>(pathOrUrl: string): Promise<T> {
-    const { access_token: accessToken } =
-      await acquireMicrosoftGraphToken(this.tenantId);
-
     const url = resolveGraphUrl(pathOrUrl);
 
-    const response = await fetch(url, {
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        accept: "application/json",
-      },
-      cache: "no-store",
-    });
+    for (let attempt = 0; attempt < MAX_GRAPH_ATTEMPTS; attempt += 1) {
+      const { access_token: accessToken } =
+        await acquireMicrosoftGraphToken(this.tenantId);
 
-    if (!response.ok) {
-      throw new MicrosoftGraphError(
-        `Microsoft Graph request failed with status ${response.status}.`,
-        response.status,
-      );
+      const response = await fetch(url, {
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          accept: "application/json",
+        },
+        cache: "no-store",
+      });
+
+      if (response.ok) {
+        return (await response.json()) as T;
+      }
+
+      const shouldRetry =
+        TRANSIENT_GRAPH_STATUSES.has(response.status) &&
+        attempt < MAX_GRAPH_ATTEMPTS - 1;
+
+      if (!shouldRetry) {
+        throw new MicrosoftGraphError(
+          `Microsoft Graph request failed with status ${response.status}.`,
+          response.status,
+        );
+      }
+
+      await sleep(getRetryDelayMs(response, attempt));
     }
 
-    return (await response.json()) as T;
+    throw new MicrosoftGraphError(
+      "Microsoft Graph request exhausted retry attempts.",
+      503,
+    );
   }
 
   private async listAll<T>(path: string): Promise<T[]> {
