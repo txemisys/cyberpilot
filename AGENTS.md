@@ -970,3 +970,12 @@ The default development path is now:
 Render remains an optional managed deployment example and must not be treated as a feature-development or LIVE integration prerequisite.
 
 See `docs/local-development.md`.
+
+
+### Tenant-free Microsoft LIVE simulation
+
+When a real Microsoft tenant is unavailable, prefer the automated LIVE Graph simulation over broadening Lab Mode. The simulation must exercise the real `MicrosoftGraphClient` and LIVE sync normalization/persistence path while mocking only external Microsoft OAuth/Graph responses.
+
+Simulation never counts as first customer evidence. Real tenant validation remains a separate final compatibility/evidence step.
+
+See `docs/microsoft-365-live-simulation.md`.
