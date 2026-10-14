@@ -64,3 +64,18 @@ The simulation also exercises transport and reconciliation behavior that commonl
 - reconciliation between consecutive LIVE syncs, including removal of stale identities and role assignments.
 
 Retries are intentionally bounded so a degraded Microsoft service cannot hold a CyberPilot request indefinitely.
+
+
+## Tenant isolation and sync concurrency
+
+Every Microsoft 365 sync is scoped to a single persisted integration. Inventory reconciliation uses `integrationId`, while findings and scores remain scoped to the owning organization.
+
+CyberPilot also uses a PostgreSQL-backed sync lease per integration:
+
+- only one sync may mutate a given integration at a time;
+- a concurrent request receives a conflict rather than interleaving writes;
+- the lease is released in a `finally` block on success or failure;
+- an abandoned lease expires after 30 minutes and can be replaced;
+- separate organizations/integrations can still sync independently.
+
+Automated tests verify cross-organization evidence is not changed by another tenant's sync and that repeated identical LIVE syncs do not duplicate inventory/findings.

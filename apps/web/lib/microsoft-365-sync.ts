@@ -1,4 +1,5 @@
 import { db } from "@cyberpilot/database";
+import { randomUUID } from "node:crypto";
 import { observeDomainSecurity } from "@cyberpilot/integrations/domain-security";
 import {
   MicrosoftGraphClient,
@@ -16,6 +17,58 @@ import {
 const GLOBAL_ADMIN_TEMPLATE_ID =
   "62e90394-69f5-4237-9190-012177145e10";
 const WRITE_CONCURRENCY = 10;
+const SYNC_LEASE_MS = 30 * 60 * 1000;
+
+export class Microsoft365SyncInProgressError extends Error {
+  constructor() {
+    super("A Microsoft 365 sync is already in progress for this integration.");
+    this.name = "Microsoft365SyncInProgressError";
+  }
+}
+
+async function acquireMicrosoft365SyncLease(integrationId: string) {
+  const now = new Date();
+  const leaseToken = randomUUID();
+
+  await db.integrationSyncLease.deleteMany({
+    where: {
+      integrationId,
+      expiresAt: {
+        lt: now,
+      },
+    },
+  });
+
+  try {
+    await db.integrationSyncLease.create({
+      data: {
+        integrationId,
+        leaseToken,
+        expiresAt: new Date(now.getTime() + SYNC_LEASE_MS),
+      },
+    });
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      throw new Microsoft365SyncInProgressError();
+    }
+
+    throw error;
+  }
+
+  return async () => {
+    await db.integrationSyncLease.deleteMany({
+      where: {
+        integrationId,
+        leaseToken,
+      },
+    });
+  };
+}
 
 function mapIdentityType(userType?: string | null) {
   if (userType === "Member") return "MEMBER" as const;
@@ -35,6 +88,16 @@ async function forEachWithConcurrency<T>(
 }
 
 export async function syncMicrosoft365Integration(integrationId: string) {
+  const releaseLease = await acquireMicrosoft365SyncLease(integrationId);
+
+  try {
+    return await syncMicrosoft365IntegrationUnlocked(integrationId);
+  } finally {
+    await releaseLease();
+  }
+}
+
+async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
   const integration = await db.integration.findUnique({
     where: { id: integrationId },
     select: {

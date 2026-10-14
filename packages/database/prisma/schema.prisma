@@ -232,10 +232,24 @@ model Integration {
   roleAssignments DirectoryRoleAssignment[]
   findings        SecurityFinding[]
   domains         Domain[]
+  syncLease       IntegrationSyncLease?
 
   @@unique([organizationId, provider])
   @@unique([provider, externalTenantId])
   @@index([organizationId])
+}
+
+
+model IntegrationSyncLease {
+  integrationId String   @id
+  leaseToken    String   @unique
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }
 
 model DirectoryIdentity {

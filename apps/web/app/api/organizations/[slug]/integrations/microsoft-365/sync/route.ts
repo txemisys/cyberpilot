@@ -7,7 +7,10 @@ import {
   consumePersistentRateLimit,
   rateLimitedResponse,
 } from "../../../../../../../lib/rate-limit";
-import { syncMicrosoft365Integration } from "../../../../../../../lib/microsoft-365-sync";
+import {
+  Microsoft365SyncInProgressError,
+  syncMicrosoft365Integration,
+} from "../../../../../../../lib/microsoft-365-sync";
 import { reportOperationalEvent } from "../../../../../../../lib/operational-logging";
 
 type RouteContext = {
@@ -155,6 +158,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.redirect(url, 303);
   } catch (error) {
+    if (error instanceof Microsoft365SyncInProgressError) {
+      return new Response("A Microsoft 365 sync is already in progress.", {
+        status: 409,
+      });
+    }
+
     reportOperationalEvent({
       event: "integration.microsoft_365.sync_failed",
       organizationId: membership.organization.id,
