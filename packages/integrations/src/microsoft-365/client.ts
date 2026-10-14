@@ -1,4 +1,8 @@
-import { acquireMicrosoftGraphToken } from "./token";
+import {
+  acquireMicrosoftGraphToken,
+  inspectMicrosoftGraphApplicationRoles,
+  MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES,
+} from "./token";
 import type {
   MicrosoftDirectoryUser,
   MicrosoftGraphCollection,
@@ -42,6 +46,11 @@ export type MicrosoftGraphReadOnlyProbeCheck = {
 
 export type MicrosoftGraphReadOnlyProbe = {
   tenantId: string;
+  applicationPermissions: {
+    status: "EXACT" | "MISMATCH" | "ERROR";
+    missing: string[];
+    unexpected: string[];
+  };
   checks: {
     organization: MicrosoftGraphReadOnlyProbeCheck;
     users: MicrosoftGraphReadOnlyProbeCheck;
@@ -145,6 +154,30 @@ export class MicrosoftGraphClient {
   }
 
   async probeReadOnlyAccess(): Promise<MicrosoftGraphReadOnlyProbe> {
+    let applicationPermissions: MicrosoftGraphReadOnlyProbe["applicationPermissions"] = {
+      status: "ERROR",
+      missing: [...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES],
+      unexpected: [],
+    };
+
+    try {
+      const { access_token: accessToken } =
+        await acquireMicrosoftGraphToken(this.tenantId);
+      const roles = inspectMicrosoftGraphApplicationRoles(accessToken);
+
+      applicationPermissions = {
+        status: roles.exact ? "EXACT" : "MISMATCH",
+        missing: roles.missing,
+        unexpected: roles.unexpected,
+      };
+    } catch {
+      applicationPermissions = {
+        status: "ERROR",
+        missing: [...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES],
+        unexpected: [],
+      };
+    }
+
     const checks: MicrosoftGraphReadOnlyProbe["checks"] = {
       organization: { status: "ERROR" },
       users: { status: "ERROR" },
@@ -209,6 +242,7 @@ export class MicrosoftGraphClient {
 
     return {
       tenantId: this.tenantId,
+      applicationPermissions,
       checks,
     };
   }
