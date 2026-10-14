@@ -11,3 +11,6 @@ coverage
 
 backups/
 var/log/cyberpilot/
+
+backups/
+var/log/cyberpilot/
