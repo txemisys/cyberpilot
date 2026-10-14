@@ -133,11 +133,13 @@ jobs:
           for _ in $(seq 1 30); do
             response="$(
               curl --silent --get \
-                --data-urlencode 'query={service_name="cyberpilot"} |= "'"$marker"'"' \
-                http://localhost:3100/loki/api/v1/query
+                --data-urlencode 'query={service_name="cyberpilot"}' \
+                --data-urlencode 'since=5m' \
+                --data-urlencode 'limit=1000' \
+                http://localhost:3100/loki/api/v1/query_range
             )"
 
-            if RESPONSE="$response" node -e 'const body = JSON.parse(process.env.RESPONSE); process.exit(body?.data?.result?.length > 0 ? 0 : 1)'; then
+            if printf '%s' "$response" | grep -Fq "$marker"; then
               echo "Local log ingestion verified."
               exit 0
             fi
