@@ -46,9 +46,11 @@ M365_GRAPH_CLIENT_SECRET
 M365_GRAPH_REDIRECT_URI
 ```
 
-The redirect URI must exactly match the callback configured in the scanner Entra application.
+The redirect URI must exactly match the callback configured in the scanner Entra application:
 
-For a production/public environment use HTTPS.
+`/api/integrations/microsoft-365/callback`
+
+For the first LIVE pilot it must use HTTPS and the same public origin as `BETTER_AUTH_URL`. Run `pnpm pilot:check` before starting consent. The command also rejects login/scanner app reuse, Lab auth, and any non-empty `M365_REMEDIATION_*` value.
 
 Never commit real IDs/secrets to the repository.
 
@@ -61,8 +63,8 @@ Never commit real IDs/secrets to the repository.
 5. Grant consent only if the permission list matches the four documented read-only application permissions.
 6. CyberPilot verifies the tenant ID using Microsoft Graph before persisting the LIVE connection.
 7. Do **not** run automated remediation consent.
-8. Run **Test read-only Microsoft access**.
-9. Require all five probe areas to report healthy access before treating coverage as complete:
+8. Run **Test read-only Microsoft access**. The probe inspects the Microsoft Graph access-token `roles` claim and requires exactly the four documented application permissions. Missing or extra Graph application permissions make the probe fail.
+9. Require the application-permission gate and all five probe areas to report healthy access before treating coverage as complete:
    - organization;
    - users;
    - directory role definitions;
@@ -70,7 +72,7 @@ Never commit real IDs/secrets to the repository.
    - authentication registration.
 10. If authentication registration returns `PERMISSION_REQUIRED`, verify that `AuditLog.Read.All` received admin consent.
 11. If any other scope returns `PERMISSION_REQUIRED`, verify the corresponding scanner permission rather than adding broad permissions.
-12. Only after the probe is satisfactory, run **Sync Microsoft 365**.
+12. Only after the probe result is `READY`, run **Sync Microsoft 365**. CyberPilot now rejects a LIVE sync when the latest read-only probe is absent or not `READY`.
 
 ## Evidence validation after first sync
 
