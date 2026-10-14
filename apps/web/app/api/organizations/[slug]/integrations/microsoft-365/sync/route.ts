@@ -2,6 +2,7 @@ import { db } from "@cyberpilot/database";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "../../../../../../../lib/auth";
+import { validateFirstLivePilotConfiguration } from "../../../../../../../lib/first-live-preflight";
 import {
   consumePersistentRateLimit,
   rateLimitedResponse,
@@ -64,6 +65,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return rateLimitedResponse(rateLimit.retryAfterSeconds);
   }
 
+  const firstLiveConfig = validateFirstLivePilotConfiguration(process.env);
+
+  if (!firstLiveConfig.ok) {
+    return new Response("First LIVE read-only configuration gate failed.", {
+      status: 503,
+    });
+  }
+
   const integration = await db.integration.findUnique({
     where: {
       organizationId_provider: {
@@ -73,12 +82,46 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     },
     select: {
       id: true,
+      mode: true,
       status: true,
     },
   });
 
-  if (!integration || integration.status !== "CONNECTED") {
-    return new Response("Microsoft 365 is not connected.", { status: 409 });
+  if (
+    !integration ||
+    integration.mode !== "LIVE" ||
+    integration.status !== "CONNECTED"
+  ) {
+    return new Response("A connected LIVE Microsoft 365 tenant is required.", {
+      status: 409,
+    });
+  }
+
+  const latestProbe = await db.auditEvent.findFirst({
+    where: {
+      organizationId: membership.organization.id,
+      action: "integration.microsoft_365.readonly_probe",
+    },
+    orderBy: {
+      occurredAt: "desc",
+    },
+    select: {
+      metadata: true,
+    },
+  });
+
+  const probeResult =
+    latestProbe?.metadata &&
+    typeof latestProbe.metadata === "object" &&
+    !Array.isArray(latestProbe.metadata)
+      ? (latestProbe.metadata as Record<string, unknown>).result
+      : null;
+
+  if (probeResult !== "READY") {
+    return new Response(
+      "A successful read-only Microsoft access probe is required before the first LIVE sync.",
+      { status: 409 },
+    );
   }
 
   try {

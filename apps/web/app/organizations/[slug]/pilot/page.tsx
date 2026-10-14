@@ -5,6 +5,7 @@ import {
 } from "@cyberpilot/integrations/microsoft-365";
 import Link from "next/link";
 
+import { validateFirstLivePilotConfiguration } from "../../../../lib/first-live-preflight";
 import { buildPilotReadiness } from "../../../../lib/pilot-readiness";
 import { requireOrganizationAccess } from "../../../../lib/organizations";
 
@@ -74,8 +75,11 @@ export default async function PilotOnboardingPage({ params }: PilotPageProps) {
   const scannerConfigured =
     scannerConfiguration.configured && Boolean(process.env.M365_GRAPH_REDIRECT_URI);
 
+  const firstLiveConfig = validateFirstLivePilotConfiguration(process.env);
+
   const readiness = buildPilotReadiness({
     scannerConfigured,
+    configurationSafe: firstLiveConfig.ok,
     remediationConfigured: isMicrosoftRemediationExecutorConfigured(),
     integration,
     readonlyProbeResult: getProbeResult(latestProbe?.metadata),
