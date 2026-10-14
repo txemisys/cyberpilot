@@ -15,6 +15,14 @@
     "db:migrate:deploy": "pnpm --filter @cyberpilot/database db:migrate:deploy",
     "db:migrate:status": "pnpm --filter @cyberpilot/database db:migrate:status",
     "db:migrate:baseline": "pnpm --filter @cyberpilot/database db:migrate:baseline",
-    "production:check": "pnpm --filter @cyberpilot/web production:check"
+    "production:check": "pnpm --filter @cyberpilot/web production:check",
+    "dev:stack": "docker compose -f compose.dev.yml up -d",
+    "dev:stack:down": "docker compose -f compose.dev.yml down",
+    "dev:stack:reset": "docker compose -f compose.dev.yml down -v",
+    "dev:observed": "node scripts/dev-observed.mjs",
+    "dev:funnel": "tailscale funnel 3000",
+    "dev:funnel:stop": "tailscale funnel reset",
+    "dev:backup": "node scripts/dev-backup.mjs",
+    "dev:restore": "node scripts/dev-restore.mjs"
   }
 }

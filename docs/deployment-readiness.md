@@ -15,15 +15,16 @@ It distinguishes what is already implemented from what still blocks staging, the
 | Sensitive product-route rate limits | DONE | PostgreSQL-backed fixed-window limits protect consent, probe, sync, Lab and remediation actions. |
 | Reproducible dependency installs | DONE | `pnpm-lock.yaml` is committed and CI uses `pnpm install --frozen-lockfile`. |
 | CodeQL | DONE | Runs on PRs, main and weekly schedule. |
-| Structured operational logging | PARTIAL | Redacted JSON events exist; Render-native collection/notifications are defined but not yet tested on a provisioned service. |
+| Structured operational logging | DONE FOR DEVELOPMENT | Redacted JSON events can be collected locally with Alloy/Loki/Grafana; production retention/alert routing remains an operational choice. |
 | Dependency Review | BLOCKING PRODUCTION | Workflow prerequisite is GitHub Dependency Graph/alerts at repository level. |
-| Render staging Blueprint | DONE | Provider-specific web/PostgreSQL staging infrastructure is declared in `render.yaml`; provisioning is not yet performed. |
+| Zero-cost local integration environment | DONE | Docker Compose provides PostgreSQL + Alloy/Loki/Grafana; Tailscale Funnel is optional for public HTTPS callbacks. |
+| Optional Render deployment example | AVAILABLE | `render.yaml` remains an optional managed-hosting path, not a development or pilot prerequisite. |
 | Staging smoke automation | DONE | Manual workflow validates HTTPS, minimal DB-backed health response, HSTS and security/CSP headers against a deployed URL. |
-| Managed staging deployment | BLOCKING PILOT | The Render resources still need to be provisioned, configured and smoke-tested. |
-| Observability policy | DONE | Render-native logging, failure notifications and incident ownership requirements are documented. |
-| Centralized monitoring and alerting | BLOCKING PILOT | Must be enabled and tested on the provisioned Render staging service before the pilot. |
+| Stable HTTPS integration endpoint | BLOCKING LIVE TEST ONLY | Required only for Microsoft OAuth/LIVE integration testing; may be supplied by Tailscale Funnel or another controlled HTTPS endpoint. |
+| Local observability stack | DONE | Alloy/Loki/Grafana run locally at zero infrastructure cost. |
+| Production monitoring and alert routing | BLOCKING PRODUCTION | Must be selected and tested before broader production operation; no vendor is required during development. |
 | Backup/restore regression rehearsal | DONE | CI performs PostgreSQL dump/restore into an isolated database and verifies data through Prisma. |
-| Managed staging backup/restore exercise | BLOCKING PILOT | CI proves mechanics only; the chosen managed PostgreSQL platform must still be exercised operationally. |
+| Local backup/restore path | DONE | `pnpm dev:backup` and `pnpm dev:restore` exercise logical backup/restore locally; CI independently rehearses restore. |
 | Content Security Policy | PARTIAL | Production emits a report-only baseline; staging validation plus nonce/hash hardening are required before enforcement. |
 | Protected deployment environment | BLOCKING PRODUCTION | Production secrets/deployments need an explicit protected environment boundary. |
 | Secret rotation process | BLOCKING PRODUCTION | Manual or automated operational process still required. |
@@ -119,7 +120,7 @@ See `docs/security-ci.md`.
 
 CyberPilot emits redacted structured operational events for critical failures.
 
-Before the first customer pilot, configure a managed collector/error-monitoring platform and define:
+For local development, use the repository's Alloy/Loki/Grafana stack. Before broader production operation, define:
 
 - transport;
 - retention;
@@ -130,9 +131,9 @@ Before the first customer pilot, configure a managed collector/error-monitoring 
 - regional/data-residency requirements;
 - deletion policy.
 
-See `docs/observability.md` and `docs/observability-render.md`.
+See `docs/observability.md` and `docs/local-development.md`.
 
-The current managed staging target is Render. See `docs/staging-render.md`.
+Render is retained only as an optional managed deployment example. See `docs/staging-render.md`.
 
 ## Database
 
@@ -145,7 +146,7 @@ pnpm db:migrate:status
 
 Never run `db:push` in staging or production.
 
-CyberPilot continuously rehearses logical dump/restore in CI. Before the first customer pilot, define database backup ownership and complete at least one restore exercise on the chosen managed PostgreSQL platform into a separate environment.
+CyberPilot continuously rehearses logical dump/restore in CI and provides local backup/restore commands for development. A provider-specific restore exercise is required only when a managed production database is actually selected.
 
 See `docs/backup-restore.md`.
 
@@ -164,7 +165,7 @@ Never put real values in:
 
 ## First staging acceptance checklist
 
-Staging is usable only when:
+A LIVE integration environment is usable when:
 
 Run the manual `Staging smoke test` workflow against the deployed HTTPS URL as part of this acceptance. See `docs/staging-smoke.md`.
 
@@ -172,16 +173,15 @@ Run the manual `Staging smoke test` workflow against the deployed HTTPS URL as p
 - production configuration validation passes;
 - migrations apply from the released revision;
 - `/api/health` returns 200;
-- HTTPS is enforced by the platform;
+- HTTPS is provided by a controlled endpoint when Microsoft OAuth is exercised;
 - Local Lab auth is unavailable;
 - Microsoft login redirects to the expected tenant/account flow;
 - organization membership boundaries still work;
 - no remediation credentials are configured for the first pilot;
 - structured logs contain no access tokens or secrets;
-- centralized log/error collection is active;
-- alert ownership is defined;
-- database backup ownership is defined;
-- a restore exercise has succeeded.
+- structured logs are inspectable locally or in the selected runtime;
+- backup/restore mechanics have been exercised;
+- no paid managed service is required merely to validate application functionality.
 
 ## First customer pilot gate
 
@@ -189,9 +189,9 @@ The first customer pilot remains read-only.
 
 Before connecting a customer tenant:
 
-1. staging acceptance checklist is complete;
-2. managed monitoring/alerting is active;
-3. backup/restore has been exercised;
+1. the LIVE integration checklist is complete;
+2. a controlled HTTPS callback is available for Microsoft OAuth;
+3. backup/restore has been exercised locally or in CI;
 4. dedicated scanner credentials are configured;
 5. all `M365_REMEDIATION_*` values remain unset;
 6. the documented four read-only Microsoft permissions are the only scanner permissions granted.

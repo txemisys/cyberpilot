@@ -55,6 +55,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate local development compose
+        run: docker compose -f compose.dev.yml config --quiet
+
+      - name: Validate local development scripts
+        run: |
+          node --check scripts/dev-observed.mjs
+          node --check scripts/dev-backup.mjs
+          node --check scripts/dev-restore.mjs
+
+      - name: Validate local development compose
+        run: docker compose -f compose.dev.yml config --quiet
+
       - name: Generate Prisma client
         run: pnpm db:generate
 

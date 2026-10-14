@@ -8,3 +8,9 @@ coverage
 .DS_Store
 *.log
 .prisma
+
+backups/
+var/log/cyberpilot/
+
+backups/
+var/log/cyberpilot/
