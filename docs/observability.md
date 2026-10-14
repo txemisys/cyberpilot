@@ -69,13 +69,29 @@ Current structured events include:
 
 Audit events remain a separate business/security history. Operational logs do not replace audit records.
 
-## Managed staging collection
+## Zero-cost development collection
 
-The first managed staging target is Render. Render's native centralized logs and service failure notifications are the minimum collection/alerting layer for the first controlled read-only pilot, provided they are configured and tested on the real service.
+The default development collector is self-hosted:
 
-See `docs/observability-render.md`.
+```text
+CyberPilot stdout/stderr
+→ local log file
+→ Grafana Alloy
+→ Loki
+→ Grafana
+```
 
-For broader production use, define whether native retention/alerting is sufficient or whether an external log stream is required.
+Start it with `pnpm dev:stack` and run the application with `pnpm dev:observed`.
+
+See `docs/local-development.md`.
+
+No managed logging vendor is required to implement or validate CyberPilot functionality.
+
+## Optional managed collection
+
+A managed host such as Render can later provide infrastructure logs and notifications. External log streaming can be added when retention, cross-service correlation, alerting or compliance requirements justify it.
+
+See `docs/observability-render.md` for the optional Render path.
 
 ## Production collector requirements
 
