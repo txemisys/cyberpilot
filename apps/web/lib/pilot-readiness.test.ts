@@ -6,6 +6,7 @@ describe("buildPilotReadiness", () => {
   it("does not treat Lab Mode as a real customer pilot", () => {
     const result = buildPilotReadiness({
       scannerConfigured: false,
+      configurationSafe: false,
       remediationConfigured: false,
       integration: {
         mode: "LAB",
@@ -25,6 +26,7 @@ describe("buildPilotReadiness", () => {
   it("is ready only after a LIVE connection, healthy probe, sync and score snapshot", () => {
     const result = buildPilotReadiness({
       scannerConfigured: true,
+      configurationSafe: true,
       remediationConfigured: false,
       integration: {
         mode: "LIVE",
@@ -42,6 +44,7 @@ describe("buildPilotReadiness", () => {
   it("surfaces partial read-only evidence and configured write credentials", () => {
     const result = buildPilotReadiness({
       scannerConfigured: true,
+      configurationSafe: false,
       remediationConfigured: true,
       integration: {
         mode: "LIVE",
@@ -58,7 +61,10 @@ describe("buildPilotReadiness", () => {
       "ATTENTION",
     );
     expect(result.steps.find((step) => step.id === "writes")?.state).toBe(
-      "ATTENTION",
+      "BLOCKED",
+    );
+    expect(result.steps.find((step) => step.id === "preflight")?.state).toBe(
+      "BLOCKED",
     );
   });
 });
