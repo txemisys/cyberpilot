@@ -137,11 +137,7 @@ jobs:
                 http://localhost:3100/loki/api/v1/query
             )"
 
-            if RESPONSE="$response" node <<'NODE'
-            const body = JSON.parse(process.env.RESPONSE);
-            process.exit(body?.data?.result?.length > 0 ? 0 : 1);
-            NODE
-            then
+            if RESPONSE="$response" node -e 'const body = JSON.parse(process.env.RESPONSE); process.exit(body?.data?.result?.length > 0 ? 0 : 1)'; then
               echo "Local log ingestion verified."
               exit 0
             fi
