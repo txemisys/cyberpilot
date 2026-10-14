@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { validateFirstLivePilotConfiguration } from "./first-live-preflight";
 
 const validEnv: NodeJS.ProcessEnv = {
+  NODE_ENV: "test",
   BETTER_AUTH_URL: "https://pilot.cyberpilot.example",
   LAB_AUTH_ENABLED: "false",
   MICROSOFT_CLIENT_ID: "login-client",
