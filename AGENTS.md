@@ -953,3 +953,20 @@ This is only considered complete after a real staging service verifies:
 External log streaming remains a production-scale decision based on retention, correlation, alerting and compliance needs.
 
 See `docs/observability-render.md`.
+
+
+### Local-first zero-cost development
+
+CyberPilot development must not depend on paid infrastructure.
+
+The default development path is now:
+
+- Next.js on the developer machine;
+- PostgreSQL 16 through `compose.dev.yml`;
+- local structured log collection through Grafana Alloy → Loki → Grafana;
+- local logical backup/restore scripts;
+- optional Tailscale Funnel only when a public HTTPS Microsoft OAuth callback is required.
+
+Render remains an optional managed deployment example and must not be treated as a feature-development or LIVE integration prerequisite.
+
+See `docs/local-development.md`.
