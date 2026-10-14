@@ -7,6 +7,7 @@ export type PilotReadinessState =
 
 export type PilotReadinessInput = {
   scannerConfigured: boolean;
+  configurationSafe: boolean;
   remediationConfigured: boolean;
   integration: {
     mode: "LIVE" | "LAB";
@@ -35,6 +36,14 @@ export function buildPilotReadiness(input: PilotReadinessInput) {
       title: "CyberPilot workspace",
       state: "COMPLETE",
       detail: "Organization and access boundary are established.",
+    },
+    {
+      id: "preflight",
+      title: "First LIVE configuration gate",
+      state: input.configurationSafe ? "COMPLETE" : "BLOCKED",
+      detail: input.configurationSafe
+        ? "Public HTTPS callback, app separation, Lab disablement and read-only boundary are valid."
+        : "Fix the first LIVE static configuration gate before Microsoft consent.",
     },
     {
       id: "scanner",
@@ -99,16 +108,24 @@ export function buildPilotReadiness(input: PilotReadinessInput) {
     {
       id: "writes",
       title: "Microsoft write capability",
-      state: input.remediationConfigured ? "ATTENTION" : "COMPLETE",
+      state: input.remediationConfigured ? "BLOCKED" : "COMPLETE",
       detail: input.remediationConfigured
-        ? "Remediation credentials are configured. Keep write consent disabled during the first read-only pilot."
+        ? "Remediation credentials are configured. Remove all write capability before the first read-only pilot."
         : "Remediation credentials are not configured, which is the preferred state for the first pilot.",
     },
   ];
 
   const blocking = steps.some((step) => step.state === "BLOCKED");
   const attention = steps.some((step) => step.state === "ATTENTION");
-  const requiredComplete = ["scanner", "tenant", "probe", "sync", "report"].every(
+  const requiredComplete = [
+    "preflight",
+    "scanner",
+    "tenant",
+    "probe",
+    "sync",
+    "report",
+    "writes",
+  ].every(
     (id) => {
       const step = steps.find((candidate) => candidate.id === id);
       return step?.state === "COMPLETE" || step?.state === "READY";
