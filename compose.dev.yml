@@ -1,0 +1,55 @@
+name: cyberpilot-dev
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cyberpilot
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cyberpilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - cyberpilot-postgres:/var/lib/postgresql/data
+
+  loki:
+    image: grafana/loki:3.5.0
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./ops/observability/loki.yaml:/etc/loki/local-config.yaml:ro
+      - cyberpilot-loki:/loki
+
+  alloy:
+    image: grafana/alloy:v1.8.3
+    command: run /etc/alloy/config.alloy
+    depends_on:
+      - loki
+    volumes:
+      - ./ops/observability/alloy.config:/etc/alloy/config.alloy:ro
+      - ./var/log/cyberpilot:/var/log/cyberpilot:ro
+
+  grafana:
+    image: grafana/grafana:12.0.2
+    depends_on:
+      - loki
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./ops/observability/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/cyberpilot.yaml:ro
+      - cyberpilot-grafana:/var/lib/grafana
+
+volumes:
+  cyberpilot-postgres:
+  cyberpilot-loki:
+  cyberpilot-grafana:
