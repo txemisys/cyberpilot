@@ -1,16 +1,63 @@
 const TENANT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+export const MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES = [
+  "AuditLog.Read.All",
+  "Organization.Read.All",
+  "RoleManagement.Read.Directory",
+  "User.Read.All",
+] as const;
+
 type TokenResponse = {
   access_token: string;
   expires_in: number;
   token_type: string;
 };
 
+type AccessTokenPayload = {
+  roles?: unknown;
+};
+
 export function assertMicrosoftTenantId(tenantId: string) {
   if (!TENANT_ID_PATTERN.test(tenantId)) {
     throw new Error("Invalid Microsoft tenant ID.");
   }
+}
+
+export function inspectMicrosoftGraphApplicationRoles(accessToken: string) {
+  const parts = accessToken.split(".");
+
+  if (parts.length < 2) {
+    throw new Error("Microsoft Graph access token is not a JWT.");
+  }
+
+  let payload: AccessTokenPayload;
+
+  try {
+    payload = JSON.parse(
+      Buffer.from(parts[1], "base64url").toString("utf8"),
+    ) as AccessTokenPayload;
+  } catch {
+    throw new Error("Microsoft Graph access token payload is invalid.");
+  }
+
+  const roles = Array.isArray(payload.roles)
+    ? payload.roles.filter((role): role is string => typeof role === "string")
+    : [];
+
+  const granted = [...new Set(roles)].sort();
+  const required = [...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES].sort();
+  const grantedSet = new Set(granted);
+  const requiredSet = new Set(required);
+  const missing = required.filter((role) => !grantedSet.has(role));
+  const unexpected = granted.filter((role) => !requiredSet.has(role));
+
+  return {
+    granted,
+    missing,
+    unexpected,
+    exact: missing.length === 0 && unexpected.length === 0,
+  };
 }
 
 export async function acquireMicrosoftGraphToken(tenantId: string) {
@@ -56,7 +103,6 @@ export async function acquireMicrosoftGraphToken(tenantId: string) {
 
   return token;
 }
-
 
 export function getMicrosoftGraphScannerConfiguration() {
   const missing: string[] = [];
