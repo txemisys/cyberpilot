@@ -10,7 +10,8 @@ coverage
 .prisma
 
 backups/
-var/log/cyberpilot/
+var/log/cyberpilot/*
+!var/log/cyberpilot/.gitkeep
 
 backups/
 var/log/cyberpilot/

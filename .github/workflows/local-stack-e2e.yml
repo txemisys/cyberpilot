@@ -1,0 +1,212 @@
+name: Local stack E2E
+
+on:
+  pull_request:
+    paths:
+      - "compose.dev.yml"
+      - "ops/observability/**"
+      - "scripts/dev-*.mjs"
+      - "apps/web/**"
+      - "packages/database/**"
+      - ".github/workflows/local-stack-e2e.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - "compose.dev.yml"
+      - "ops/observability/**"
+      - "scripts/dev-*.mjs"
+      - "apps/web/**"
+      - "packages/database/**"
+      - ".github/workflows/local-stack-e2e.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-local-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cyberpilot
+      AUTH_SECRET: local-stack-e2e-secret-only-not-production
+      BETTER_AUTH_URL: http://localhost:3000
+      LAB_AUTH_ENABLED: "false"
+      MICROSOFT_CLIENT_ID: local-stack-e2e-login-client
+      MICROSOFT_CLIENT_SECRET: local-stack-e2e-login-secret
+      M365_GRAPH_CLIENT_ID: local-stack-e2e-scanner-client
+      M365_GRAPH_CLIENT_SECRET: local-stack-e2e-scanner-secret
+      M365_GRAPH_REDIRECT_URI: http://localhost:3000/api/integrations/microsoft-365/callback
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22.12.0"
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start local infrastructure
+        run: pnpm dev:stack
+
+      - name: Wait for local services
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for _ in $(seq 1 60); do
+            if docker compose -f compose.dev.yml exec -T postgres pg_isready -U postgres -d cyberpilot >/dev/null 2>&1 \
+              && curl --fail --silent http://localhost:3100/ready >/dev/null \
+              && curl --fail --silent http://localhost:3001/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose -f compose.dev.yml ps
+          docker compose -f compose.dev.yml logs
+          exit 1
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Apply and verify migrations
+        run: |
+          pnpm db:migrate:deploy
+          pnpm db:migrate:status
+
+      - name: Start CyberPilot with local observability
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm dev:observed > "$RUNNER_TEMP/cyberpilot-dev.out" 2>&1 &
+          echo $! > "$RUNNER_TEMP/cyberpilot-dev.pid"
+
+      - name: Verify application health
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for _ in $(seq 1 60); do
+            if curl --fail --silent http://localhost:3000/api/health > "$RUNNER_TEMP/health.json"; then
+              break
+            fi
+            sleep 2
+          done
+
+          cat "$RUNNER_TEMP/health.json"
+
+          node - "$RUNNER_TEMP/health.json" <<'NODE'
+          const fs = require("node:fs");
+          const body = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+
+          if (body.status !== "ok" || body.database !== "ok") {
+            throw new Error("Local application health is not healthy.");
+          }
+          NODE
+
+      - name: Verify Alloy to Loki ingestion
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          marker="local_stack_e2e_$(date +%s)"
+          printf '{"timestamp":"%s","eventId":"local-stack-e2e","level":"info","event":"development.local_stack_e2e","metadata":{"marker":"%s"}}\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
+            "$marker" \
+            >> var/log/cyberpilot/app.log
+
+          for _ in $(seq 1 30); do
+            response="$(
+              curl --silent --get \
+                --data-urlencode 'query={service_name="cyberpilot"}' \
+                --data-urlencode 'since=5m' \
+                --data-urlencode 'limit=1000' \
+                http://localhost:3100/loki/api/v1/query_range
+            )"
+
+            if printf '%s' "$response" | grep -Fq "$marker"; then
+              echo "Local log ingestion verified."
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          docker compose -f compose.dev.yml logs alloy loki
+          exit 1
+
+      - name: Seed backup sentinel
+        run: |
+          docker compose -f compose.dev.yml exec -T postgres \
+            psql -U postgres -d cyberpilot -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO "Organization" ("id", "name", "slug", "createdAt", "updatedAt")
+          VALUES (
+            'local-stack-e2e-org',
+            'Local Stack E2E',
+            'local-stack-e2e',
+            NOW(),
+            NOW()
+          )
+          ON CONFLICT ("id") DO UPDATE
+          SET "name" = EXCLUDED."name",
+              "slug" = EXCLUDED."slug",
+              "updatedAt" = NOW();
+          SQL
+
+      - name: Exercise local backup and restore commands
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          backup_output="$(pnpm dev:backup)"
+          echo "$backup_output"
+          backup_path="$(printf '%s\n' "$backup_output" | sed -n 's/^Backup written to //p')"
+          test -n "$backup_path"
+          test -s "$backup_path"
+
+          relative_path="${backup_path#"$GITHUB_WORKSPACE"/}"
+          pnpm dev:restore "$relative_path"
+
+      - name: Verify isolated restore data and migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          restored="$(
+            docker compose -f compose.dev.yml exec -T postgres \
+              psql -U postgres -d cyberpilot_restore -Atc \
+              'SELECT COUNT(*) FROM "Organization" WHERE "id" = '\''local-stack-e2e-org'\'';'
+          )"
+
+          test "$restored" = "1"
+
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/cyberpilot_restore \
+            pnpm db:migrate:status
+
+      - name: Show diagnostics on failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          cat "$RUNNER_TEMP/cyberpilot-dev.out"
+          docker compose -f compose.dev.yml ps
+          docker compose -f compose.dev.yml logs
+
+      - name: Stop local stack
+        if: always()
+        run: pnpm dev:stack:down
