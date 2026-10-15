@@ -8,6 +8,7 @@ import {
   rateLimitedResponse,
 } from "../../../../../../../lib/rate-limit";
 import {
+  getMicrosoft365SyncFailureCode,
   Microsoft365SyncInProgressError,
   syncMicrosoft365Integration,
 } from "../../../../../../../lib/microsoft-365-sync";
@@ -164,24 +165,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       });
     }
 
+    const failureCode = getMicrosoft365SyncFailureCode(error);
+
     reportOperationalEvent({
       event: "integration.microsoft_365.sync_failed",
       organizationId: membership.organization.id,
       resourceId: integration.id,
       metadata: {
-        failureCode: "SYNC_FAILED",
+        failureCode,
       },
       error,
-    });
-
-    await db.integration.update({
-      where: {
-        id: integration.id,
-      },
-      data: {
-        lastErrorAt: new Date(),
-        lastErrorCode: "SYNC_FAILED",
-      },
     });
 
     await db.auditEvent.create({
@@ -192,6 +185,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         action: "integration.microsoft_365.sync_failed",
         resourceType: "integration",
         resourceId: integration.id,
+        metadata: {
+          failureCode,
+        },
       },
     });
 

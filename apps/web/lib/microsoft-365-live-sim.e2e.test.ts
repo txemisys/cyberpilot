@@ -1024,3 +1024,146 @@ describe("Microsoft 365 LIVE atomic publication", () => {
     ).toBe(0);
   });
 });
+
+
+describe("Microsoft 365 LIVE failure state and recovery", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+    await db.$disconnect();
+  });
+
+  it("persists a safe failure code and clears it after a successful retry", async () => {
+    let failWithMalformedPayload = true;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return new Response(
+            JSON.stringify({
+              access_token: accessToken([
+                ...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES,
+              ]),
+              expires_in: 3600,
+              token_type: "Bearer",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/organization?")) {
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: TENANT_ID,
+                  displayName: "Recovery Tenant",
+                  verifiedDomains: [],
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/users?")) {
+          return new Response(
+            JSON.stringify({
+              value: failWithMalformedPayload
+                ? [{ id: "", displayName: "Malformed" }]
+                : [
+                    {
+                      id: "recovered-user",
+                      displayName: "Recovered User",
+                      userPrincipalName: "recovered@example.test",
+                      accountEnabled: true,
+                      userType: "Member",
+                    },
+                  ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (
+          url.includes("/roleManagement/directory/roleDefinitions?") ||
+          url.includes("/roleManagement/directory/roleAssignments?") ||
+          url.includes("/reports/authenticationMethods/userRegistrationDetails")
+        ) {
+          return new Response(JSON.stringify({ value: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        throw new Error(`Unexpected mocked Microsoft request: ${url}`);
+      }),
+    );
+
+    const organization = await db.organization.create({
+      data: {
+        name: "Recovery Workspace",
+        slug: "recovery-workspace",
+      },
+    });
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        connectedAt: new Date(),
+      },
+    });
+
+    await expect(syncMicrosoft365Integration(integration.id)).rejects.toMatchObject({
+      name: "MicrosoftGraphPayloadError",
+    });
+
+    const failed = await db.integration.findUniqueOrThrow({
+      where: { id: integration.id },
+      select: {
+        lastErrorAt: true,
+        lastErrorCode: true,
+        lastSyncAt: true,
+      },
+    });
+
+    expect(failed.lastErrorAt).toBeInstanceOf(Date);
+    expect(failed.lastErrorCode).toBe("GRAPH_PAYLOAD_INVALID");
+    expect(failed.lastSyncAt).toBeNull();
+
+    failWithMalformedPayload = false;
+
+    await expect(syncMicrosoft365Integration(integration.id)).resolves.toMatchObject({
+      users: 1,
+    });
+
+    const recovered = await db.integration.findUniqueOrThrow({
+      where: { id: integration.id },
+      select: {
+        lastErrorAt: true,
+        lastErrorCode: true,
+        lastSyncAt: true,
+      },
+    });
+
+    expect(recovered.lastErrorAt).toBeNull();
+    expect(recovered.lastErrorCode).toBeNull();
+    expect(recovered.lastSyncAt).toBeInstanceOf(Date);
+  });
+});

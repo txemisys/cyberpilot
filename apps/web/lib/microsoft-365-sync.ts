@@ -4,6 +4,7 @@ import { observeDomainSecurity } from "@cyberpilot/integrations/domain-security"
 import {
   MicrosoftGraphClient,
   MicrosoftGraphError,
+  MicrosoftGraphPayloadError,
   type MicrosoftUserRegistrationDetails,
 } from "@cyberpilot/integrations/microsoft-365";
 import {
@@ -86,11 +87,62 @@ async function forEachWithConcurrency<T>(
   }
 }
 
+export type Microsoft365SyncFailureCode =
+  | "GRAPH_AUTHORIZATION_FAILED"
+  | "GRAPH_PAYLOAD_INVALID"
+  | "GRAPH_THROTTLED"
+  | "GRAPH_UNAVAILABLE"
+  | "TENANT_MISMATCH"
+  | "SYNC_FAILED";
+
+export function getMicrosoft365SyncFailureCode(
+  error: unknown,
+): Microsoft365SyncFailureCode {
+  if (error instanceof MicrosoftGraphPayloadError) {
+    return "GRAPH_PAYLOAD_INVALID";
+  }
+
+  if (error instanceof MicrosoftGraphError) {
+    if (error.status === 401 || error.status === 403) {
+      return "GRAPH_AUTHORIZATION_FAILED";
+    }
+
+    if (error.status === 429) {
+      return "GRAPH_THROTTLED";
+    }
+
+    if ([500, 502, 503, 504].includes(error.status)) {
+      return "GRAPH_UNAVAILABLE";
+    }
+  }
+
+  if (
+    error instanceof Error &&
+    error.message === "Microsoft tenant verification failed during sync."
+  ) {
+    return "TENANT_MISMATCH";
+  }
+
+  return "SYNC_FAILED";
+}
+
 export async function syncMicrosoft365Integration(integrationId: string) {
   const releaseLease = await acquireMicrosoft365SyncLease(integrationId);
 
   try {
     return await syncMicrosoft365IntegrationUnlocked(integrationId);
+  } catch (error) {
+    if (!(error instanceof Microsoft365SyncInProgressError)) {
+      await db.integration.updateMany({
+        where: { id: integrationId },
+        data: {
+          lastErrorAt: new Date(),
+          lastErrorCode: getMicrosoft365SyncFailureCode(error),
+        },
+      });
+    }
+
+    throw error;
   } finally {
     await releaseLease();
   }

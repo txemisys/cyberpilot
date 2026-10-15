@@ -1,6 +1,7 @@
 export {
   MicrosoftGraphClient,
   MicrosoftGraphError,
+  MicrosoftGraphPayloadError,
 } from "./client";
 export type {
   MicrosoftGraphReadOnlyProbe,
