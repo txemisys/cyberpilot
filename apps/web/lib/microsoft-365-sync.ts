@@ -231,120 +231,83 @@ async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
   const registrationByUserId = new Map(
     registrationDetails.map((registration) => [registration.id, registration]),
   );
-  const userIds = new Set(users.map((user) => user.id));
   const roleDefinitionIds = new Set(roleDefinitions.map((role) => role.id));
   const persistedRoleAssignments = roleAssignments.filter((assignment) =>
     roleDefinitionIds.has(assignment.roleDefinitionId),
   );
-  const roleAssignmentIds = new Set(
-    persistedRoleAssignments.map((assignment) => assignment.id),
-  );
   const domainNames = new Set(verifiedDomains.map((domain) => domain.name));
+
+  const identitySnapshot = users.map((user) => {
+    const registration = registrationByUserId.get(user.id);
+
+    return {
+      integrationId: integration.id,
+      externalId: user.id,
+      displayName: user.displayName ?? null,
+      userPrincipalName: user.userPrincipalName ?? null,
+      accountEnabled: user.accountEnabled ?? null,
+      identityType: mapIdentityType(user.userType),
+      createdAtProvider: user.createdDateTime
+        ? new Date(user.createdDateTime)
+        : null,
+      isAdmin: registration?.isAdmin ?? null,
+      isMfaRegistered: registration?.isMfaRegistered ?? null,
+      isMfaCapable: registration?.isMfaCapable ?? null,
+      isPasswordlessCapable: registration?.isPasswordlessCapable ?? null,
+      methodsRegistered: registration?.methodsRegistered ?? [],
+      authenticationObservedAt: registration ? observedAt : null,
+      authenticationUpdatedAt: registration?.lastUpdatedDateTime
+        ? new Date(registration.lastUpdatedDateTime)
+        : null,
+      observedAt,
+    };
+  });
+
+  const roleDefinitionSnapshot = roleDefinitions.map((role) => ({
+    integrationId: integration.id,
+    externalId: role.id,
+    templateId: role.templateId ?? null,
+    displayName: role.displayName,
+    isBuiltIn: role.isBuiltIn ?? null,
+    observedAt,
+  }));
+
+  const roleAssignmentSnapshot = persistedRoleAssignments.map((assignment) => ({
+    integrationId: integration.id,
+    externalId: assignment.id,
+    principalExternalId: assignment.principalId,
+    roleDefinitionExternalId: assignment.roleDefinitionId,
+    directoryScopeId: assignment.directoryScopeId ?? null,
+    observedAt,
+  }));
 
   const scoreSnapshot = await db.$transaction(
     async (tx) => {
-      for (const user of users) {
-        const registration = registrationByUserId.get(user.id);
+      await tx.directoryRoleAssignment.deleteMany({
+        where: { integrationId: integration.id },
+      });
+      await tx.directoryRoleDefinition.deleteMany({
+        where: { integrationId: integration.id },
+      });
+      await tx.directoryIdentity.deleteMany({
+        where: { integrationId: integration.id },
+      });
 
-        await tx.directoryIdentity.upsert({
-          where: {
-            integrationId_externalId: {
-              integrationId: integration.id,
-              externalId: user.id,
-            },
-          },
-          create: {
-            integrationId: integration.id,
-            externalId: user.id,
-            displayName: user.displayName ?? null,
-            userPrincipalName: user.userPrincipalName ?? null,
-            accountEnabled: user.accountEnabled ?? null,
-            identityType: mapIdentityType(user.userType),
-            createdAtProvider: user.createdDateTime
-              ? new Date(user.createdDateTime)
-              : null,
-            isAdmin: registration?.isAdmin ?? null,
-            isMfaRegistered: registration?.isMfaRegistered ?? null,
-            isMfaCapable: registration?.isMfaCapable ?? null,
-            isPasswordlessCapable:
-              registration?.isPasswordlessCapable ?? null,
-            methodsRegistered: registration?.methodsRegistered ?? [],
-            authenticationObservedAt: registration ? observedAt : null,
-            authenticationUpdatedAt: registration?.lastUpdatedDateTime
-              ? new Date(registration.lastUpdatedDateTime)
-              : null,
-            observedAt,
-          },
-          update: {
-            displayName: user.displayName ?? null,
-            userPrincipalName: user.userPrincipalName ?? null,
-            accountEnabled: user.accountEnabled ?? null,
-            identityType: mapIdentityType(user.userType),
-            createdAtProvider: user.createdDateTime
-              ? new Date(user.createdDateTime)
-              : null,
-            isAdmin: registration?.isAdmin ?? null,
-            isMfaRegistered: registration?.isMfaRegistered ?? null,
-            isMfaCapable: registration?.isMfaCapable ?? null,
-            isPasswordlessCapable:
-              registration?.isPasswordlessCapable ?? null,
-            methodsRegistered: registration?.methodsRegistered ?? [],
-            authenticationObservedAt: registration ? observedAt : null,
-            authenticationUpdatedAt: registration?.lastUpdatedDateTime
-              ? new Date(registration.lastUpdatedDateTime)
-              : null,
-            observedAt,
-          },
+      if (identitySnapshot.length > 0) {
+        await tx.directoryIdentity.createMany({
+          data: identitySnapshot,
         });
       }
 
-      for (const role of roleDefinitions) {
-        await tx.directoryRoleDefinition.upsert({
-          where: {
-            integrationId_externalId: {
-              integrationId: integration.id,
-              externalId: role.id,
-            },
-          },
-          create: {
-            integrationId: integration.id,
-            externalId: role.id,
-            templateId: role.templateId ?? null,
-            displayName: role.displayName,
-            isBuiltIn: role.isBuiltIn ?? null,
-            observedAt,
-          },
-          update: {
-            templateId: role.templateId ?? null,
-            displayName: role.displayName,
-            isBuiltIn: role.isBuiltIn ?? null,
-            observedAt,
-          },
+      if (roleDefinitionSnapshot.length > 0) {
+        await tx.directoryRoleDefinition.createMany({
+          data: roleDefinitionSnapshot,
         });
       }
 
-      for (const assignment of persistedRoleAssignments) {
-        await tx.directoryRoleAssignment.upsert({
-          where: {
-            integrationId_externalId: {
-              integrationId: integration.id,
-              externalId: assignment.id,
-            },
-          },
-          create: {
-            integrationId: integration.id,
-            externalId: assignment.id,
-            principalExternalId: assignment.principalId,
-            roleDefinitionExternalId: assignment.roleDefinitionId,
-            directoryScopeId: assignment.directoryScopeId ?? null,
-            observedAt,
-          },
-          update: {
-            principalExternalId: assignment.principalId,
-            roleDefinitionExternalId: assignment.roleDefinitionId,
-            directoryScopeId: assignment.directoryScopeId ?? null,
-            observedAt,
-          },
+      if (roleAssignmentSnapshot.length > 0) {
+        await tx.directoryRoleAssignment.createMany({
+          data: roleAssignmentSnapshot,
         });
       }
 
@@ -386,33 +349,6 @@ async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
           },
         });
       }
-
-      await tx.directoryRoleAssignment.deleteMany({
-        where: {
-          integrationId: integration.id,
-          ...(roleAssignmentIds.size > 0
-            ? { externalId: { notIn: [...roleAssignmentIds] } }
-            : {}),
-        },
-      });
-
-      await tx.directoryIdentity.deleteMany({
-        where: {
-          integrationId: integration.id,
-          ...(userIds.size > 0
-            ? { externalId: { notIn: [...userIds] } }
-            : {}),
-        },
-      });
-
-      await tx.directoryRoleDefinition.deleteMany({
-        where: {
-          integrationId: integration.id,
-          ...(roleDefinitionIds.size > 0
-            ? { externalId: { notIn: [...roleDefinitionIds] } }
-            : {}),
-        },
-      });
 
       await tx.domain.deleteMany({
         where: {
