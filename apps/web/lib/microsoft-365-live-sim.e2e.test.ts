@@ -859,3 +859,168 @@ describe("Microsoft 365 sync isolation and idempotency", () => {
     ).toBe(0);
   });
 });
+
+
+describe("Microsoft 365 LIVE atomic publication", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+    await db.$disconnect();
+  });
+
+  it("rolls back all inventory changes when a write fails mid-sync", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return new Response(
+            JSON.stringify({
+              access_token: accessToken([
+                ...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES,
+              ]),
+              expires_in: 3600,
+              token_type: "Bearer",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/organization?")) {
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: TENANT_ID,
+                  displayName: "New Tenant Name",
+                  verifiedDomains: [],
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/users?")) {
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: "new-valid-user",
+                  displayName: "New Valid User",
+                  userPrincipalName: "valid@example.test",
+                  accountEnabled: true,
+                  userType: "Member",
+                },
+                {
+                  id: "new-invalid-user",
+                  displayName: "New Invalid User",
+                  userPrincipalName: "invalid@example.test",
+                  accountEnabled: true,
+                  userType: "Member",
+                  createdDateTime: "not-a-date",
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (
+          url.includes("/roleManagement/directory/roleDefinitions?") ||
+          url.includes("/roleManagement/directory/roleAssignments?") ||
+          url.includes("/reports/authenticationMethods/userRegistrationDetails")
+        ) {
+          return new Response(JSON.stringify({ value: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        throw new Error(`Unexpected mocked Microsoft request: ${url}`);
+      }),
+    );
+
+    const organization = await db.organization.create({
+      data: {
+        name: "Atomic Workspace",
+        slug: "atomic-workspace",
+      },
+    });
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        displayName: "Previous Tenant Name",
+        connectedAt: new Date(),
+      },
+    });
+
+    await db.directoryIdentity.create({
+      data: {
+        integrationId: integration.id,
+        externalId: "previous-user",
+        displayName: "Previous User",
+        userPrincipalName: "previous@example.test",
+        accountEnabled: true,
+      },
+    });
+
+    await expect(syncMicrosoft365Integration(integration.id)).rejects.toThrow();
+
+    const identities = await db.directoryIdentity.findMany({
+      where: { integrationId: integration.id },
+      orderBy: { externalId: "asc" },
+      select: {
+        externalId: true,
+        displayName: true,
+      },
+    });
+
+    expect(identities).toEqual([
+      {
+        externalId: "previous-user",
+        displayName: "Previous User",
+      },
+    ]);
+
+    const persistedIntegration = await db.integration.findUniqueOrThrow({
+      where: { id: integration.id },
+      select: {
+        displayName: true,
+        lastSyncAt: true,
+      },
+    });
+
+    expect(persistedIntegration).toEqual({
+      displayName: "Previous Tenant Name",
+      lastSyncAt: null,
+    });
+
+    expect(
+      await db.securityScore.count({
+        where: { organizationId: organization.id },
+      }),
+    ).toBe(0);
+
+    expect(
+      await db.integrationSyncLease.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(0);
+  });
+});
