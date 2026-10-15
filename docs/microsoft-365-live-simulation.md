@@ -79,3 +79,17 @@ CyberPilot also uses a PostgreSQL-backed sync lease per integration:
 - separate organizations/integrations can still sync independently.
 
 Automated tests verify cross-organization evidence is not changed by another tenant's sync and that repeated identical LIVE syncs do not duplicate inventory/findings.
+
+
+## Payload and resource guards
+
+The Graph boundary validates response shape before data reaches persistence. CyberPilot rejects malformed collection envelopes and invalid required fields for organizations, users, role definitions, role assignments and authentication-registration evidence.
+
+Operational limits are also enforced:
+
+- 15 second timeout per Graph request;
+- 5 MiB maximum response body;
+- 100 pages maximum per collection;
+- 100,000 items maximum per collection.
+
+These are defensive application limits rather than claims about Microsoft service limits. They exist to fail closed when an upstream response is malformed, unexpectedly large or non-terminating.
