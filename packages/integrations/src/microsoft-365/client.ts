@@ -14,6 +14,10 @@ import type {
 
 const GRAPH_BASE_URL = new URL("https://graph.microsoft.com/v1.0/");
 const MAX_GRAPH_ATTEMPTS = 3;
+const MAX_GRAPH_RESPONSE_BYTES = 5 * 1024 * 1024;
+const MAX_GRAPH_PAGES = 100;
+const MAX_GRAPH_COLLECTION_ITEMS = 100_000;
+const GRAPH_REQUEST_TIMEOUT_MS = 15_000;
 const TRANSIENT_GRAPH_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 function sleep(milliseconds: number) {
@@ -40,6 +44,242 @@ function getRetryDelayMs(response: Response, attempt: number) {
   return 250 * 2 ** attempt;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readRequiredString(
+  input: Record<string, unknown>,
+  key: string,
+  resource: string,
+) {
+  const value = input[key];
+
+  if (typeof value !== "string" || value.length === 0) {
+    throw new MicrosoftGraphPayloadError(
+      `Microsoft Graph returned invalid ${resource}: ${key} must be a non-empty string.`,
+    );
+  }
+
+  return value;
+}
+
+function readOptionalString(
+  input: Record<string, unknown>,
+  key: string,
+  resource: string,
+) {
+  const value = input[key];
+
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    throw new MicrosoftGraphPayloadError(
+      `Microsoft Graph returned invalid ${resource}: ${key} must be a string or null.`,
+    );
+  }
+
+  return value;
+}
+
+function readOptionalBoolean(
+  input: Record<string, unknown>,
+  key: string,
+  resource: string,
+) {
+  const value = input[key];
+
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  if (typeof value !== "boolean") {
+    throw new MicrosoftGraphPayloadError(
+      `Microsoft Graph returned invalid ${resource}: ${key} must be a boolean or null.`,
+    );
+  }
+
+  return value;
+}
+
+function validateOrganization(value: unknown): MicrosoftOrganization {
+  if (!isRecord(value)) {
+    throw new MicrosoftGraphPayloadError(
+      "Microsoft Graph returned an invalid organization object.",
+    );
+  }
+
+  const verifiedDomains = value.verifiedDomains;
+
+  if (
+    verifiedDomains !== undefined &&
+    verifiedDomains !== null &&
+    !Array.isArray(verifiedDomains)
+  ) {
+    throw new MicrosoftGraphPayloadError(
+      "Microsoft Graph returned invalid organization: verifiedDomains must be an array.",
+    );
+  }
+
+  return {
+    id: readRequiredString(value, "id", "organization"),
+    displayName: readOptionalString(value, "displayName", "organization"),
+    verifiedDomains: Array.isArray(verifiedDomains)
+      ? verifiedDomains.map((domain) => {
+          if (!isRecord(domain)) {
+            throw new MicrosoftGraphPayloadError(
+              "Microsoft Graph returned an invalid verified domain.",
+            );
+          }
+
+          return {
+            name: readOptionalString(domain, "name", "verified domain"),
+            isDefault: readOptionalBoolean(domain, "isDefault", "verified domain"),
+            isInitial: readOptionalBoolean(domain, "isInitial", "verified domain"),
+          };
+        })
+      : undefined,
+  };
+}
+
+function validateUser(value: unknown): MicrosoftDirectoryUser {
+  if (!isRecord(value)) {
+    throw new MicrosoftGraphPayloadError(
+      "Microsoft Graph returned an invalid user object.",
+    );
+  }
+
+  return {
+    id: readRequiredString(value, "id", "user"),
+    displayName: readOptionalString(value, "displayName", "user"),
+    userPrincipalName: readOptionalString(value, "userPrincipalName", "user"),
+    accountEnabled: readOptionalBoolean(value, "accountEnabled", "user"),
+    userType: readOptionalString(value, "userType", "user"),
+    createdDateTime: readOptionalString(value, "createdDateTime", "user"),
+  };
+}
+
+function validateRoleDefinition(value: unknown): MicrosoftRoleDefinition {
+  if (!isRecord(value)) {
+    throw new MicrosoftGraphPayloadError(
+      "Microsoft Graph returned an invalid role definition object.",
+    );
+  }
+
+  return {
+    id: readRequiredString(value, "id", "role definition"),
+    displayName: readRequiredString(value, "displayName", "role definition"),
+    templateId: readOptionalString(value, "templateId", "role definition"),
+    isBuiltIn: readOptionalBoolean(value, "isBuiltIn", "role definition"),
+  };
+}
+
+function validateRoleAssignment(value: unknown): MicrosoftRoleAssignment {
+  if (!isRecord(value)) {
+    throw new MicrosoftGraphPayloadError(
+      "Microsoft Graph returned an invalid role assignment object.",
+    );
+  }
+
+  return {
+    id: readRequiredString(value, "id", "role assignment"),
+    principalId: readRequiredString(value, "principalId", "role assignment"),
+    roleDefinitionId: readRequiredString(
+      value,
+      "roleDefinitionId",
+      "role assignment",
+    ),
+    directoryScopeId: readOptionalString(
+      value,
+      "directoryScopeId",
+      "role assignment",
+    ),
+  };
+}
+
+function validateRegistration(value: unknown): MicrosoftUserRegistrationDetails {
+  if (!isRecord(value)) {
+    throw new MicrosoftGraphPayloadError(
+      "Microsoft Graph returned an invalid authentication registration object.",
+    );
+  }
+
+  const methodsRegistered = value.methodsRegistered;
+
+  if (
+    methodsRegistered !== undefined &&
+    methodsRegistered !== null &&
+    (!Array.isArray(methodsRegistered) ||
+      methodsRegistered.some((method) => typeof method !== "string"))
+  ) {
+    throw new MicrosoftGraphPayloadError(
+      "Microsoft Graph returned invalid authentication registration: methodsRegistered must contain only strings.",
+    );
+  }
+
+  return {
+    id: readRequiredString(value, "id", "authentication registration"),
+    isAdmin: readOptionalBoolean(value, "isAdmin", "authentication registration"),
+    isMfaRegistered: readOptionalBoolean(
+      value,
+      "isMfaRegistered",
+      "authentication registration",
+    ),
+    isMfaCapable: readOptionalBoolean(
+      value,
+      "isMfaCapable",
+      "authentication registration",
+    ),
+    isPasswordlessCapable: readOptionalBoolean(
+      value,
+      "isPasswordlessCapable",
+      "authentication registration",
+    ),
+    methodsRegistered: Array.isArray(methodsRegistered)
+      ? methodsRegistered
+      : methodsRegistered === null
+        ? null
+        : undefined,
+    lastUpdatedDateTime: readOptionalString(
+      value,
+      "lastUpdatedDateTime",
+      "authentication registration",
+    ),
+    userPrincipalName: readOptionalString(
+      value,
+      "userPrincipalName",
+      "authentication registration",
+    ),
+    userType: readOptionalString(value, "userType", "authentication registration"),
+  };
+}
+
+function validateCollectionPage<T>(
+  value: unknown,
+  validateItem: (item: unknown) => T,
+): MicrosoftGraphCollection<T> {
+  if (!isRecord(value) || !Array.isArray(value.value)) {
+    throw new MicrosoftGraphPayloadError(
+      "Microsoft Graph collection response must contain a value array.",
+    );
+  }
+
+  const nextLink = value["@odata.nextLink"];
+
+  if (nextLink !== undefined && typeof nextLink !== "string") {
+    throw new MicrosoftGraphPayloadError(
+      "Microsoft Graph @odata.nextLink must be a string.",
+    );
+  }
+
+  return {
+    value: value.value.map(validateItem),
+    ...(typeof nextLink === "string" ? { "@odata.nextLink": nextLink } : {}),
+  };
+}
+
 export class MicrosoftGraphError extends Error {
   constructor(
     message: string,
@@ -47,6 +287,13 @@ export class MicrosoftGraphError extends Error {
   ) {
     super(message);
     this.name = "MicrosoftGraphError";
+  }
+}
+
+export class MicrosoftGraphPayloadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MicrosoftGraphPayloadError";
   }
 }
 
@@ -100,37 +347,77 @@ function classifyProbeError(error: unknown): MicrosoftGraphReadOnlyProbeCheck {
 export class MicrosoftGraphClient {
   constructor(private readonly tenantId: string) {}
 
-  private async request<T>(pathOrUrl: string): Promise<T> {
+  private async requestJson(pathOrUrl: string): Promise<unknown> {
     const url = resolveGraphUrl(pathOrUrl);
 
     for (let attempt = 0; attempt < MAX_GRAPH_ATTEMPTS; attempt += 1) {
       const { access_token: accessToken } =
         await acquireMicrosoftGraphToken(this.tenantId);
 
-      const response = await fetch(url, {
-        headers: {
-          authorization: `Bearer ${accessToken}`,
-          accept: "application/json",
-        },
-        cache: "no-store",
-      });
+      let response: Response;
 
-      if (response.ok) {
-        return (await response.json()) as T;
+      try {
+        response = await fetch(url, {
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            accept: "application/json",
+          },
+          cache: "no-store",
+          signal: AbortSignal.timeout(GRAPH_REQUEST_TIMEOUT_MS),
+        });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "TimeoutError") {
+          throw new MicrosoftGraphError(
+            "Microsoft Graph request timed out.",
+            504,
+          );
+        }
+
+        throw error;
       }
 
-      const shouldRetry =
-        TRANSIENT_GRAPH_STATUSES.has(response.status) &&
-        attempt < MAX_GRAPH_ATTEMPTS - 1;
+      if (!response.ok) {
+        const shouldRetry =
+          TRANSIENT_GRAPH_STATUSES.has(response.status) &&
+          attempt < MAX_GRAPH_ATTEMPTS - 1;
 
-      if (!shouldRetry) {
-        throw new MicrosoftGraphError(
-          `Microsoft Graph request failed with status ${response.status}.`,
-          response.status,
+        if (!shouldRetry) {
+          throw new MicrosoftGraphError(
+            `Microsoft Graph request failed with status ${response.status}.`,
+            response.status,
+          );
+        }
+
+        await sleep(getRetryDelayMs(response, attempt));
+        continue;
+      }
+
+      const declaredLength = Number(response.headers.get("content-length"));
+
+      if (
+        Number.isFinite(declaredLength) &&
+        declaredLength > MAX_GRAPH_RESPONSE_BYTES
+      ) {
+        throw new MicrosoftGraphPayloadError(
+          "Microsoft Graph response exceeded the maximum allowed size.",
         );
       }
 
-      await sleep(getRetryDelayMs(response, attempt));
+      const body = await response.text();
+
+      if (Buffer.byteLength(body, "utf8") > MAX_GRAPH_RESPONSE_BYTES) {
+        throw new MicrosoftGraphPayloadError(
+          "Microsoft Graph response exceeded the maximum allowed size.",
+        );
+      }
+
+      try {
+        return JSON.parse(body) as unknown;
+      } catch {
+        throw new MicrosoftGraphPayloadError(
+          "Microsoft Graph returned invalid JSON.",
+        );
+      }
     }
 
     throw new MicrosoftGraphError(
@@ -139,13 +426,40 @@ export class MicrosoftGraphClient {
     );
   }
 
-  private async listAll<T>(path: string): Promise<T[]> {
+  private async requestCollection<T>(
+    pathOrUrl: string,
+    validateItem: (item: unknown) => T,
+  ) {
+    return validateCollectionPage(
+      await this.requestJson(pathOrUrl),
+      validateItem,
+    );
+  }
+
+  private async listAll<T>(
+    path: string,
+    validateItem: (item: unknown) => T,
+  ): Promise<T[]> {
     const items: T[] = [];
     let nextUrl: string | undefined = path;
+    let pages = 0;
 
     while (nextUrl) {
-      const page: MicrosoftGraphCollection<T> =
-        await this.request<MicrosoftGraphCollection<T>>(nextUrl);
+      pages += 1;
+
+      if (pages > MAX_GRAPH_PAGES) {
+        throw new MicrosoftGraphPayloadError(
+          "Microsoft Graph collection exceeded the maximum page count.",
+        );
+      }
+
+      const page = await this.requestCollection(nextUrl, validateItem);
+
+      if (items.length + page.value.length > MAX_GRAPH_COLLECTION_ITEMS) {
+        throw new MicrosoftGraphPayloadError(
+          "Microsoft Graph collection exceeded the maximum item count.",
+        );
+      }
 
       items.push(...page.value);
       nextUrl = page["@odata.nextLink"];
@@ -155,42 +469,49 @@ export class MicrosoftGraphClient {
   }
 
   async getOrganization(): Promise<MicrosoftOrganization> {
-    const result = await this.request<
-      MicrosoftGraphCollection<MicrosoftOrganization>
-    >("/organization?$select=id,displayName,verifiedDomains");
+    const result = await this.requestCollection(
+      "/organization?$select=id,displayName,verifiedDomains",
+      validateOrganization,
+    );
 
     const organization = result.value[0];
 
     if (!organization) {
-      throw new Error("Microsoft Graph returned no organization.");
+      throw new MicrosoftGraphPayloadError(
+        "Microsoft Graph returned no organization.",
+      );
     }
 
     return organization;
   }
 
   async listUsers(): Promise<MicrosoftDirectoryUser[]> {
-    return this.listAll<MicrosoftDirectoryUser>(
+    return this.listAll(
       "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,createdDateTime&$top=999",
+      validateUser,
     );
   }
 
   async listRoleDefinitions(): Promise<MicrosoftRoleDefinition[]> {
-    return this.listAll<MicrosoftRoleDefinition>(
+    return this.listAll(
       "/roleManagement/directory/roleDefinitions?$select=id,displayName,templateId,isBuiltIn&$top=999",
+      validateRoleDefinition,
     );
   }
 
   async listRoleAssignments(): Promise<MicrosoftRoleAssignment[]> {
-    return this.listAll<MicrosoftRoleAssignment>(
+    return this.listAll(
       "/roleManagement/directory/roleAssignments?$select=id,principalId,roleDefinitionId,directoryScopeId&$top=999",
+      validateRoleAssignment,
     );
   }
 
   async listUserRegistrationDetails(): Promise<
     MicrosoftUserRegistrationDetails[]
   > {
-    return this.listAll<MicrosoftUserRegistrationDetails>(
+    return this.listAll(
       "/reports/authenticationMethods/userRegistrationDetails",
+      validateRegistration,
     );
   }
 
@@ -245,29 +566,33 @@ export class MicrosoftGraphClient {
       [
         "users",
         () =>
-          this.request<MicrosoftGraphCollection<MicrosoftDirectoryUser>>(
+          this.requestCollection(
             "/users?$select=id&$top=1",
+            validateUser,
           ),
       ],
       [
         "roleDefinitions",
         () =>
-          this.request<MicrosoftGraphCollection<MicrosoftRoleDefinition>>(
-            "/roleManagement/directory/roleDefinitions?$select=id&$top=1",
+          this.requestCollection(
+            "/roleManagement/directory/roleDefinitions?$select=id,displayName&$top=1",
+            validateRoleDefinition,
           ),
       ],
       [
         "roleAssignments",
         () =>
-          this.request<MicrosoftGraphCollection<MicrosoftRoleAssignment>>(
-            "/roleManagement/directory/roleAssignments?$select=id&$top=1",
+          this.requestCollection(
+            "/roleManagement/directory/roleAssignments?$select=id,principalId,roleDefinitionId&$top=1",
+            validateRoleAssignment,
           ),
       ],
       [
         "authenticationRegistration",
         () =>
-          this.request<MicrosoftGraphCollection<MicrosoftUserRegistrationDetails>>(
+          this.requestCollection(
             "/reports/authenticationMethods/userRegistrationDetails?$filter=userPrincipalName eq '__cyberpilot_readonly_probe__'",
+            validateRegistration,
           ),
       ],
     ];
