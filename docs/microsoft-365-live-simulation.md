@@ -93,3 +93,19 @@ Operational limits are also enforced:
 - 100,000 items maximum per collection.
 
 These are defensive application limits rather than claims about Microsoft service limits. They exist to fail closed when an upstream response is malformed, unexpectedly large or non-terminating.
+
+
+## Persisted failure state
+
+LIVE sync failures persist only a safe classification on the integration, never the upstream response body or exception message.
+
+Current failure codes are:
+
+- `GRAPH_AUTHORIZATION_FAILED`
+- `GRAPH_PAYLOAD_INVALID`
+- `GRAPH_THROTTLED`
+- `GRAPH_UNAVAILABLE`
+- `TENANT_MISMATCH`
+- `SYNC_FAILED`
+
+`lastErrorAt` and `lastErrorCode` are written by the sync engine itself, so failures are recorded consistently even outside the HTTP route. A later successful atomic sync clears both values.
