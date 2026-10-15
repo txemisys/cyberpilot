@@ -109,3 +109,17 @@ Current failure codes are:
 - `SYNC_FAILED`
 
 `lastErrorAt` and `lastErrorCode` are written by the sync engine itself, so failures are recorded consistently even outside the HTTP route. A later successful atomic sync clears both values.
+
+
+## Bulk snapshot publication
+
+LIVE directory inventory is now published as a complete transactional snapshot instead of row-by-row upserts:
+
+- current role assignments, role definitions and identities are removed inside the transaction;
+- the new snapshot is inserted with bulk `createMany` operations;
+- findings and CyberScore are calculated before commit;
+- if any bulk write or evaluation fails, the entire transaction rolls back.
+
+This keeps atomic publication while reducing database round-trips from O(number of directory objects) to a small constant number of bulk statements. Domains remain individually upserted because their count is small and organization-level uniqueness has different semantics.
+
+The tenant-free E2E suite exercises a 2,500-user LIVE snapshot twice and verifies inventory remains duplicate-free.
