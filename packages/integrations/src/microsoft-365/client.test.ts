@@ -380,3 +380,170 @@ describe("MicrosoftGraphClient resilience", () => {
     });
   });
 });
+
+
+describe("MicrosoftGraphClient payload guards", () => {
+  beforeEach(() => {
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+  });
+
+  function tokenResponse() {
+    return new Response(
+      JSON.stringify({
+        access_token: accessToken([...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES]),
+        expires_in: 3600,
+        token_type: "Bearer",
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  }
+
+  it("rejects malformed collection shapes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return tokenResponse();
+        }
+
+        return new Response(JSON.stringify({ value: "not-an-array" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+
+    const client = new MicrosoftGraphClient(
+      "11111111-1111-1111-1111-111111111111",
+    );
+
+    await expect(client.listUsers()).rejects.toMatchObject({
+      name: "MicrosoftGraphPayloadError",
+    });
+  });
+
+  it("rejects malformed user fields before persistence", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return tokenResponse();
+        }
+
+        return new Response(
+          JSON.stringify({
+            value: [{ id: "", accountEnabled: "yes" }],
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        );
+      }),
+    );
+
+    const client = new MicrosoftGraphClient(
+      "11111111-1111-1111-1111-111111111111",
+    );
+
+    await expect(client.listUsers()).rejects.toThrow(
+      "id must be a non-empty string",
+    );
+  });
+
+  it("rejects invalid JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return tokenResponse();
+        }
+
+        return new Response("{invalid-json", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+
+    const client = new MicrosoftGraphClient(
+      "11111111-1111-1111-1111-111111111111",
+    );
+
+    await expect(client.listUsers()).rejects.toThrow(
+      "Microsoft Graph returned invalid JSON.",
+    );
+  });
+
+  it("rejects responses whose declared size exceeds 5 MiB", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return tokenResponse();
+        }
+
+        return new Response(JSON.stringify({ value: [] }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "content-length": String(5 * 1024 * 1024 + 1),
+          },
+        });
+      }),
+    );
+
+    const client = new MicrosoftGraphClient(
+      "11111111-1111-1111-1111-111111111111",
+    );
+
+    await expect(client.listUsers()).rejects.toThrow(
+      "Microsoft Graph response exceeded the maximum allowed size.",
+    );
+  });
+
+  it("rejects collections above the configured item ceiling", async () => {
+    const items = Array.from({ length: 100_001 }, (_, index) => ({
+      id: `user-${index}`,
+    }));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return tokenResponse();
+        }
+
+        return new Response(JSON.stringify({ value: items }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }),
+    );
+
+    const client = new MicrosoftGraphClient(
+      "11111111-1111-1111-1111-111111111111",
+    );
+
+    await expect(client.listUsers()).rejects.toThrow(
+      "Microsoft Graph collection exceeded the maximum item count.",
+    );
+  });
+});
