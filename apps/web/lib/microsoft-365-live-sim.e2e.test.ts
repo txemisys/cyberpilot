@@ -1167,3 +1167,127 @@ describe("Microsoft 365 LIVE failure state and recovery", () => {
     expect(recovered.lastSyncAt).toBeInstanceOf(Date);
   });
 });
+
+
+describe("Microsoft 365 LIVE bulk snapshot scale", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+    await db.$disconnect();
+  });
+
+  it("publishes a 2500-user LIVE snapshot atomically without duplication", async () => {
+    const users = Array.from({ length: 2500 }, (_, index) => ({
+      id: `bulk-user-${index}`,
+      displayName: `Bulk User ${index}`,
+      userPrincipalName: `bulk-user-${index}@example.test`,
+      accountEnabled: true,
+      userType: "Member",
+    }));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return new Response(
+            JSON.stringify({
+              access_token: accessToken([
+                ...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES,
+              ]),
+              expires_in: 3600,
+              token_type: "Bearer",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/organization?")) {
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: TENANT_ID,
+                  displayName: "Bulk Tenant",
+                  verifiedDomains: [],
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/users?")) {
+          return new Response(JSON.stringify({ value: users }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        if (
+          url.includes("/roleManagement/directory/roleDefinitions?") ||
+          url.includes("/roleManagement/directory/roleAssignments?") ||
+          url.includes("/reports/authenticationMethods/userRegistrationDetails")
+        ) {
+          return new Response(JSON.stringify({ value: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        throw new Error(`Unexpected mocked Microsoft request: ${url}`);
+      }),
+    );
+
+    const organization = await db.organization.create({
+      data: {
+        name: "Bulk Workspace",
+        slug: "bulk-workspace",
+      },
+    });
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        connectedAt: new Date(),
+      },
+    });
+
+    const first = await syncMicrosoft365Integration(integration.id);
+
+    expect(first.users).toBe(2500);
+    expect(
+      await db.directoryIdentity.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(2500);
+
+    const second = await syncMicrosoft365Integration(integration.id);
+
+    expect(second.users).toBe(2500);
+    expect(
+      await db.directoryIdentity.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(2500);
+    expect(
+      await db.securityScore.count({
+        where: { organizationId: organization.id },
+      }),
+    ).toBe(2);
+  });
+});
