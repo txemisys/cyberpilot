@@ -72,7 +72,7 @@ function readOptionalString(
   const value = input[key];
 
   if (value === undefined || value === null) {
-    return value;
+    return null;
   }
 
   if (typeof value !== "string") {
@@ -92,7 +92,7 @@ function readOptionalBoolean(
   const value = input[key];
 
   if (value === undefined || value === null) {
-    return value;
+    return null;
   }
 
   if (typeof value !== "boolean") {
@@ -140,7 +140,7 @@ function validateOrganization(value: unknown): MicrosoftOrganization {
             isInitial: readOptionalBoolean(domain, "isInitial", "verified domain"),
           };
         })
-      : undefined,
+      : [],
   };
 }
 
@@ -239,9 +239,7 @@ function validateRegistration(value: unknown): MicrosoftUserRegistrationDetails 
     ),
     methodsRegistered: Array.isArray(methodsRegistered)
       ? methodsRegistered
-      : methodsRegistered === null
-        ? null
-        : undefined,
+      : null,
     lastUpdatedDateTime: readOptionalString(
       value,
       "lastUpdatedDateTime",
@@ -453,7 +451,8 @@ export class MicrosoftGraphClient {
         );
       }
 
-      const page = await this.requestCollection(nextUrl, validateItem);
+      const page: MicrosoftGraphCollection<T> =
+        await this.requestCollection(nextUrl, validateItem);
 
       if (items.length + page.value.length > MAX_GRAPH_COLLECTION_ITEMS) {
         throw new MicrosoftGraphPayloadError(
