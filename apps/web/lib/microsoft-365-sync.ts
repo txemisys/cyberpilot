@@ -1,4 +1,4 @@
-import { db } from "@cyberpilot/database";
+import { db, type Prisma } from "@cyberpilot/database";
 import { randomUUID } from "node:crypto";
 import { observeDomainSecurity } from "@cyberpilot/integrations/domain-security";
 import {
@@ -16,7 +16,6 @@ import {
 
 const GLOBAL_ADMIN_TEMPLATE_ID =
   "62e90394-69f5-4237-9190-012177145e10";
-const WRITE_CONCURRENCY = 10;
 const SYNC_LEASE_MS = 30 * 60 * 1000;
 
 export class Microsoft365SyncInProgressError extends Error {
@@ -114,7 +113,10 @@ async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
   }
 
   if (integration.mode === "LAB") {
-    return syncMicrosoft365LabIntegration(integration.id, integration.organizationId);
+    return syncMicrosoft365LabIntegration(
+      integration.id,
+      integration.organizationId,
+    );
   }
 
   if (!integration.externalTenantId) {
@@ -187,246 +189,208 @@ async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
   );
   const domainNames = new Set(verifiedDomains.map((domain) => domain.name));
 
-  await forEachWithConcurrency(users, WRITE_CONCURRENCY, async (user) => {
-    const registration = registrationByUserId.get(user.id);
+  const scoreSnapshot = await db.$transaction(
+    async (tx) => {
+      for (const user of users) {
+        const registration = registrationByUserId.get(user.id);
 
-    await db.directoryIdentity.upsert({
-      where: {
-        integrationId_externalId: {
-          integrationId: integration.id,
-          externalId: user.id,
-        },
-      },
-      create: {
-        integrationId: integration.id,
-        externalId: user.id,
-        displayName: user.displayName ?? null,
-        userPrincipalName: user.userPrincipalName ?? null,
-        accountEnabled: user.accountEnabled ?? null,
-        identityType: mapIdentityType(user.userType),
-        createdAtProvider: user.createdDateTime
-          ? new Date(user.createdDateTime)
-          : null,
-        isAdmin: registration?.isAdmin ?? null,
-        isMfaRegistered: registration?.isMfaRegistered ?? null,
-        isMfaCapable: registration?.isMfaCapable ?? null,
-        isPasswordlessCapable: registration?.isPasswordlessCapable ?? null,
-        methodsRegistered: registration?.methodsRegistered ?? [],
-        authenticationObservedAt: registration ? observedAt : null,
-        authenticationUpdatedAt: registration?.lastUpdatedDateTime
-          ? new Date(registration.lastUpdatedDateTime)
-          : null,
-        observedAt,
-      },
-      update: {
-        displayName: user.displayName ?? null,
-        userPrincipalName: user.userPrincipalName ?? null,
-        accountEnabled: user.accountEnabled ?? null,
-        identityType: mapIdentityType(user.userType),
-        createdAtProvider: user.createdDateTime
-          ? new Date(user.createdDateTime)
-          : null,
-        isAdmin: registration?.isAdmin ?? null,
-        isMfaRegistered: registration?.isMfaRegistered ?? null,
-        isMfaCapable: registration?.isMfaCapable ?? null,
-        isPasswordlessCapable: registration?.isPasswordlessCapable ?? null,
-        methodsRegistered: registration?.methodsRegistered ?? [],
-        authenticationObservedAt: registration ? observedAt : null,
-        authenticationUpdatedAt: registration?.lastUpdatedDateTime
-          ? new Date(registration.lastUpdatedDateTime)
-          : null,
-        observedAt,
-      },
-    });
-  });
+        await tx.directoryIdentity.upsert({
+          where: {
+            integrationId_externalId: {
+              integrationId: integration.id,
+              externalId: user.id,
+            },
+          },
+          create: {
+            integrationId: integration.id,
+            externalId: user.id,
+            displayName: user.displayName ?? null,
+            userPrincipalName: user.userPrincipalName ?? null,
+            accountEnabled: user.accountEnabled ?? null,
+            identityType: mapIdentityType(user.userType),
+            createdAtProvider: user.createdDateTime
+              ? new Date(user.createdDateTime)
+              : null,
+            isAdmin: registration?.isAdmin ?? null,
+            isMfaRegistered: registration?.isMfaRegistered ?? null,
+            isMfaCapable: registration?.isMfaCapable ?? null,
+            isPasswordlessCapable:
+              registration?.isPasswordlessCapable ?? null,
+            methodsRegistered: registration?.methodsRegistered ?? [],
+            authenticationObservedAt: registration ? observedAt : null,
+            authenticationUpdatedAt: registration?.lastUpdatedDateTime
+              ? new Date(registration.lastUpdatedDateTime)
+              : null,
+            observedAt,
+          },
+          update: {
+            displayName: user.displayName ?? null,
+            userPrincipalName: user.userPrincipalName ?? null,
+            accountEnabled: user.accountEnabled ?? null,
+            identityType: mapIdentityType(user.userType),
+            createdAtProvider: user.createdDateTime
+              ? new Date(user.createdDateTime)
+              : null,
+            isAdmin: registration?.isAdmin ?? null,
+            isMfaRegistered: registration?.isMfaRegistered ?? null,
+            isMfaCapable: registration?.isMfaCapable ?? null,
+            isPasswordlessCapable:
+              registration?.isPasswordlessCapable ?? null,
+            methodsRegistered: registration?.methodsRegistered ?? [],
+            authenticationObservedAt: registration ? observedAt : null,
+            authenticationUpdatedAt: registration?.lastUpdatedDateTime
+              ? new Date(registration.lastUpdatedDateTime)
+              : null,
+            observedAt,
+          },
+        });
+      }
 
-  await forEachWithConcurrency(
-    roleDefinitions,
-    WRITE_CONCURRENCY,
-    async (role) => {
-      await db.directoryRoleDefinition.upsert({
-        where: {
-          integrationId_externalId: {
+      for (const role of roleDefinitions) {
+        await tx.directoryRoleDefinition.upsert({
+          where: {
+            integrationId_externalId: {
+              integrationId: integration.id,
+              externalId: role.id,
+            },
+          },
+          create: {
             integrationId: integration.id,
             externalId: role.id,
+            templateId: role.templateId ?? null,
+            displayName: role.displayName,
+            isBuiltIn: role.isBuiltIn ?? null,
+            observedAt,
           },
-        },
-        create: {
-          integrationId: integration.id,
-          externalId: role.id,
-          templateId: role.templateId ?? null,
-          displayName: role.displayName,
-          isBuiltIn: role.isBuiltIn ?? null,
-          observedAt,
-        },
-        update: {
-          templateId: role.templateId ?? null,
-          displayName: role.displayName,
-          isBuiltIn: role.isBuiltIn ?? null,
-          observedAt,
-        },
-      });
-    },
-  );
+          update: {
+            templateId: role.templateId ?? null,
+            displayName: role.displayName,
+            isBuiltIn: role.isBuiltIn ?? null,
+            observedAt,
+          },
+        });
+      }
 
-  await forEachWithConcurrency(
-    persistedRoleAssignments,
-    WRITE_CONCURRENCY,
-    async (assignment) => {
-      await db.directoryRoleAssignment.upsert({
-        where: {
-          integrationId_externalId: {
+      for (const assignment of persistedRoleAssignments) {
+        await tx.directoryRoleAssignment.upsert({
+          where: {
+            integrationId_externalId: {
+              integrationId: integration.id,
+              externalId: assignment.id,
+            },
+          },
+          create: {
             integrationId: integration.id,
             externalId: assignment.id,
+            principalExternalId: assignment.principalId,
+            roleDefinitionExternalId: assignment.roleDefinitionId,
+            directoryScopeId: assignment.directoryScopeId ?? null,
+            observedAt,
           },
-        },
-        create: {
-          integrationId: integration.id,
-          externalId: assignment.id,
-          principalExternalId: assignment.principalId,
-          roleDefinitionExternalId: assignment.roleDefinitionId,
-          directoryScopeId: assignment.directoryScopeId ?? null,
-          observedAt,
-        },
-        update: {
-          principalExternalId: assignment.principalId,
-          roleDefinitionExternalId: assignment.roleDefinitionId,
-          directoryScopeId: assignment.directoryScopeId ?? null,
-          observedAt,
-        },
-      });
-    },
-  );
+          update: {
+            principalExternalId: assignment.principalId,
+            roleDefinitionExternalId: assignment.roleDefinitionId,
+            directoryScopeId: assignment.directoryScopeId ?? null,
+            observedAt,
+          },
+        });
+      }
 
-
-  await forEachWithConcurrency(
-    domainObservations,
-    WRITE_CONCURRENCY,
-    async ({ domain, observation }) => {
-      await db.domain.upsert({
-        where: {
-          organizationId_name: {
+      for (const { domain, observation } of domainObservations) {
+        await tx.domain.upsert({
+          where: {
+            organizationId_name: {
+              organizationId: integration.organizationId,
+              name: domain.name,
+            },
+          },
+          create: {
             organizationId: integration.organizationId,
+            integrationId: integration.id,
             name: domain.name,
+            isDefault: domain.isDefault,
+            isInitial: domain.isInitial,
+            spfStatus: observation.spf.status,
+            spfRecords: observation.spf.records,
+            dmarcStatus: observation.dmarc.status,
+            dmarcPolicy: observation.dmarc.policy,
+            dmarcRecords: observation.dmarc.records,
+            dkimStatus: observation.dkim.status,
+            dkimSelectors: observation.dkim.selectors,
+            dnsObservedAt: observedAt,
           },
-        },
-        create: {
-          organizationId: integration.organizationId,
+          update: {
+            integrationId: integration.id,
+            isDefault: domain.isDefault,
+            isInitial: domain.isInitial,
+            spfStatus: observation.spf.status,
+            spfRecords: observation.spf.records,
+            dmarcStatus: observation.dmarc.status,
+            dmarcPolicy: observation.dmarc.policy,
+            dmarcRecords: observation.dmarc.records,
+            dkimStatus: observation.dkim.status,
+            dkimSelectors: observation.dkim.selectors,
+            dnsObservedAt: observedAt,
+          },
+        });
+      }
+
+      await tx.directoryRoleAssignment.deleteMany({
+        where: {
           integrationId: integration.id,
-          name: domain.name,
-          isDefault: domain.isDefault,
-          isInitial: domain.isInitial,
-          spfStatus: observation.spf.status,
-          spfRecords: observation.spf.records,
-          dmarcStatus: observation.dmarc.status,
-          dmarcPolicy: observation.dmarc.policy,
-          dmarcRecords: observation.dmarc.records,
-          dkimStatus: observation.dkim.status,
-          dkimSelectors: observation.dkim.selectors,
-          dnsObservedAt: observedAt,
-        },
-        update: {
-          integrationId: integration.id,
-          isDefault: domain.isDefault,
-          isInitial: domain.isInitial,
-          spfStatus: observation.spf.status,
-          spfRecords: observation.spf.records,
-          dmarcStatus: observation.dmarc.status,
-          dmarcPolicy: observation.dmarc.policy,
-          dmarcRecords: observation.dmarc.records,
-          dkimStatus: observation.dkim.status,
-          dkimSelectors: observation.dkim.selectors,
-          dnsObservedAt: observedAt,
+          ...(roleAssignmentIds.size > 0
+            ? { externalId: { notIn: [...roleAssignmentIds] } }
+            : {}),
         },
       });
+
+      await tx.directoryIdentity.deleteMany({
+        where: {
+          integrationId: integration.id,
+          ...(userIds.size > 0
+            ? { externalId: { notIn: [...userIds] } }
+            : {}),
+        },
+      });
+
+      await tx.directoryRoleDefinition.deleteMany({
+        where: {
+          integrationId: integration.id,
+          ...(roleDefinitionIds.size > 0
+            ? { externalId: { notIn: [...roleDefinitionIds] } }
+            : {}),
+        },
+      });
+
+      await tx.domain.deleteMany({
+        where: {
+          integrationId: integration.id,
+          ...(domainNames.size > 0
+            ? { name: { notIn: [...domainNames] } }
+            : {}),
+        },
+      });
+
+      await tx.integration.update({
+        where: { id: integration.id },
+        data: {
+          displayName: organization.displayName ?? null,
+          lastSyncAt: observedAt,
+          lastErrorAt: null,
+          lastErrorCode: null,
+          mfaEvidenceStatus,
+          mfaEvidenceCheckedAt: observedAt,
+        },
+      });
+
+      await evaluateMicrosoft365Findings(integration.id, tx);
+      return snapshotSecurityScore(integration.organizationId, tx);
+    },
+    {
+      maxWait: 10_000,
+      timeout: 60_000,
     },
   );
-
-  await db.$transaction(async (tx) => {
-    if (roleAssignmentIds.size === 0) {
-      await tx.directoryRoleAssignment.deleteMany({
-        where: {
-          integrationId: integration.id,
-        },
-      });
-    } else {
-      await tx.directoryRoleAssignment.deleteMany({
-        where: {
-          integrationId: integration.id,
-          externalId: {
-            notIn: [...roleAssignmentIds],
-          },
-        },
-      });
-    }
-
-    if (userIds.size === 0) {
-      await tx.directoryIdentity.deleteMany({
-        where: {
-          integrationId: integration.id,
-        },
-      });
-    } else {
-      await tx.directoryIdentity.deleteMany({
-        where: {
-          integrationId: integration.id,
-          externalId: {
-            notIn: [...userIds],
-          },
-        },
-      });
-    }
-
-    if (roleDefinitionIds.size === 0) {
-      await tx.directoryRoleDefinition.deleteMany({
-        where: {
-          integrationId: integration.id,
-        },
-      });
-    } else {
-      await tx.directoryRoleDefinition.deleteMany({
-        where: {
-          integrationId: integration.id,
-          externalId: {
-            notIn: [...roleDefinitionIds],
-          },
-        },
-      });
-    }
-
-
-    if (domainNames.size === 0) {
-      await tx.domain.deleteMany({
-        where: {
-          integrationId: integration.id,
-        },
-      });
-    } else {
-      await tx.domain.deleteMany({
-        where: {
-          integrationId: integration.id,
-          name: {
-            notIn: [...domainNames],
-          },
-        },
-      });
-    }
-
-    await tx.integration.update({
-      where: { id: integration.id },
-      data: {
-        displayName: organization.displayName ?? null,
-        lastSyncAt: observedAt,
-        lastErrorAt: null,
-        lastErrorCode: null,
-        mfaEvidenceStatus,
-        mfaEvidenceCheckedAt: observedAt,
-      },
-    });
-  });
-
-  await evaluateMicrosoft365Findings(integration.id);
-  const scoreSnapshot = await snapshotSecurityScore(integration.organizationId);
 
   return {
     users: users.length,
@@ -440,8 +404,11 @@ async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
   };
 }
 
-export async function evaluateMicrosoft365Findings(integrationId: string) {
-  const integration = await db.integration.findUnique({
+export async function evaluateMicrosoft365Findings(
+  integrationId: string,
+  client: Prisma.TransactionClient | typeof db = db,
+) {
+  const integration = await client.integration.findUnique({
     where: { id: integrationId },
     select: {
       id: true,
@@ -514,7 +481,7 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
   const observedFindingKeys = findings.map((finding) => finding.key);
 
   for (const finding of findings) {
-    const persistedFinding = await db.securityFinding.upsert({
+    const persistedFinding = await client.securityFinding.upsert({
       where: {
         organizationId_key: {
           organizationId: integration.organizationId,
@@ -544,15 +511,18 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
       },
     });
 
-    await ensureRemediationProposal({
-      organizationId: integration.organizationId,
-      findingId: persistedFinding.id,
-      ruleId: finding.rule.id,
-      evidence: finding.evidence,
-    });
+    await ensureRemediationProposal(
+      {
+        organizationId: integration.organizationId,
+        findingId: persistedFinding.id,
+        ruleId: finding.rule.id,
+        evidence: finding.evidence,
+      },
+      client,
+    );
   }
 
-  const openFindings = await db.securityFinding.findMany({
+  const openFindings = await client.securityFinding.findMany({
     where: {
       organizationId: integration.organizationId,
       integrationId: integration.id,
@@ -581,7 +551,7 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
   });
 
   if (resolvableFindingKeys.length > 0) {
-    await db.securityFinding.updateMany({
+    await client.securityFinding.updateMany({
       where: {
         organizationId: integration.organizationId,
         integrationId: integration.id,
@@ -599,9 +569,12 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
 }
 
 
-export async function snapshotSecurityScore(organizationId: string) {
+export async function snapshotSecurityScore(
+  organizationId: string,
+  client: Prisma.TransactionClient | typeof db = db,
+) {
   const [findings, integration, domains] = await Promise.all([
-    db.securityFinding.findMany({
+    client.securityFinding.findMany({
       where: {
         organizationId,
         status: "OPEN",
@@ -614,7 +587,7 @@ export async function snapshotSecurityScore(organizationId: string) {
         description: true,
       },
     }),
-    db.integration.findUnique({
+    client.integration.findUnique({
       where: {
         organizationId_provider: {
           organizationId,
@@ -625,7 +598,7 @@ export async function snapshotSecurityScore(organizationId: string) {
         mfaEvidenceStatus: true,
       },
     }),
-    db.domain.findMany({
+    client.domain.findMany({
       where: {
         organizationId,
         isInitial: false,
@@ -654,7 +627,7 @@ export async function snapshotSecurityScore(organizationId: string) {
       ? ("PARTIAL" as const)
       : ("COMPLETE" as const);
 
-  return db.securityScore.create({
+  return client.securityScore.create({
     data: {
       organizationId,
       modelVersion: "v0",
@@ -677,19 +650,22 @@ export async function snapshotSecurityScore(organizationId: string) {
 }
 
 
-async function ensureRemediationProposal(input: {
-  organizationId: string;
-  findingId: string;
-  ruleId: string;
-  evidence: Record<string, import("@cyberpilot/risk-engine").JsonValue>;
-}) {
+async function ensureRemediationProposal(
+  input: {
+    organizationId: string;
+    findingId: string;
+    ruleId: string;
+    evidence: Record<string, import("@cyberpilot/risk-engine").JsonValue>;
+  },
+  client: Prisma.TransactionClient | typeof db = db,
+) {
   const playbook = getRemediationPlaybook(input.ruleId);
 
   if (!playbook) {
     return;
   }
 
-  const existing = await db.remediation.findFirst({
+  const existing = await client.remediation.findFirst({
     where: {
       findingId: input.findingId,
       playbookId: playbook.id,
@@ -728,7 +704,7 @@ async function ensureRemediationProposal(input: {
         : null
       : null;
 
-  await db.remediation.create({
+  await client.remediation.create({
     data: {
       organizationId: input.organizationId,
       findingId: input.findingId,
