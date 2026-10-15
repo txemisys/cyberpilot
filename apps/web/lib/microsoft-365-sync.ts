@@ -404,8 +404,11 @@ async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
   };
 }
 
-export async function evaluateMicrosoft365Findings(integrationId: string) {
-  const integration = await db.integration.findUnique({
+export async function evaluateMicrosoft365Findings(
+  integrationId: string,
+  client: Prisma.TransactionClient | typeof db = db,
+) {
+  const integration = await client.integration.findUnique({
     where: { id: integrationId },
     select: {
       id: true,
@@ -478,7 +481,7 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
   const observedFindingKeys = findings.map((finding) => finding.key);
 
   for (const finding of findings) {
-    const persistedFinding = await db.securityFinding.upsert({
+    const persistedFinding = await client.securityFinding.upsert({
       where: {
         organizationId_key: {
           organizationId: integration.organizationId,
@@ -508,15 +511,18 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
       },
     });
 
-    await ensureRemediationProposal({
-      organizationId: integration.organizationId,
-      findingId: persistedFinding.id,
-      ruleId: finding.rule.id,
-      evidence: finding.evidence,
-    });
+    await ensureRemediationProposal(
+      {
+        organizationId: integration.organizationId,
+        findingId: persistedFinding.id,
+        ruleId: finding.rule.id,
+        evidence: finding.evidence,
+      },
+      client,
+    );
   }
 
-  const openFindings = await db.securityFinding.findMany({
+  const openFindings = await client.securityFinding.findMany({
     where: {
       organizationId: integration.organizationId,
       integrationId: integration.id,
@@ -545,7 +551,7 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
   });
 
   if (resolvableFindingKeys.length > 0) {
-    await db.securityFinding.updateMany({
+    await client.securityFinding.updateMany({
       where: {
         organizationId: integration.organizationId,
         integrationId: integration.id,
@@ -563,9 +569,12 @@ export async function evaluateMicrosoft365Findings(integrationId: string) {
 }
 
 
-export async function snapshotSecurityScore(organizationId: string) {
+export async function snapshotSecurityScore(
+  organizationId: string,
+  client: Prisma.TransactionClient | typeof db = db,
+) {
   const [findings, integration, domains] = await Promise.all([
-    db.securityFinding.findMany({
+    client.securityFinding.findMany({
       where: {
         organizationId,
         status: "OPEN",
@@ -578,7 +587,7 @@ export async function snapshotSecurityScore(organizationId: string) {
         description: true,
       },
     }),
-    db.integration.findUnique({
+    client.integration.findUnique({
       where: {
         organizationId_provider: {
           organizationId,
@@ -589,7 +598,7 @@ export async function snapshotSecurityScore(organizationId: string) {
         mfaEvidenceStatus: true,
       },
     }),
-    db.domain.findMany({
+    client.domain.findMany({
       where: {
         organizationId,
         isInitial: false,
@@ -618,7 +627,7 @@ export async function snapshotSecurityScore(organizationId: string) {
       ? ("PARTIAL" as const)
       : ("COMPLETE" as const);
 
-  return db.securityScore.create({
+  return client.securityScore.create({
     data: {
       organizationId,
       modelVersion: "v0",
@@ -641,19 +650,22 @@ export async function snapshotSecurityScore(organizationId: string) {
 }
 
 
-async function ensureRemediationProposal(input: {
-  organizationId: string;
-  findingId: string;
-  ruleId: string;
-  evidence: Record<string, import("@cyberpilot/risk-engine").JsonValue>;
-}) {
+async function ensureRemediationProposal(
+  input: {
+    organizationId: string;
+    findingId: string;
+    ruleId: string;
+    evidence: Record<string, import("@cyberpilot/risk-engine").JsonValue>;
+  },
+  client: Prisma.TransactionClient | typeof db = db,
+) {
   const playbook = getRemediationPlaybook(input.ruleId);
 
   if (!playbook) {
     return;
   }
 
-  const existing = await db.remediation.findFirst({
+  const existing = await client.remediation.findFirst({
     where: {
       findingId: input.findingId,
       playbookId: playbook.id,
@@ -692,7 +704,7 @@ async function ensureRemediationProposal(input: {
         : null
       : null;
 
-  await db.remediation.create({
+  await client.remediation.create({
     data: {
       organizationId: input.organizationId,
       findingId: input.findingId,
