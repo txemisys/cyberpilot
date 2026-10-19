@@ -136,3 +136,10 @@ The heartbeat is token-bound: only the process that acquired the lease can renew
 ## LAB / LIVE route separation
 
 The shared sync endpoint now branches on integration mode before applying first-pilot LIVE gates. A connected LAB integration can be re-evaluated without Microsoft scanner credentials or a READY Graph probe. LIVE integrations still require the static first-pilot configuration gate and the latest successful read-only probe.
+
+
+## Lease fencing
+
+Lease renewal is also used as a fencing check immediately before atomic publication. If the original sync no longer owns the token-bound lease, CyberPilot raises `SYNC_LEASE_LOST` and refuses to publish the collected snapshot.
+
+This closes the stale-worker race where a paused process resumes after another process has taken over an expired lease. The stale process cannot overwrite the newer owner's work, and its token-scoped cleanup cannot delete the replacement lease.
