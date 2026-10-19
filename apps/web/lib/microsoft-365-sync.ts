@@ -80,6 +80,8 @@ async function acquireMicrosoft365SyncLease(integrationId: string) {
     if (result.count !== 1) {
       throw new Error("Microsoft 365 sync lease was lost.");
     }
+
+    heartbeatError = null;
   };
 
   const startHeartbeat = () => {
@@ -191,10 +193,13 @@ export async function syncMicrosoft365Integration(integrationId: string) {
   lease.startHeartbeat();
 
   try {
-    const result = await syncMicrosoft365IntegrationUnlocked(integrationId);
-    await lease.renew();
-    lease.assertHealthy();
-    return result;
+    return await syncMicrosoft365IntegrationUnlocked(
+      integrationId,
+      async () => {
+        await lease.renew();
+        lease.assertHealthy();
+      },
+    );
   } catch (error) {
     if (!(error instanceof Microsoft365SyncInProgressError)) {
       await db.integration.updateMany({
@@ -212,7 +217,10 @@ export async function syncMicrosoft365Integration(integrationId: string) {
   }
 }
 
-async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
+async function syncMicrosoft365IntegrationUnlocked(
+  integrationId: string,
+  beforePublish: () => Promise<void>,
+) {
   const integration = await db.integration.findUnique({
     where: { id: integrationId },
     select: {
@@ -229,6 +237,7 @@ async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
   }
 
   if (integration.mode === "LAB") {
+    await beforePublish();
     return syncMicrosoft365LabIntegration(
       integration.id,
       integration.organizationId,
@@ -344,6 +353,8 @@ async function syncMicrosoft365IntegrationUnlocked(integrationId: string) {
     directoryScopeId: assignment.directoryScopeId ?? null,
     observedAt,
   }));
+
+  await beforePublish();
 
   const scoreSnapshot = await db.$transaction(
     async (tx) => {
