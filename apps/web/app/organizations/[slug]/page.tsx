@@ -45,6 +45,7 @@ export default async function OrganizationPage({
         lastSyncAt: true,
         lastErrorAt: true,
         lastErrorCode: true,
+        lastErrorEventId: true,
         mfaEvidenceStatus: true,
         mfaEvidenceCheckedAt: true,
         remediationStatus: true,
@@ -311,6 +312,13 @@ export default async function OrganizationPage({
                   {integration.lastErrorCode ? (
                     <p>
                       Diagnostic code: <code>{integration.lastErrorCode}</code>
+                      {integration.lastErrorEventId
+                        ? (
+                            <>
+                              {" · "}Event ID: <code>{integration.lastErrorEventId}</code>
+                            </>
+                          )
+                        : null}
                       {integration.lastErrorAt
                         ? ` · ${integration.lastErrorAt.toISOString()}`
                         : ""}

@@ -132,3 +132,10 @@ Every sync emits redacted structured lifecycle events:
 The metadata is deliberately operational rather than customer-content data. It includes the integration mode, total duration in milliseconds, normalized object counts, score coverage, and a safe failure classification when applicable. Organization and integration identifiers continue to be hashed by the operational logger.
 
 Do not add user principal names, Graph response bodies, tenant IDs, tokens, domain record contents, or finding evidence to these operational events.
+
+
+## Error correlation
+
+Microsoft 365 sync failures persist a generated operational `eventId` alongside the safe failure code. The UUID contains no tenant/customer payload and can be shown to an operator to correlate the workspace error state, audit trail and redacted Loki log entry.
+
+Successful sync publication clears `lastErrorAt`, `lastErrorCode` and `lastErrorEventId` together. Raw Graph errors, response bodies and exception messages are still not persisted.

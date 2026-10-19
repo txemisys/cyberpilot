@@ -1139,12 +1139,16 @@ describe("Microsoft 365 LIVE failure state and recovery", () => {
       select: {
         lastErrorAt: true,
         lastErrorCode: true,
+        lastErrorEventId: true,
         lastSyncAt: true,
       },
     });
 
     expect(failed.lastErrorAt).toBeInstanceOf(Date);
     expect(failed.lastErrorCode).toBe("GRAPH_PAYLOAD_INVALID");
+    expect(failed.lastErrorEventId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
     expect(failed.lastSyncAt).toBeNull();
 
     failWithMalformedPayload = false;
@@ -1158,12 +1162,14 @@ describe("Microsoft 365 LIVE failure state and recovery", () => {
       select: {
         lastErrorAt: true,
         lastErrorCode: true,
+        lastErrorEventId: true,
         lastSyncAt: true,
       },
     });
 
     expect(recovered.lastErrorAt).toBeNull();
     expect(recovered.lastErrorCode).toBeNull();
+    expect(recovered.lastErrorEventId).toBeNull();
     expect(recovered.lastSyncAt).toBeInstanceOf(Date);
   });
 });
@@ -1730,14 +1736,16 @@ describe("Microsoft 365 sync lease fencing", () => {
         displayName: true,
         lastSyncAt: true,
         lastErrorCode: true,
+        lastErrorEventId: true,
       },
     });
 
-    expect(persisted).toEqual({
-      displayName: "Previous Tenant Snapshot",
-      lastSyncAt: null,
-      lastErrorCode: "SYNC_LEASE_LOST",
-    });
+    expect(persisted.displayName).toBe("Previous Tenant Snapshot");
+    expect(persisted.lastSyncAt).toBeNull();
+    expect(persisted.lastErrorCode).toBe("SYNC_LEASE_LOST");
+    expect(persisted.lastErrorEventId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
 
     const replacementLease = await db.integrationSyncLease.findUniqueOrThrow({
       where: { integrationId: integration.id },

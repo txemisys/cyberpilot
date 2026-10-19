@@ -271,16 +271,7 @@ export async function syncMicrosoft365Integration(integrationId: string) {
   } catch (error) {
     if (!(error instanceof Microsoft365SyncInProgressError)) {
       const failureCode = getMicrosoft365SyncFailureCode(error);
-
-      await db.integration.updateMany({
-        where: { id: integrationId },
-        data: {
-          lastErrorAt: new Date(),
-          lastErrorCode: failureCode,
-        },
-      });
-
-      reportOperationalEvent({
+      const operationalEvent = reportOperationalEvent({
         event: "integration.microsoft_365.sync_failed",
         ...(integrationContext?.organizationId
         ? { organizationId: integrationContext.organizationId }
@@ -292,6 +283,15 @@ export async function syncMicrosoft365Integration(integrationId: string) {
           failureCode,
         },
         error,
+      });
+
+      await db.integration.updateMany({
+        where: { id: integrationId },
+        data: {
+          lastErrorAt: new Date(),
+          lastErrorCode: failureCode,
+          lastErrorEventId: operationalEvent.eventId,
+        },
       });
     }
 
@@ -525,6 +525,7 @@ async function syncMicrosoft365IntegrationUnlocked(
           lastSyncAt: observedAt,
           lastErrorAt: null,
           lastErrorCode: null,
+          lastErrorEventId: null,
           mfaEvidenceStatus,
           mfaEvidenceCheckedAt: observedAt,
         },
