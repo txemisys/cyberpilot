@@ -119,3 +119,16 @@ At minimum, alerts should exist for:
 Do not add raw user email addresses, tenant names, tenant IDs, Graph response bodies or security tokens to operational logs merely for debugging convenience.
 
 When additional correlation is required, prefer hashed stable references and explicit failure codes.
+
+
+## Microsoft 365 sync metrics
+
+Every sync emits redacted structured lifecycle events:
+
+- `integration.microsoft_365.sync_started`
+- `integration.microsoft_365.sync_completed`
+- `integration.microsoft_365.sync_failed`
+
+The metadata is deliberately operational rather than customer-content data. It includes the integration mode, total duration in milliseconds, normalized object counts, score coverage, and a safe failure classification when applicable. Organization and integration identifiers continue to be hashed by the operational logger.
+
+Do not add user principal names, Graph response bodies, tenant IDs, tokens, domain record contents, or finding evidence to these operational events.
