@@ -219,6 +219,7 @@ model Integration {
   lastSyncAt       DateTime?
   lastErrorAt      DateTime?
   lastErrorCode    String?
+  lastErrorEventId String?
   mfaEvidenceStatus IntegrationCapabilityStatus @default(UNKNOWN)
   mfaEvidenceCheckedAt DateTime?
   remediationStatus IntegrationCapabilityStatus @default(UNKNOWN)
