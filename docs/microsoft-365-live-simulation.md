@@ -87,7 +87,9 @@ The Graph boundary validates response shape before data reaches persistence. Cyb
 
 Operational limits are also enforced:
 
+- 10 second timeout for Microsoft OAuth token acquisition;
 - 15 second timeout per Graph request;
+- 2 minute cumulative deadline per paginated Graph collection, shared across token acquisition, requests and retries;
 - 5 MiB maximum response body;
 - 100 pages maximum per collection;
 - 100,000 items maximum per collection.
