@@ -147,17 +147,6 @@ function mapIdentityType(userType?: string | null) {
   return "UNKNOWN" as const;
 }
 
-async function forEachWithConcurrency<T>(
-  items: T[],
-  concurrency: number,
-  operation: (item: T) => Promise<unknown>,
-) {
-  for (let index = 0; index < items.length; index += concurrency) {
-    const batch = items.slice(index, index + concurrency);
-    await Promise.all(batch.map(operation));
-  }
-}
-
 export type Microsoft365SyncFailureCode =
   | "GRAPH_AUTHORIZATION_FAILED"
   | "GRAPH_PAYLOAD_INVALID"
@@ -878,66 +867,64 @@ async function syncMicrosoft365LabIntegration(
 ) {
   const observedAt = new Date();
 
-  await db.integration.update({
-    where: {
-      id: integrationId,
-    },
-    data: {
-      lastSyncAt: observedAt,
-      lastErrorAt: null,
-      lastErrorCode: null,
-      mfaEvidenceStatus: "AVAILABLE",
-      mfaEvidenceCheckedAt: observedAt,
-      remediationStatus: "AVAILABLE",
-      remediationCheckedAt: observedAt,
-    },
-  });
+  const result = await db.$transaction(
+    async (tx) => {
+      await tx.integration.update({
+        where: { id: integrationId },
+        data: {
+          lastSyncAt: observedAt,
+          lastErrorAt: null,
+          lastErrorCode: null,
+          lastErrorEventId: null,
+          mfaEvidenceStatus: "AVAILABLE",
+          mfaEvidenceCheckedAt: observedAt,
+          remediationStatus: "AVAILABLE",
+          remediationCheckedAt: observedAt,
+        },
+      });
 
-  await db.directoryIdentity.updateMany({
-    where: {
-      integrationId,
-    },
-    data: {
-      observedAt,
-    },
-  });
+      await tx.directoryIdentity.updateMany({
+        where: { integrationId },
+        data: { observedAt },
+      });
+      await tx.directoryRoleDefinition.updateMany({
+        where: { integrationId },
+        data: { observedAt },
+      });
+      await tx.directoryRoleAssignment.updateMany({
+        where: { integrationId },
+        data: { observedAt },
+      });
 
-  await db.directoryRoleDefinition.updateMany({
-    where: {
-      integrationId,
-    },
-    data: {
-      observedAt,
-    },
-  });
+      await evaluateMicrosoft365Findings(integrationId, tx);
+      const scoreSnapshot = await snapshotSecurityScore(organizationId, tx);
 
-  await db.directoryRoleAssignment.updateMany({
-    where: {
-      integrationId,
-    },
-    data: {
-      observedAt,
-    },
-  });
+      const [users, roleDefinitions, roleAssignments, domains] =
+        await Promise.all([
+          tx.directoryIdentity.count({ where: { integrationId } }),
+          tx.directoryRoleDefinition.count({ where: { integrationId } }),
+          tx.directoryRoleAssignment.count({ where: { integrationId } }),
+          tx.domain.count({ where: { integrationId } }),
+        ]);
 
-  await evaluateMicrosoft365Findings(integrationId);
-  const scoreSnapshot = await snapshotSecurityScore(organizationId);
-
-  const [users, roleDefinitions, roleAssignments, domains] = await Promise.all([
-    db.directoryIdentity.count({ where: { integrationId } }),
-    db.directoryRoleDefinition.count({ where: { integrationId } }),
-    db.directoryRoleAssignment.count({ where: { integrationId } }),
-    db.domain.count({ where: { integrationId } }),
-  ]);
+      return {
+        users,
+        roleDefinitions,
+        roleAssignments,
+        authenticationRegistrations: users,
+        domains,
+        cyberScore: scoreSnapshot.score,
+        scoreCoverage: scoreSnapshot.coverage,
+      };
+    },
+    {
+      maxWait: 10_000,
+      timeout: 60_000,
+    },
+  );
 
   return {
-    users,
-    roleDefinitions,
-    roleAssignments,
-    authenticationRegistrations: users,
-    domains,
-    cyberScore: scoreSnapshot.score,
-    scoreCoverage: scoreSnapshot.coverage,
+    ...result,
     observedAt,
   };
 }
