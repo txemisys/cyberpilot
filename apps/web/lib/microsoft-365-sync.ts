@@ -1,5 +1,6 @@
 import { db, type Prisma } from "@cyberpilot/database";
 import { randomUUID } from "node:crypto";
+import { reportOperationalEvent } from "./operational-logging";
 import { observeDomainSecurity } from "@cyberpilot/integrations/domain-security";
 import {
   MicrosoftGraphClient,
@@ -189,25 +190,77 @@ export function getMicrosoft365SyncFailureCode(
 }
 
 export async function syncMicrosoft365Integration(integrationId: string) {
+  const startedAt = Date.now();
+  const integrationContext = await db.integration.findUnique({
+    where: { id: integrationId },
+    select: {
+      organizationId: true,
+      mode: true,
+    },
+  });
+
+  reportOperationalEvent({
+    event: "integration.microsoft_365.sync_started",
+    level: "info",
+    organizationId: integrationContext?.organizationId,
+    resourceId: integrationId,
+    metadata: {
+      mode: integrationContext?.mode ?? "UNKNOWN",
+    },
+  });
+
   const lease = await acquireMicrosoft365SyncLease(integrationId);
   lease.startHeartbeat();
 
   try {
-    return await syncMicrosoft365IntegrationUnlocked(
+    const result = await syncMicrosoft365IntegrationUnlocked(
       integrationId,
       async () => {
         await lease.renew();
         lease.assertHealthy();
       },
     );
+
+    reportOperationalEvent({
+      event: "integration.microsoft_365.sync_completed",
+      level: "info",
+      organizationId: integrationContext?.organizationId,
+      resourceId: integrationId,
+      metadata: {
+        mode: integrationContext?.mode ?? "UNKNOWN",
+        durationMs: Date.now() - startedAt,
+        users: result.users,
+        roleDefinitions: result.roleDefinitions,
+        roleAssignments: result.roleAssignments,
+        authenticationRegistrations: result.authenticationRegistrations,
+        domains: result.domains,
+        scoreCoverage: result.scoreCoverage,
+      },
+    });
+
+    return result;
   } catch (error) {
     if (!(error instanceof Microsoft365SyncInProgressError)) {
+      const failureCode = getMicrosoft365SyncFailureCode(error);
+
       await db.integration.updateMany({
         where: { id: integrationId },
         data: {
           lastErrorAt: new Date(),
-          lastErrorCode: getMicrosoft365SyncFailureCode(error),
+          lastErrorCode: failureCode,
         },
+      });
+
+      reportOperationalEvent({
+        event: "integration.microsoft_365.sync_failed",
+        organizationId: integrationContext?.organizationId,
+        resourceId: integrationId,
+        metadata: {
+          mode: integrationContext?.mode ?? "UNKNOWN",
+          durationMs: Date.now() - startedAt,
+          failureCode,
+        },
+        error,
       });
     }
 
