@@ -8,6 +8,8 @@ export const MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES = [
   "User.Read.All",
 ] as const;
 
+const MICROSOFT_TOKEN_REQUEST_TIMEOUT_MS = 10_000;
+
 type TokenResponse = {
   access_token: string;
   expires_in: number;
@@ -17,6 +19,26 @@ type TokenResponse = {
 type AccessTokenPayload = {
   roles?: unknown;
 };
+
+type MicrosoftGraphTokenRequestOptions = {
+  fetcher?: typeof fetch;
+  timeoutMs?: number;
+};
+
+export class MicrosoftGraphTokenError extends Error {
+  constructor(
+    message: string,
+    readonly kind:
+      | "AUTHORIZATION"
+      | "UNAVAILABLE"
+      | "CONFIGURATION"
+      | "INVALID_RESPONSE",
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = "MicrosoftGraphTokenError";
+  }
+}
 
 export function assertMicrosoftTenantId(tenantId: string) {
   if (!TENANT_ID_PATTERN.test(tenantId)) {
@@ -66,14 +88,20 @@ export function inspectMicrosoftGraphApplicationRoles(accessToken: string) {
   };
 }
 
-export async function acquireMicrosoftGraphToken(tenantId: string) {
+export async function acquireMicrosoftGraphToken(
+  tenantId: string,
+  options: MicrosoftGraphTokenRequestOptions = {},
+) {
   assertMicrosoftTenantId(tenantId);
 
   const clientId = process.env.M365_GRAPH_CLIENT_ID;
   const clientSecret = process.env.M365_GRAPH_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    throw new Error("Microsoft 365 Graph credentials are not configured.");
+    throw new MicrosoftGraphTokenError(
+      "Microsoft 365 Graph credentials are not configured.",
+      "CONFIGURATION",
+    );
   }
 
   const body = new URLSearchParams({
@@ -83,28 +111,67 @@ export async function acquireMicrosoftGraphToken(tenantId: string) {
     scope: "https://graph.microsoft.com/.default",
   });
 
-  const response = await fetch(
-    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/x-www-form-urlencoded",
+  const fetcher = options.fetcher ?? fetch;
+  const timeoutMs = options.timeoutMs ?? MICROSOFT_TOKEN_REQUEST_TIMEOUT_MS;
+  let response: Response;
+
+  try {
+    response = await fetcher(
+      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body,
+        cache: "no-store",
+        signal: AbortSignal.timeout(timeoutMs),
       },
-      body,
-      cache: "no-store",
-    },
-  );
+    );
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new MicrosoftGraphTokenError(
+        "Microsoft token request timed out.",
+        "UNAVAILABLE",
+      );
+    }
+
+    throw error;
+  }
 
   if (!response.ok) {
-    throw new Error(
+    const kind =
+      response.status === 400 ||
+      response.status === 401 ||
+      response.status === 403
+        ? "AUTHORIZATION"
+        : response.status === 429 || response.status >= 500
+          ? "UNAVAILABLE"
+          : "INVALID_RESPONSE";
+
+    throw new MicrosoftGraphTokenError(
       `Microsoft token request failed with status ${response.status}.`,
+      kind,
+      response.status,
     );
   }
 
-  const token = (await response.json()) as TokenResponse;
+  let token: TokenResponse;
+
+  try {
+    token = (await response.json()) as TokenResponse;
+  } catch {
+    throw new MicrosoftGraphTokenError(
+      "Microsoft token response was not valid JSON.",
+      "INVALID_RESPONSE",
+    );
+  }
 
   if (!token.access_token) {
-    throw new Error("Microsoft token response did not contain an access token.");
+    throw new MicrosoftGraphTokenError(
+      "Microsoft token response did not contain an access token.",
+      "INVALID_RESPONSE",
+    );
   }
 
   return token;

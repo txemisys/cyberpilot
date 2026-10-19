@@ -6,6 +6,7 @@ import {
   MicrosoftGraphClient,
   MicrosoftGraphError,
   MicrosoftGraphPayloadError,
+  MicrosoftGraphTokenError,
   type MicrosoftUserRegistrationDetails,
 } from "@cyberpilot/integrations/microsoft-365";
 import {
@@ -163,6 +164,18 @@ export function getMicrosoft365SyncFailureCode(
 ): Microsoft365SyncFailureCode {
   if (error instanceof MicrosoftGraphPayloadError) {
     return "GRAPH_PAYLOAD_INVALID";
+  }
+
+  if (error instanceof MicrosoftGraphTokenError) {
+    if (error.kind === "AUTHORIZATION") {
+      return "GRAPH_AUTHORIZATION_FAILED";
+    }
+
+    if (error.kind === "UNAVAILABLE") {
+      return "GRAPH_UNAVAILABLE";
+    }
+
+    return "SYNC_FAILED";
   }
 
   if (error instanceof MicrosoftGraphError) {

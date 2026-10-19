@@ -547,3 +547,82 @@ describe("MicrosoftGraphClient payload guards", () => {
     );
   });
 });
+
+
+describe("MicrosoftGraphClient collection deadline", () => {
+  beforeEach(() => {
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+  });
+
+  it("bounds the total duration of a paginated Graph collection", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return new Response(
+            JSON.stringify({
+              access_token: accessToken([
+                ...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES,
+              ]),
+              expires_in: 3600,
+              token_type: "Bearer",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        const signal = init?.signal;
+
+        return new Promise<Response>((resolve, reject) => {
+          const timer = setTimeout(
+            () =>
+              resolve(
+                new Response(
+                  JSON.stringify({
+                    value: [{ id: "slow-user" }],
+                    "@odata.nextLink":
+                      "https://graph.microsoft.com/v1.0/users?$skiptoken=slow-next",
+                  }),
+                  {
+                    status: 200,
+                    headers: { "content-type": "application/json" },
+                  },
+                ),
+              ),
+            50,
+          );
+
+          if (signal instanceof AbortSignal) {
+            signal.addEventListener(
+              "abort",
+              () => {
+                clearTimeout(timer);
+                reject(signal.reason);
+              },
+              { once: true },
+            );
+          }
+        });
+      }),
+    );
+
+    const client = new MicrosoftGraphClient(
+      "11111111-1111-1111-1111-111111111111",
+      { collectionTimeoutMs: 10 },
+    );
+
+    await expect(client.listUsers()).rejects.toMatchObject({
+      name: "MicrosoftGraphError",
+      status: 504,
+    });
+  });
+});

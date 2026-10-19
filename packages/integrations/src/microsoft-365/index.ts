@@ -15,6 +15,7 @@ export { isMicrosoftRemediationExecutorConfigured } from "./remediation-token";
 export {
   assertMicrosoftTenantId,
   getMicrosoftGraphScannerConfiguration,
+  MicrosoftGraphTokenError,
   inspectMicrosoftGraphApplicationRoles,
   MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES,
 } from "./token";

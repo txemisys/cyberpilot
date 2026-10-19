@@ -18,6 +18,7 @@ const MAX_GRAPH_RESPONSE_BYTES = 5 * 1024 * 1024;
 const MAX_GRAPH_PAGES = 100;
 const MAX_GRAPH_COLLECTION_ITEMS = 100_000;
 const GRAPH_REQUEST_TIMEOUT_MS = 15_000;
+const GRAPH_COLLECTION_TIMEOUT_MS = 2 * 60 * 1000;
 const TRANSIENT_GRAPH_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 function sleep(milliseconds: number) {
@@ -342,15 +343,55 @@ function classifyProbeError(error: unknown): MicrosoftGraphReadOnlyProbeCheck {
   return { status: "ERROR" };
 }
 
-export class MicrosoftGraphClient {
-  constructor(private readonly tenantId: string) {}
+type MicrosoftGraphClientOptions = {
+  collectionTimeoutMs?: number;
+};
 
-  private async requestJson(pathOrUrl: string): Promise<unknown> {
+export class MicrosoftGraphClient {
+  constructor(
+    private readonly tenantId: string,
+    private readonly options: MicrosoftGraphClientOptions = {},
+  ) {}
+
+  private async requestJson(
+    pathOrUrl: string,
+    deadlineAt?: number,
+  ): Promise<unknown> {
     const url = resolveGraphUrl(pathOrUrl);
 
     for (let attempt = 0; attempt < MAX_GRAPH_ATTEMPTS; attempt += 1) {
+      const remainingBeforeToken =
+        deadlineAt === undefined ? undefined : deadlineAt - Date.now();
+
+      if (
+        remainingBeforeToken !== undefined &&
+        remainingBeforeToken <= 0
+      ) {
+        throw new MicrosoftGraphError(
+          "Microsoft Graph collection exceeded the maximum allowed duration.",
+          504,
+        );
+      }
+
       const { access_token: accessToken } =
-        await acquireMicrosoftGraphToken(this.tenantId);
+        await acquireMicrosoftGraphToken(this.tenantId, {
+          ...(remainingBeforeToken === undefined
+            ? {}
+            : { timeoutMs: Math.min(10_000, remainingBeforeToken) }),
+        });
+
+      const remainingBeforeRequest =
+        deadlineAt === undefined ? undefined : deadlineAt - Date.now();
+
+      if (
+        remainingBeforeRequest !== undefined &&
+        remainingBeforeRequest <= 0
+      ) {
+        throw new MicrosoftGraphError(
+          "Microsoft Graph collection exceeded the maximum allowed duration.",
+          504,
+        );
+      }
 
       let response: Response;
 
@@ -361,12 +402,18 @@ export class MicrosoftGraphClient {
             accept: "application/json",
           },
           cache: "no-store",
-          signal: AbortSignal.timeout(GRAPH_REQUEST_TIMEOUT_MS),
+          signal: AbortSignal.timeout(
+            remainingBeforeRequest === undefined
+              ? GRAPH_REQUEST_TIMEOUT_MS
+              : Math.min(GRAPH_REQUEST_TIMEOUT_MS, remainingBeforeRequest),
+          ),
         });
       } catch (error) {
         if (error instanceof DOMException && error.name === "TimeoutError") {
           throw new MicrosoftGraphError(
-            "Microsoft Graph request timed out.",
+            deadlineAt !== undefined && Date.now() >= deadlineAt
+              ? "Microsoft Graph collection exceeded the maximum allowed duration."
+              : "Microsoft Graph request timed out.",
             504,
           );
         }
@@ -386,7 +433,19 @@ export class MicrosoftGraphClient {
           );
         }
 
-        await sleep(getRetryDelayMs(response, attempt));
+        const retryDelayMs = getRetryDelayMs(response, attempt);
+
+        if (
+          deadlineAt !== undefined &&
+          Date.now() + retryDelayMs >= deadlineAt
+        ) {
+          throw new MicrosoftGraphError(
+            "Microsoft Graph collection exceeded the maximum allowed duration.",
+            504,
+          );
+        }
+
+        await sleep(retryDelayMs);
         continue;
       }
 
@@ -427,9 +486,10 @@ export class MicrosoftGraphClient {
   private async requestCollection<T>(
     pathOrUrl: string,
     validateItem: (item: unknown) => T,
+    deadlineAt?: number,
   ) {
     return validateCollectionPage(
-      await this.requestJson(pathOrUrl),
+      await this.requestJson(pathOrUrl, deadlineAt),
       validateItem,
     );
   }
@@ -441,6 +501,9 @@ export class MicrosoftGraphClient {
     const items: T[] = [];
     let nextUrl: string | undefined = path;
     let pages = 0;
+    const deadlineAt =
+      Date.now() +
+      (this.options.collectionTimeoutMs ?? GRAPH_COLLECTION_TIMEOUT_MS);
 
     while (nextUrl) {
       pages += 1;
@@ -452,7 +515,7 @@ export class MicrosoftGraphClient {
       }
 
       const page: MicrosoftGraphCollection<T> =
-        await this.requestCollection(nextUrl, validateItem);
+        await this.requestCollection(nextUrl, validateItem, deadlineAt);
 
       if (items.length + page.value.length > MAX_GRAPH_COLLECTION_ITEMS) {
         throw new MicrosoftGraphPayloadError(
