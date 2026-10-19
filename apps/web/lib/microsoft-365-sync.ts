@@ -30,6 +30,13 @@ export class Microsoft365SyncInProgressError extends Error {
   }
 }
 
+export class Microsoft365SyncLeaseLostError extends Error {
+  constructor() {
+    super("The Microsoft 365 sync lease was lost before publication.");
+    this.name = "Microsoft365SyncLeaseLostError";
+  }
+}
+
 async function acquireMicrosoft365SyncLease(integrationId: string) {
   const now = new Date();
   const leaseToken = randomUUID();
@@ -80,7 +87,7 @@ async function acquireMicrosoft365SyncLease(integrationId: string) {
     });
 
     if (result.count !== 1) {
-      throw new Error("Microsoft 365 sync lease was lost.");
+      throw new Microsoft365SyncLeaseLostError();
     }
 
     heartbeatError = null;
@@ -157,6 +164,7 @@ export type Microsoft365SyncFailureCode =
   | "GRAPH_THROTTLED"
   | "GRAPH_UNAVAILABLE"
   | "TENANT_MISMATCH"
+  | "SYNC_LEASE_LOST"
   | "SYNC_FAILED";
 
 export function getMicrosoft365SyncFailureCode(
@@ -190,6 +198,10 @@ export function getMicrosoft365SyncFailureCode(
     if ([500, 502, 503, 504].includes(error.status)) {
       return "GRAPH_UNAVAILABLE";
     }
+  }
+
+  if (error instanceof Microsoft365SyncLeaseLostError) {
+    return "SYNC_LEASE_LOST";
   }
 
   if (
