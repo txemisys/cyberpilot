@@ -163,6 +163,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
 
     const failureCode = getMicrosoft365SyncFailureCode(error);
+    const persistedFailure = await db.integration.findUnique({
+      where: { id: integration.id },
+      select: {
+        lastErrorCode: true,
+        lastErrorEventId: true,
+      },
+    });
 
     await db.auditEvent.create({
       data: {
@@ -173,7 +180,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         resourceType: "integration",
         resourceId: integration.id,
         metadata: {
-          failureCode,
+          failureCode: persistedFailure?.lastErrorCode ?? failureCode,
+          ...(persistedFailure?.lastErrorEventId
+            ? { eventId: persistedFailure.lastErrorEventId }
+            : {}),
         },
       },
     });
