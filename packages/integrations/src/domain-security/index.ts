@@ -1,4 +1,4 @@
-import { resolveCname, resolveTxt } from "node:dns/promises";
+import { Resolver } from "node:dns/promises";
 
 export type SpfStatus = "MISSING" | "PRESENT" | "MULTIPLE" | "ERROR";
 export type DmarcStatus =
@@ -29,6 +29,28 @@ export type DomainSecurityObservation = {
   };
 };
 
+type DomainDnsResolver = {
+  resolveTxt(name: string): Promise<string[][]>;
+  resolveCname(name: string): Promise<string[]>;
+  cancel(): void;
+};
+
+type DomainSecurityOptions = {
+  resolverFactory?: () => DomainDnsResolver;
+  queryTimeoutMs?: number;
+};
+
+const DNS_RESOLVER_TIMEOUT_MS = 2_000;
+const DNS_RESOLVER_TRIES = 2;
+const DNS_QUERY_TIMEOUT_MS = 5_000;
+
+function createResolver(): DomainDnsResolver {
+  return new Resolver({
+    timeout: DNS_RESOLVER_TIMEOUT_MS,
+    tries: DNS_RESOLVER_TRIES,
+  });
+}
+
 function isDnsMissing(error: unknown) {
   return Boolean(
     error &&
@@ -40,10 +62,42 @@ function isDnsMissing(error: unknown) {
   );
 }
 
-async function safeTxt(name: string) {
+async function runDnsQuery<T>(
+  operation: (resolver: DomainDnsResolver) => Promise<T>,
+  options: DomainSecurityOptions,
+) {
+  const resolver = (options.resolverFactory ?? createResolver)();
+  const timeoutMs = options.queryTimeoutMs ?? DNS_QUERY_TIMEOUT_MS;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      operation(resolver),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          resolver.cancel();
+
+          reject(
+            Object.assign(new Error("DNS query timed out."), {
+              code: "ETIMEOUT",
+            }),
+          );
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+async function safeTxt(name: string, options: DomainSecurityOptions) {
   try {
     return {
-      records: (await resolveTxt(name)).map((chunks) => chunks.join("")),
+      records: (
+        await runDnsQuery((resolver) => resolver.resolveTxt(name), options)
+      ).map((chunks) => chunks.join("")),
       error: false,
     };
   } catch (error) {
@@ -55,10 +109,13 @@ async function safeTxt(name: string) {
   }
 }
 
-async function safeCname(name: string) {
+async function safeCname(name: string, options: DomainSecurityOptions) {
   try {
     return {
-      records: await resolveCname(name),
+      records: await runDnsQuery(
+        (resolver) => resolver.resolveCname(name),
+        options,
+      ),
       error: false,
     };
   } catch (error) {
@@ -150,14 +207,15 @@ export function analyzeDmarcRecords(records: string[]) {
 
 export async function observeDomainSecurity(
   domain: string,
+  options: DomainSecurityOptions = {},
 ): Promise<DomainSecurityObservation> {
   const normalized = domain.trim().toLowerCase();
 
   const [rootTxt, dmarcTxt, selector1, selector2] = await Promise.all([
-    safeTxt(normalized),
-    safeTxt(`_dmarc.${normalized}`),
-    safeCname(`selector1._domainkey.${normalized}`),
-    safeCname(`selector2._domainkey.${normalized}`),
+    safeTxt(normalized, options),
+    safeTxt(`_dmarc.${normalized}`, options),
+    safeCname(`selector1._domainkey.${normalized}`, options),
+    safeCname(`selector2._domainkey.${normalized}`, options),
   ]);
 
   const spf = rootTxt.error
