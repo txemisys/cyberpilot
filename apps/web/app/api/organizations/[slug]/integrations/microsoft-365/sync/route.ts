@@ -69,14 +69,6 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return rateLimitedResponse(rateLimit.retryAfterSeconds);
   }
 
-  const firstLiveConfig = validateFirstLivePilotConfiguration(process.env);
-
-  if (!firstLiveConfig.ok) {
-    return new Response("First LIVE read-only configuration gate failed.", {
-      status: 503,
-    });
-  }
-
   const integration = await db.integration.findUnique({
     where: {
       organizationId_provider: {
@@ -91,17 +83,22 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     },
   });
 
-  if (
-    !integration ||
-    integration.mode !== "LIVE" ||
-    integration.status !== "CONNECTED"
-  ) {
-    return new Response("A connected LIVE Microsoft 365 tenant is required.", {
+  if (!integration || integration.status !== "CONNECTED") {
+    return new Response("A connected Microsoft 365 integration is required.", {
       status: 409,
     });
   }
 
-  const latestProbe = await db.auditEvent.findFirst({
+  if (integration.mode === "LIVE") {
+    const firstLiveConfig = validateFirstLivePilotConfiguration(process.env);
+
+    if (!firstLiveConfig.ok) {
+      return new Response("First LIVE read-only configuration gate failed.", {
+        status: 503,
+      });
+    }
+
+    const latestProbe = await db.auditEvent.findFirst({
     where: {
       organizationId: membership.organization.id,
       action: "integration.microsoft_365.readonly_probe",
@@ -114,18 +111,19 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     },
   });
 
-  const probeResult =
-    latestProbe?.metadata &&
-    typeof latestProbe.metadata === "object" &&
-    !Array.isArray(latestProbe.metadata)
-      ? (latestProbe.metadata as Record<string, unknown>).result
-      : null;
+    const probeResult =
+      latestProbe?.metadata &&
+      typeof latestProbe.metadata === "object" &&
+      !Array.isArray(latestProbe.metadata)
+        ? (latestProbe.metadata as Record<string, unknown>).result
+        : null;
 
-  if (probeResult !== "READY") {
-    return new Response(
-      "A successful read-only Microsoft access probe is required before the first LIVE sync.",
-      { status: 409 },
-    );
+    if (probeResult !== "READY") {
+      return new Response(
+        "A successful read-only Microsoft access probe is required before the first LIVE sync.",
+        { status: 409 },
+      );
+    }
   }
 
   try {
