@@ -239,3 +239,48 @@ describe("Microsoft 365 LAB shared sync entry point", () => {
     ).toBe(0);
   });
 });
+
+
+describe("Microsoft 365 LAB recovery state", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    await db.$disconnect();
+  });
+
+  it("clears the prior error event correlation on a successful LAB re-evaluation", async () => {
+    const organization = await db.organization.create({
+      data: { name: "LAB Recovery", slug: "lab-recovery" },
+    });
+    const integration = await seedMicrosoft365Lab(organization.id);
+
+    await db.integration.update({
+      where: { id: integration.id },
+      data: {
+        lastErrorAt: new Date(),
+        lastErrorCode: "SYNC_FAILED",
+        lastErrorEventId: "11111111-1111-4111-8111-111111111111",
+      },
+    });
+
+    await syncMicrosoft365Integration(integration.id);
+
+    const recovered = await db.integration.findUniqueOrThrow({
+      where: { id: integration.id },
+      select: {
+        lastErrorAt: true,
+        lastErrorCode: true,
+        lastErrorEventId: true,
+        lastSyncAt: true,
+      },
+    });
+
+    expect(recovered.lastErrorAt).toBeNull();
+    expect(recovered.lastErrorCode).toBeNull();
+    expect(recovered.lastErrorEventId).toBeNull();
+    expect(recovered.lastSyncAt).toBeInstanceOf(Date);
+  });
+});

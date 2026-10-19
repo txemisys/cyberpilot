@@ -143,3 +143,8 @@ The shared sync endpoint now branches on integration mode before applying first-
 Lease renewal is also used as a fencing check immediately before atomic publication. If the original sync no longer owns the token-bound lease, CyberPilot raises `SYNC_LEASE_LOST` and refuses to publish the collected snapshot.
 
 This closes the stale-worker race where a paused process resumes after another process has taken over an expired lease. The stale process cannot overwrite the newer owner's work, and its token-scoped cleanup cannot delete the replacement lease.
+
+
+## LAB atomic re-evaluation
+
+LAB re-evaluation now updates its observed timestamps, findings, remediation proposals, score snapshot and success/error state inside one PostgreSQL transaction. This mirrors the all-or-nothing publication guarantee used by LIVE syncs while keeping LAB fully synthetic and tenant-free.
