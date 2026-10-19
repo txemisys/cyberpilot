@@ -50,9 +50,19 @@ The redirect URI must exactly match the callback configured in the scanner Entra
 
 `/api/integrations/microsoft-365/callback`
 
-For the first LIVE pilot it must use HTTPS and the same public origin as `BETTER_AUTH_URL`. Run `pnpm pilot:check` before starting consent. The command also rejects login/scanner app reuse, Lab auth, and any non-empty `M365_REMEDIATION_*` value.
+For the first LIVE pilot it must use HTTPS and the same public origin as `BETTER_AUTH_URL`. After starting the local stack and CyberPilot, run `pnpm pilot:preflight` before consent. It runs the static `pilot:check`, verifies migration state, and confirms the local application/PostgreSQL, Loki and Grafana health endpoints. The static gate rejects login/scanner app reuse, Lab auth, and any non-empty `M365_REMEDIATION_*` value.
 
 Never commit real IDs/secrets to the repository.
+
+## Local preflight before consent
+
+With `pnpm dev:stack` running and CyberPilot started via `pnpm dev:observed`, run:
+
+```bash
+pnpm pilot:preflight
+```
+
+The command is deliberately local-first and does not contact Microsoft Graph. Passing it proves local configuration/runtime readiness only; Microsoft consent, token roles and real tenant evidence are validated in the steps below.
 
 ## First connection procedure
 

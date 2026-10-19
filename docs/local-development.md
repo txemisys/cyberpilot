@@ -62,6 +62,26 @@ var/log/cyberpilot/app.log
 
 Alloy tails that file into Loki. Grafana is pre-provisioned with Loki as the default datasource.
 
+## First LIVE pilot local preflight
+
+After the stack is running, migrations are applied and CyberPilot is running with `pnpm dev:observed`, execute:
+
+```bash
+pnpm pilot:preflight
+```
+
+It checks:
+
+- the existing first-LIVE static configuration gate;
+- Prisma migration status;
+- CyberPilot `/api/health` including PostgreSQL;
+- Loki readiness;
+- Grafana health.
+
+Default checks use localhost and never print configured secret values. Endpoint URLs can be overridden with `CYBERPILOT_PREFLIGHT_APP_HEALTH_URL`, `CYBERPILOT_PREFLIGHT_LOKI_READY_URL` and `CYBERPILOT_PREFLIGHT_GRAFANA_HEALTH_URL` when needed.
+
+This is not Microsoft validation. Admin consent, the read-only Graph probe and real-tenant evidence comparison remain separate.
+
 ## Microsoft OAuth over public HTTPS
 
 For a LIVE read-only development tenant, expose localhost port 3000 with:
