@@ -12,7 +12,6 @@ import {
   Microsoft365SyncInProgressError,
   syncMicrosoft365Integration,
 } from "../../../../../../../lib/microsoft-365-sync";
-import { reportOperationalEvent } from "../../../../../../../lib/operational-logging";
 
 type RouteContext = {
   params: Promise<{
@@ -164,16 +163,6 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
 
     const failureCode = getMicrosoft365SyncFailureCode(error);
-
-    reportOperationalEvent({
-      event: "integration.microsoft_365.sync_failed",
-      organizationId: membership.organization.id,
-      resourceId: integration.id,
-      metadata: {
-        failureCode,
-      },
-      error,
-    });
 
     await db.auditEvent.create({
       data: {
