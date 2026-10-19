@@ -84,3 +84,10 @@ Microsoft's initial `.onmicrosoft.com` domain is retained in inventory but exclu
 A DNS timeout or resolver failure is not equivalent to a missing control.
 
 CyberPilot records DNS errors as `ERROR`, marks score coverage as partial, and avoids opening a "missing record" finding from failed evidence collection.
+
+
+## DNS resolver bounds
+
+Domain observation uses a dedicated Node.js DNS resolver rather than relying on an unbounded ambient lookup. Each resolver is configured with a 2-second query timeout and two tries, and CyberPilot also applies a 5-second wall-clock ceiling per DNS lookup. If the wall-clock ceiling is reached, the resolver is cancelled and the signal is normalized as `ERROR`.
+
+A timeout or resolver failure is therefore never interpreted as a missing SPF, DMARC or DKIM record. The resulting evidence coverage remains partial until DNS can be observed successfully.
