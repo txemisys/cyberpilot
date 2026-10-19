@@ -225,15 +225,7 @@ describe("Microsoft 365 LAB shared sync entry point", () => {
       },
     });
 
-    const integration = await db.integration.create({
-      data: {
-        organizationId: organization.id,
-        provider: "MICROSOFT_365",
-        mode: "LAB",
-        status: "CONNECTED",
-        connectedAt: new Date(),
-      },
-    });
+    const integration = await seedMicrosoft365Lab(organization.id);
 
     const result = await syncMicrosoft365Integration(integration.id);
 
