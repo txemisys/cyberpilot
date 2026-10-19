@@ -1310,7 +1310,7 @@ describe("Microsoft 365 sync lease heartbeat", () => {
   });
 
   it("renews the lease while a LIVE sync is waiting on Microsoft Graph", async () => {
-    let releaseUsers: (() => void) | null = null;
+    let releaseUsers!: () => void;
     const usersGate = new Promise<void>((resolve) => {
       releaseUsers = resolve;
     });
@@ -1414,7 +1414,7 @@ describe("Microsoft 365 sync lease heartbeat", () => {
       firstLease!.expiresAt.getTime(),
     );
 
-    releaseUsers?.();
+    releaseUsers();
     await expect(syncPromise).resolves.toMatchObject({ users: 0 });
 
     expect(
