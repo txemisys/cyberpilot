@@ -123,3 +123,14 @@ LIVE directory inventory is now published as a complete transactional snapshot i
 This keeps atomic publication while reducing database round-trips from O(number of directory objects) to a small constant number of bulk statements. Domains remain individually upserted because their count is small and organization-level uniqueness has different semantics.
 
 The tenant-free E2E suite exercises a 2,500-user LIVE snapshot twice and verifies inventory remains duplicate-free.
+
+
+## Lease heartbeat
+
+The per-integration sync lease is renewed periodically while a synchronization is running. Production leases remain valid for 30 minutes and are refreshed every 5 minutes. This prevents a legitimately long Graph/DNS collection phase from expiring the lease and allowing a second sync to overlap.
+
+The heartbeat is token-bound: only the process that acquired the lease can renew or release it. The sync also performs a final renewal/health check before returning.
+
+## LAB / LIVE route separation
+
+The shared sync endpoint now branches on integration mode before applying first-pilot LIVE gates. A connected LAB integration can be re-evaluated without Microsoft scanner credentials or a READY Graph probe. LIVE integrations still require the static first-pilot configuration gate and the latest successful read-only probe.
