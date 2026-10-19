@@ -28,7 +28,7 @@ It distinguishes what is already implemented from what still blocks staging, the
 | Local backup/restore path | DONE | `pnpm dev:backup` and `pnpm dev:restore` exercise logical backup/restore locally; CI independently rehearses restore. |
 | Content Security Policy | PARTIAL | Production emits a report-only baseline; staging validation plus nonce/hash hardening are required before enforcement. |
 | Protected deployment environment | BLOCKING PRODUCTION | Production secrets/deployments need an explicit protected environment boundary. |
-| Secret rotation process | BLOCKING PRODUCTION | Manual or automated operational process still required. |
+| Secret rotation process | DOCUMENTED / BLOCKING PRODUCTION DRILL | Provider-neutral rotation + rollback runbook exists; named owners, production secret boundary and a staging-like drill are still required. |
 | Shared auth rate-limit storage for horizontal scaling | POST-PILOT | Required before horizontally scaling Better Auth traffic. |
 | Background worker / async sync | POST-PILOT | Introduce only when real tenant latency/volume justifies it. |
 | LIVE Microsoft write remediation | POST-PILOT | First customer pilot remains read-only. |
@@ -151,6 +151,14 @@ CyberPilot continuously rehearses logical dump/restore in CI and provides local 
 
 See `docs/backup-restore.md`.
 
+## Secret rotation
+
+CyberPilot now has a provider-neutral rotation and rollback runbook covering the application auth secret, Microsoft login/scanner credentials, database credentials and post-pilot remediation credentials.
+
+The documentation does not by itself close the production blocker. Before production, assign primary/backup owners, select the protected production secret boundary and complete a staging-like rotation drill without exposing values.
+
+See `docs/secret-rotation.md`.
+
 ## Secret handling
 
 Use the hosting platform's secret manager or protected environment variables.
@@ -206,7 +214,7 @@ Do not describe CyberPilot as production-hardened until at least the following a
 - Dependency Review is active;
 - CSP is validated and enforced;
 - deployment environments are protected;
-- secret rotation ownership/process exists;
+- secret rotation owners are assigned and the documented rotation/rollback drill has been completed;
 - backup restore testing is repeatable;
 - operational monitoring and alert ownership are proven in practice.
 
