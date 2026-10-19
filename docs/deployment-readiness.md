@@ -20,7 +20,7 @@ It distinguishes what is already implemented from what still blocks staging, the
 | Zero-cost local integration environment | DONE | Docker Compose provides PostgreSQL + Alloy/Loki/Grafana; Tailscale Funnel is optional for public HTTPS callbacks. |
 | Optional Render deployment example | AVAILABLE | `render.yaml` remains an optional managed-hosting path, not a development or pilot prerequisite. |
 | Staging smoke automation | DONE | Manual workflow validates HTTPS, minimal DB-backed health response, HSTS and security/CSP headers against a deployed URL. |
-| Tenant-free LIVE Graph simulation | DONE | The normal LIVE sync path is exercised against Microsoft-shaped OAuth/Graph responses without a Microsoft account or tenant. |
+| Tenant-free LIVE Graph simulation | DONE | The normal LIVE sync path is exercised against Microsoft-shaped OAuth/Graph responses without a Microsoft account or tenant, including pagination, malformed payloads, retries, atomic rollback, lease renewal and 10,000-user scale. |
 | Stable HTTPS integration endpoint | BLOCKING REAL-TENANT VALIDATION ONLY | Required only when moving from simulation to actual Microsoft OAuth/admin consent; may be supplied by Tailscale Funnel or another controlled HTTPS endpoint. |
 | Local observability stack | DONE | Alloy/Loki/Grafana run locally at zero infrastructure cost. |
 | Production monitoring and alert routing | BLOCKING PRODUCTION | Must be selected and tested before broader production operation; no vendor is required during development. |
@@ -119,7 +119,7 @@ See `docs/security-ci.md`.
 
 ## Operational observability
 
-CyberPilot emits redacted structured operational events for critical failures.
+CyberPilot emits redacted structured operational events for critical failures and Microsoft 365 sync lifecycle metrics (start, completion, duration, normalized object counts, coverage and safe failure classifications).
 
 For local development, use the repository's Alloy/Loki/Grafana stack. Before broader production operation, define:
 
@@ -211,3 +211,23 @@ Do not describe CyberPilot as production-hardened until at least the following a
 - operational monitoring and alert ownership are proven in practice.
 
 Items such as horizontal auth scaling, asynchronous workers and LIVE write remediation are intentionally deferred until real pilot evidence justifies them.
+
+
+## Automated pilot-readiness evidence
+
+The repository now continuously proves the following without a Microsoft tenant or paid development service:
+
+- local PostgreSQL/Loki/Alloy/Grafana stack boots in CI;
+- Prisma migrations apply and remain valid;
+- the application health endpoint reports PostgreSQL readiness;
+- structured application logs reach Loki;
+- logical PostgreSQL backup and isolated restore succeed;
+- the Microsoft 365 LIVE path is simulated with Graph-shaped responses;
+- pagination, retry/backoff, payload guards, tenant isolation and sync concurrency are covered;
+- LIVE sync publication is atomic and rolls back on mid-write failure;
+- sync leases renew during long-running collection;
+- LAB re-evaluation remains independent of LIVE-only Microsoft gates;
+- repeated 10,000-user paginated LIVE snapshots remain duplicate-free;
+- sync lifecycle metrics contain counts/durations/safe failure codes rather than customer payloads.
+
+These automated checks are evidence about the repository and CI environment. They do not claim that a developer laptop, public HTTPS endpoint, Microsoft login, admin consent or a real customer tenant has been exercised.
