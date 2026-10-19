@@ -169,3 +169,61 @@ describe("Microsoft 365 shared sync route mode gates", () => {
     ).toBe(0);
   });
 });
+
+
+describe("Microsoft 365 sync error correlation metadata", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.clearAllMocks();
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+  });
+
+  it("stores only safe correlation identifiers in failure audit metadata", async () => {
+    const { user, organization } = await createOwnerWorkspace("route-correlation");
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LAB",
+        status: "CONNECTED",
+        connectedAt: new Date(),
+        lastErrorAt: new Date(),
+        lastErrorCode: "SYNC_FAILED",
+        lastErrorEventId: "11111111-1111-4111-8111-111111111111",
+      },
+    });
+
+    await db.auditEvent.create({
+      data: {
+        organizationId: organization.id,
+        actorType: "USER",
+        actorUserId: user.id,
+        action: "integration.microsoft_365.sync_failed",
+        resourceType: "integration",
+        resourceId: integration.id,
+        metadata: {
+          failureCode: integration.lastErrorCode,
+          eventId: integration.lastErrorEventId,
+        },
+      },
+    });
+
+    const audit = await db.auditEvent.findFirstOrThrow({
+      where: {
+        organizationId: organization.id,
+        action: "integration.microsoft_365.sync_failed",
+      },
+      select: { metadata: true },
+    });
+
+    expect(audit.metadata).toEqual({
+      failureCode: "SYNC_FAILED",
+      eventId: "11111111-1111-4111-8111-111111111111",
+    });
+  });
+});
