@@ -31,6 +31,12 @@ export function getMicrosoft365SyncStatusMessage(
         guidance:
           "Retry the sync after the service recovers. The last successful CyberPilot snapshot remains unchanged.",
       };
+    case "SYNC_LEASE_LOST":
+      return {
+        title: "The sync lost its execution lease",
+        guidance:
+          "CyberPilot stopped before publishing any new snapshot because another execution took ownership. Retry the sync; the previous successful snapshot remains unchanged.",
+      };
     case "TENANT_MISMATCH":
       return {
         title: "Microsoft tenant verification failed",
