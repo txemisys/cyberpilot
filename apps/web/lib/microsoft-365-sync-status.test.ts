@@ -29,3 +29,12 @@ describe("getMicrosoft365SyncStatusMessage", () => {
     ).toContain("last successful CyberPilot snapshot remains unchanged");
   });
 });
+
+
+  it("explains lease fencing without suggesting partial data was published", () => {
+    const message = getMicrosoft365SyncStatusMessage("SYNC_LEASE_LOST");
+
+    expect(message.title).toContain("lease");
+    expect(message.guidance).toContain("stopped before publishing");
+    expect(message.guidance).toContain("previous successful snapshot remains unchanged");
+  });
