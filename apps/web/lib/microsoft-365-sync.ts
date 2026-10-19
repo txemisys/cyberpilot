@@ -199,18 +199,20 @@ export async function syncMicrosoft365Integration(integrationId: string) {
     },
   });
 
+  const lease = await acquireMicrosoft365SyncLease(integrationId);
+  lease.startHeartbeat();
+
   reportOperationalEvent({
     event: "integration.microsoft_365.sync_started",
     level: "info",
-    organizationId: integrationContext?.organizationId,
+    ...(integrationContext?.organizationId
+      ? { organizationId: integrationContext.organizationId }
+      : {}),
     resourceId: integrationId,
     metadata: {
       mode: integrationContext?.mode ?? "UNKNOWN",
     },
   });
-
-  const lease = await acquireMicrosoft365SyncLease(integrationId);
-  lease.startHeartbeat();
 
   try {
     const result = await syncMicrosoft365IntegrationUnlocked(
@@ -224,7 +226,9 @@ export async function syncMicrosoft365Integration(integrationId: string) {
     reportOperationalEvent({
       event: "integration.microsoft_365.sync_completed",
       level: "info",
-      organizationId: integrationContext?.organizationId,
+      ...(integrationContext?.organizationId
+        ? { organizationId: integrationContext.organizationId }
+        : {}),
       resourceId: integrationId,
       metadata: {
         mode: integrationContext?.mode ?? "UNKNOWN",
@@ -253,7 +257,9 @@ export async function syncMicrosoft365Integration(integrationId: string) {
 
       reportOperationalEvent({
         event: "integration.microsoft_365.sync_failed",
-        organizationId: integrationContext?.organizationId,
+        ...(integrationContext?.organizationId
+        ? { organizationId: integrationContext.organizationId }
+        : {}),
         resourceId: integrationId,
         metadata: {
           mode: integrationContext?.mode ?? "UNKNOWN",
