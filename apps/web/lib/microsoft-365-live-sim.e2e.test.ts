@@ -1424,3 +1424,139 @@ describe("Microsoft 365 sync lease heartbeat", () => {
     ).toBe(0);
   });
 });
+
+
+describe("Microsoft 365 LIVE paginated scale", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+    await db.$disconnect();
+  });
+
+  it("publishes 10000 users from ten Graph pages without duplication", async () => {
+    const pageSize = 1000;
+    const pageCount = 10;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = new URL(String(input));
+
+        if (url.hostname.includes("login.microsoftonline.com")) {
+          return new Response(
+            JSON.stringify({
+              access_token: accessToken([
+                ...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES,
+              ]),
+              expires_in: 3600,
+              token_type: "Bearer",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.pathname.endsWith("/organization")) {
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: TENANT_ID,
+                  displayName: "Paginated Scale Tenant",
+                  verifiedDomains: [],
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.pathname.endsWith("/users")) {
+          const page = Number(url.searchParams.get("page") ?? "0");
+          const offset = page * pageSize;
+          const value = Array.from({ length: pageSize }, (_, index) => {
+            const id = offset + index;
+
+            return {
+              id: `scale-user-${id}`,
+              displayName: `Scale User ${id}`,
+              userPrincipalName: `scale-user-${id}@example.test`,
+              accountEnabled: true,
+              userType: "Member",
+            };
+          });
+
+          return new Response(
+            JSON.stringify({
+              value,
+              ...(page < pageCount - 1
+                ? {
+                    "@odata.nextLink":
+                      `https://graph.microsoft.com/v1.0/users?page=${page + 1}`,
+                  }
+                : {}),
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (
+          url.pathname.endsWith("/roleDefinitions") ||
+          url.pathname.endsWith("/roleAssignments") ||
+          url.pathname.endsWith("/userRegistrationDetails")
+        ) {
+          return new Response(JSON.stringify({ value: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        throw new Error(`Unexpected mocked Microsoft request: ${url.toString()}`);
+      }),
+    );
+
+    const organization = await db.organization.create({
+      data: {
+        name: "Paginated Scale Workspace",
+        slug: "paginated-scale-workspace",
+      },
+    });
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        connectedAt: new Date(),
+      },
+    });
+
+    const first = await syncMicrosoft365Integration(integration.id);
+
+    expect(first.users).toBe(10_000);
+    expect(
+      await db.directoryIdentity.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(10_000);
+
+    const second = await syncMicrosoft365Integration(integration.id);
+
+    expect(second.users).toBe(10_000);
+    expect(
+      await db.directoryIdentity.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(10_000);
+  });
+});
