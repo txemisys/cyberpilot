@@ -7,6 +7,7 @@ import { calculateCyberScore } from "@cyberpilot/risk-engine";
 import Link from "next/link";
 
 import { requireOrganizationAccess } from "../../../lib/organizations";
+import { getMicrosoft365SyncStatusMessage } from "../../../lib/microsoft-365-sync-status";
 
 type OrganizationPageProps = {
   params: Promise<{
@@ -221,6 +222,9 @@ export default async function OrganizationPage({
   const remediationExecutorAvailable =
     integration?.remediationStatus === "AVAILABLE" &&
     (integration.mode === "LAB" || remediationExecutorConfigured);
+  const syncErrorMessage = integration?.lastErrorAt
+    ? getMicrosoft365SyncStatusMessage(integration.lastErrorCode)
+    : null;
 
   return (
     <main className="shell">
@@ -300,13 +304,19 @@ export default async function OrganizationPage({
                   : "not run yet"}.
               </p>
 
-              {integration.lastErrorAt ? (
-                <p className="auth-error">
-                  The latest Microsoft 365 operation reported an issue
-                  {integration.lastErrorCode
-                    ? `: ${integration.lastErrorCode}`
-                    : "."}
-                </p>
+              {syncErrorMessage ? (
+                <div className="permission-warning">
+                  <strong>{syncErrorMessage.title}</strong>
+                  <p>{syncErrorMessage.guidance}</p>
+                  {integration.lastErrorCode ? (
+                    <p>
+                      Diagnostic code: <code>{integration.lastErrorCode}</code>
+                      {integration.lastErrorAt
+                        ? ` · ${integration.lastErrorAt.toISOString()}`
+                        : ""}
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
 
               {integration.mfaEvidenceStatus === "PERMISSION_REQUIRED" ? (
