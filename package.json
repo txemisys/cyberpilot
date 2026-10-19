@@ -24,6 +24,7 @@
     "dev:funnel:stop": "tailscale funnel reset",
     "dev:backup": "node scripts/dev-backup.mjs",
     "dev:restore": "node scripts/dev-restore.mjs",
-    "pilot:check": "pnpm --filter @cyberpilot/web pilot:check"
+    "pilot:check": "pnpm --filter @cyberpilot/web pilot:check",
+    "pilot:preflight": "node --experimental-strip-types scripts/pilot-preflight.mjs"
   }
 }
