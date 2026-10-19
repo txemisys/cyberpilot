@@ -1560,3 +1560,190 @@ describe("Microsoft 365 LIVE paginated scale", () => {
     ).toBe(10_000);
   });
 });
+
+
+describe("Microsoft 365 sync lease fencing", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+    await db.$disconnect();
+  });
+
+  it("prevents a stale sync from publishing after another owner takes the lease", async () => {
+    let releaseUsers!: () => void;
+    const usersGate = new Promise<void>((resolve) => {
+      releaseUsers = resolve;
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("login.microsoftonline.com")) {
+          return new Response(
+            JSON.stringify({
+              access_token: accessToken([
+                ...MICROSOFT_GRAPH_READONLY_APPLICATION_ROLES,
+              ]),
+              expires_in: 3600,
+              token_type: "Bearer",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/users?")) {
+          await usersGate;
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: "new-user",
+                  displayName: "New User",
+                  userPrincipalName: "new-user@example.test",
+                  accountEnabled: true,
+                  userType: "Member",
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (url.includes("/organization?")) {
+          return new Response(
+            JSON.stringify({
+              value: [
+                {
+                  id: TENANT_ID,
+                  displayName: "Fencing Tenant",
+                  verifiedDomains: [],
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+
+        if (
+          url.includes("/roleManagement/directory/roleDefinitions?") ||
+          url.includes("/roleManagement/directory/roleAssignments?") ||
+          url.includes("/reports/authenticationMethods/userRegistrationDetails")
+        ) {
+          return new Response(JSON.stringify({ value: [] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+
+        throw new Error(`Unexpected mocked Microsoft request: ${url}`);
+      }),
+    );
+
+    const organization = await db.organization.create({
+      data: { name: "Fencing Workspace", slug: "fencing-workspace" },
+    });
+
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        displayName: "Previous Tenant Snapshot",
+        connectedAt: new Date(),
+      },
+    });
+
+    await db.directoryIdentity.create({
+      data: {
+        integrationId: integration.id,
+        externalId: "previous-user",
+        displayName: "Previous User",
+        userPrincipalName: "previous-user@example.test",
+        accountEnabled: true,
+      },
+    });
+
+    const syncPromise = syncMicrosoft365Integration(integration.id);
+
+    let activeLease = await db.integrationSyncLease.findUnique({
+      where: { integrationId: integration.id },
+      select: { leaseToken: true },
+    });
+
+    for (let attempt = 0; attempt < 20 && !activeLease; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      activeLease = await db.integrationSyncLease.findUnique({
+        where: { integrationId: integration.id },
+        select: { leaseToken: true },
+      });
+    }
+
+    expect(activeLease).not.toBeNull();
+
+    await db.integrationSyncLease.delete({
+      where: { integrationId: integration.id },
+    });
+
+    await db.integrationSyncLease.create({
+      data: {
+        integrationId: integration.id,
+        leaseToken: "replacement-owner",
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      },
+    });
+
+    releaseUsers();
+
+    await expect(syncPromise).rejects.toMatchObject({
+      name: "Microsoft365SyncLeaseLostError",
+    });
+
+    expect(
+      await db.directoryIdentity.findMany({
+        where: { integrationId: integration.id },
+        orderBy: { externalId: "asc" },
+        select: { externalId: true, displayName: true },
+      }),
+    ).toEqual([
+      {
+        externalId: "previous-user",
+        displayName: "Previous User",
+      },
+    ]);
+
+    const persisted = await db.integration.findUniqueOrThrow({
+      where: { id: integration.id },
+      select: {
+        displayName: true,
+        lastSyncAt: true,
+        lastErrorCode: true,
+      },
+    });
+
+    expect(persisted).toEqual({
+      displayName: "Previous Tenant Snapshot",
+      lastSyncAt: null,
+      lastErrorCode: "SYNC_LEASE_LOST",
+    });
+
+    const replacementLease = await db.integrationSyncLease.findUniqueOrThrow({
+      where: { integrationId: integration.id },
+      select: { leaseToken: true },
+    });
+
+    expect(replacementLease.leaseToken).toBe("replacement-owner");
+  });
+});
