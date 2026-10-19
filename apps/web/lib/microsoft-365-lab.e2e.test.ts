@@ -205,3 +205,37 @@ describe("Microsoft 365 Lab remediation E2E", () => {
     expect(independentSnapshot.score).toBe(70);
   });
 });
+
+
+describe("Microsoft 365 LAB shared sync entry point", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    await db.$disconnect();
+  });
+
+  it("re-evaluates a connected LAB integration through the shared sync engine", async () => {
+    const organization = await db.organization.create({
+      data: {
+        name: "Shared LAB Workspace",
+        slug: "shared-lab-workspace",
+      },
+    });
+
+    const integration = await seedMicrosoft365Lab(organization.id);
+
+    const result = await syncMicrosoft365Integration(integration.id);
+
+    expect(result.users).toBeGreaterThan(0);
+    expect(result.cyberScore).toBeGreaterThanOrEqual(0);
+    expect(result.cyberScore).toBeLessThanOrEqual(100);
+    expect(
+      await db.integrationSyncLease.count({
+        where: { integrationId: integration.id },
+      }),
+    ).toBe(0);
+  });
+});
