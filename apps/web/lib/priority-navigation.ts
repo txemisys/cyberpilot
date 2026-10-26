@@ -29,7 +29,7 @@ export function getPriorityNavigation(
         )
         .sort(
           (a, b) =>
-            STATUS_ORDER[a.status] - STATUS_ORDER[b.status] ||
+            (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99) ||
             b.createdAt.getTime() - a.createdAt.getTime() ||
             a.id.localeCompare(b.id),
         )[0]
