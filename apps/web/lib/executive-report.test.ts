@@ -107,6 +107,9 @@ describe("buildExecutiveReport", () => {
       CRITICAL: 0,
     });
     expect(report.isLab).toBe(true);
+    expect(report.nextActions.length).toBeGreaterThan(0);
+    expect(report.nextActions.length).toBeLessThanOrEqual(3);
+    expect(report.nextActions[0]).toMatchObject({ title: expect.any(String), remediation: expect.any(String) });
 
     vi.useRealTimers();
   });
