@@ -59,16 +59,30 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return new Response("Invalid step.", { status: 400 });
   }
 
-  await db.auditEvent.create({
-    data: {
-      organizationId: membership.organization.id,
-      actorType: "USER",
-      actorUserId: session.user.id,
-      action: "remediation.guided_step_attested",
-      resourceType: "remediation",
-      resourceId: remediation.id,
-      metadata: { playbookId: remediation.playbookId, stepIndex },
-    },
+  await db.$transaction(async (tx) => {
+    // The database unique key makes repeated and concurrent submissions idempotent.
+    const inserted = await tx.guidedRemediationStep.createMany({
+      data: [{
+        organizationId: membership.organization.id,
+        remediationId: remediation.id,
+        stepIndex,
+        actorUserId: session.user.id,
+      }],
+      skipDuplicates: true,
+    });
+    if (inserted.count === 1) {
+      await tx.auditEvent.create({
+        data: {
+          organizationId: membership.organization.id,
+          actorType: "USER",
+          actorUserId: session.user.id,
+          action: "remediation.guided_step_attested",
+          resourceType: "remediation",
+          resourceId: remediation.id,
+          metadata: { playbookId: remediation.playbookId, stepIndex },
+        },
+      });
+    }
   });
 
   const url = new URL(`/organizations/${membership.organization.slug}`, request.url);
