@@ -91,6 +91,10 @@ describe("guided remediation progress HTTP authorization", () => {
     const response = await context.send();
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toContain(`#remediation-${context.remediation.id}`);
+    expect((await context.send()).status).toBe(303);
+    expect(await db.guidedRemediationStep.count({
+      where: { organizationId: context.organization.id, remediationId: context.remediation.id, stepIndex: 0 },
+    })).toBe(1);
     expect(await db.auditEvent.count({
       where: { organizationId: context.organization.id, action: "remediation.guided_step_attested", resourceId: context.remediation.id },
     })).toBe(1);
