@@ -272,6 +272,27 @@ export default async function ExecutiveReportPage({
           </div>
         </section>
 
+        <section className="report-section" aria-label="Recommended next actions">
+          <h2>What to do next</h2>
+          {report.nextActions.length === 0 ? (
+            <p>No supported open findings currently require a prioritized action.</p>
+          ) : (
+            <ol>
+              {report.nextActions.map((action, index) => (
+                <li key={`${action.title}-next-${index}`}>
+                  <strong>{action.title} — {action.severity}</strong>
+                  <p>{action.rationale}</p>
+                  <p>Recommended action: {action.remediation}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+          <p>
+            Recommendations require implementation and subsequent verification
+            with fresh evidence. Acknowledged steps alone do not confirm resolution.
+          </p>
+        </section>
+
         <section className="report-section report-trend-section">
           <div className="report-section-title-row">
             <h2>CyberScore trend</h2>
