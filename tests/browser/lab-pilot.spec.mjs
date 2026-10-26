@@ -11,8 +11,15 @@ test("LAB customer journey: account, organization, findings, playbooks and repor
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill("BrowserPilotOnly-2026!");
   await page.getByRole("button", { name: "Create Lab account" }).click();
+  // Surface the actual authentication error in CI instead of a generic navigation timeout.
+  await expect.poll(async () => {
+    const heading = await page.getByRole("heading", { name: "Security workspace" }).count();
+    if (heading) return "ready";
+    const error = await page.locator(".auth-error").textContent();
+    return error ? `Auth error: ${error.trim()}` : "pending";
+  }, { timeout: 30_000, intervals: [500, 1000, 2000] }).toBe("ready");
 
-  await expect(page.getByRole("heading", { name: "Security workspace" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Security workspace" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("link", { name: "Create an organization" }).click();
   await page.getByLabel("Organization name").fill(orgName);
   await page.getByRole("button", { name: "Create organization" }).click();
