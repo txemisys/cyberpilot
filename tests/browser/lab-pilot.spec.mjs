@@ -29,7 +29,10 @@ test("LAB customer journey: account, organization, findings, playbooks and repor
   await page.locator(".priority-list a[href^='#']").first().click();
   await expect(page).toHaveURL(new RegExp(`${target?.replace("#", "#")}$`));
 
-  await page.goto(page.url().split("#")[0].replace(/\\/$/, "") + "/report");
+  const reportUrl = new URL(page.url());
+  reportUrl.hash = "";
+  reportUrl.pathname += "/report";
+  await page.goto(reportUrl.toString());
   await expect(page.locator(".executive-report")).toBeVisible();
   await expect(page.getByText("LAB REPORT — SYNTHETIC EVIDENCE")).toBeVisible();
 });
