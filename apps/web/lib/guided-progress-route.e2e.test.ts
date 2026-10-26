@@ -74,7 +74,7 @@ describe("guided remediation progress HTTP authorization", () => {
 
   it("forbids read-only members and cross-tenant remediation identifiers", async () => {
     const context = await setup();
-    await db.membership.create({ data: { userId: context.outsider.id, organizationId: context.organization.id, role: "VIEWER" } });
+    await db.membership.create({ data: { userId: context.outsider.id, organizationId: context.organization.id, role: "MEMBER" } });
     context.sessionFor(context.outsider.id);
     expect((await context.send()).status).toBe(403);
     context.sessionFor(context.user.id);
