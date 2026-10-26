@@ -196,7 +196,8 @@ export default async function OrganizationPage({
       finding: { status: "OPEN" },
       status: { in: ["PROPOSED", "APPROVED", "EXECUTING"] },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    take: Math.max(1, cyberScore.topActions.length) * 10,
       select: {
         id: true,
         playbookId: true,
@@ -864,7 +865,7 @@ export default async function OrganizationPage({
                       findings,
                       priorityRemediations,
                     );
-                                        return (
+                    return (
                       <div className="priority-next-steps">
                         {source ? (
                           <p>Last evidence: <time dateTime={source.lastSeenAt.toISOString()}>
