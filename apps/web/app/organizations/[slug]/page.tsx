@@ -8,6 +8,7 @@ import Link from "next/link";
 
 import { requireOrganizationAccess } from "../../../lib/organizations";
 import { getMicrosoft365SyncStatusMessage } from "../../../lib/microsoft-365-sync-status";
+import { getPriorityNavigation } from "../../../lib/priority-navigation";
 
 type OrganizationPageProps = {
   params: Promise<{
@@ -818,13 +819,12 @@ export default async function OrganizationPage({
                   <p>{action.remediation}</p>
                   <p className="priority-rationale">{action.rationale}</p>
                   {(() => {
-                    const source = findings.find((finding) => finding.id === action.id);
-                    const playbook = remediations.find((remediation) =>
-                      remediation.finding.id === action.id &&
-                      remediation.finding.status === "OPEN" &&
-                      remediation.status !== "VERIFIED"
+                    const { source, playbook, href } = getPriorityNavigation(
+                      action.id,
+                      findings,
+                      remediations,
                     );
-                    return (
+                                        return (
                       <div className="priority-next-steps">
                         {source ? (
                           <p>Last evidence: <time dateTime={source.lastSeenAt.toISOString()}>
@@ -832,7 +832,7 @@ export default async function OrganizationPage({
                           </time></p>
                         ) : null}
                         <p className="action-link">
-                          <a href={playbook ? `#remediation-${playbook.id}` : `#finding-${action.id}`}>
+                          <a href={href}>
                             {playbook ? "Review remediation and verification steps" : "Review finding evidence"}
                           </a>
                         </p>
