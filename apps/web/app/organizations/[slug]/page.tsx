@@ -9,6 +9,7 @@ import Link from "next/link";
 import { requireOrganizationAccess } from "../../../lib/organizations";
 import { getMicrosoft365SyncStatusMessage } from "../../../lib/microsoft-365-sync-status";
 import { getPriorityNavigation } from "../../../lib/priority-navigation";
+import { getGuidedVerificationReadiness } from "../../../lib/guided-verification";
 
 type OrganizationPageProps = {
   params: Promise<{
@@ -612,6 +613,11 @@ export default async function OrganizationPage({
                     )
                   : [];
 
+                const readiness = getGuidedVerificationReadiness(
+                  steps.length,
+                  guidedProgress.get(remediation.id) ?? new Set<number>(),
+                );
+
                 return (
                   <article className="remediation-card" id={`remediation-${remediation.id}`} key={remediation.id}>
                     <div className="remediation-heading">
@@ -726,6 +732,36 @@ export default async function OrganizationPage({
                             </button>
                           </form>
                         )) : null}
+                      </div>
+                    ) : null}
+
+                    {remediation.mode === "GUIDED" &&
+                    remediation.status === "APPROVED" &&
+                    remediation.finding.status === "OPEN" &&
+                    readiness === "READY" ? (
+                      <div className="remediation-actions">
+                        <p className="remediation-status">
+                          All guided steps are acknowledged. Request fresh evidence to
+                          check whether the finding is resolved. Acknowledgements
+                          alone do not verify the control.
+                        </p>
+                        {canManageIntegrations && integration?.status === "CONNECTED" ? (
+                          <form
+                            action={`/api/organizations/${membership.organization.slug}/integrations/microsoft-365/sync`}
+                            method="post"
+                          >
+                            <button className="primary-button" type="submit">
+                              {integration.mode === "LAB"
+                                ? "Re-evaluate LAB evidence"
+                                : "Re-evaluate Microsoft 365 evidence"}
+                            </button>
+                          </form>
+                        ) : (
+                          <p className="permission-warning">
+                            A connected integration and organization administrator
+                            are required to request a new evaluation.
+                          </p>
+                        )}
                       </div>
                     ) : null}
 
