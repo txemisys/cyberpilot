@@ -3,9 +3,16 @@ export type PriorityRemediation = {
   id: string;
   finding: { id: string; status: string };
   status: string;
+  createdAt: Date;
 };
 
-/** Only link a priority to an open finding's active remediation. */
+const STATUS_ORDER: Record<string, number> = {
+  EXECUTING: 0,
+  APPROVED: 1,
+  PROPOSED: 2,
+};
+
+/** Choose one active playbook per open finding, independently of input order. */
 export function getPriorityNavigation(
   findingId: string,
   findings: PrioritySource[],
@@ -13,13 +20,21 @@ export function getPriorityNavigation(
 ) {
   const source = findings.find((finding) => finding.id === findingId);
   const playbook = source
-    ? remediations.find(
-        (remediation) =>
-          remediation.finding.id === findingId &&
-          remediation.finding.status === "OPEN" &&
-          !["VERIFIED", "FAILED"].includes(remediation.status),
-      )
+    ? remediations
+        .filter(
+          (remediation) =>
+            remediation.finding.id === findingId &&
+            remediation.finding.status === "OPEN" &&
+            remediation.status in STATUS_ORDER,
+        )
+        .sort(
+          (a, b) =>
+            STATUS_ORDER[a.status] - STATUS_ORDER[b.status] ||
+            b.createdAt.getTime() - a.createdAt.getTime() ||
+            a.id.localeCompare(b.id),
+        )[0]
     : undefined;
+
   return {
     source,
     playbook,
