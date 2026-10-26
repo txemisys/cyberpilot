@@ -197,12 +197,37 @@ export default async function OrganizationPage({
       status: { in: ["PROPOSED", "APPROVED", "EXECUTING"] },
     },
     orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      status: true,
-      finding: { select: { id: true, status: true } },
-    },
+      select: {
+        id: true,
+        playbookId: true,
+        mode: true,
+        status: true,
+        title: true,
+        summary: true,
+        steps: true,
+        verification: true,
+        actionType: true,
+        failureCode: true,
+        approvedAt: true,
+        completedAt: true,
+        createdAt: true,
+        finding: {
+          select: {
+            id: true,
+            title: true,
+            severity: true,
+            status: true,
+          },
+        },
+      },
   });
+  const visibleRemediations = [
+    ...priorityRemediations,
+    ...remediations.filter(
+      (remediation) =>
+        !priorityRemediations.some((priority) => priority.id === remediation.id),
+    ),
+  ];
 
   const hasCompletedScan = integration?.lastSyncAt !== null && integration?.lastSyncAt !== undefined;
   const domainCoverageIsPartial = domains.some(
@@ -536,7 +561,7 @@ export default async function OrganizationPage({
             <h2>Remediation playbooks</h2>
           </div>
 
-          {remediations.length === 0 ? (
+          {visibleRemediations.length === 0 ? (
             <div className="empty-state">
               <p>
                 CyberPilot will propose a remediation playbook when a supported
@@ -545,7 +570,7 @@ export default async function OrganizationPage({
             </div>
           ) : (
             <div className="remediation-list">
-              {remediations.map((remediation) => {
+              {visibleRemediations.map((remediation) => {
                 const steps = Array.isArray(remediation.steps)
                   ? remediation.steps.filter(
                       (step): step is string => typeof step === "string",
