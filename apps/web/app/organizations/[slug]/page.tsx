@@ -8,6 +8,7 @@ import Link from "next/link";
 
 import { requireOrganizationAccess } from "../../../lib/organizations";
 import { getMicrosoft365SyncStatusMessage } from "../../../lib/microsoft-365-sync-status";
+import { getPriorityNavigation } from "../../../lib/priority-navigation";
 
 type OrganizationPageProps = {
   params: Promise<{
@@ -187,6 +188,58 @@ export default async function OrganizationPage({
       description: finding.description,
     })),
   );
+
+  const priorityRemediationGroups = await Promise.all(
+    cyberScore.topActions.map(async (action) => {
+      const states = ["EXECUTING", "APPROVED", "PROPOSED"] as const;
+      return Promise.all(
+        states.map((status) =>
+          db.remediation.findFirst({
+            where: {
+              organizationId: membership.organization.id,
+              findingId: action.id,
+              finding: { status: "OPEN" },
+              status,
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+            select: {
+              id: true,
+              playbookId: true,
+              mode: true,
+              status: true,
+              title: true,
+              summary: true,
+              steps: true,
+              verification: true,
+              actionType: true,
+              failureCode: true,
+              approvedAt: true,
+              completedAt: true,
+              createdAt: true,
+              finding: {
+                select: {
+                  id: true,
+                  title: true,
+                  severity: true,
+                  status: true,
+                },
+              },
+            },
+          }),
+        ),
+      );
+    }),
+  );
+  const priorityRemediations = priorityRemediationGroups
+    .flat(2)
+    .filter((remediation): remediation is NonNullable<typeof remediation> => remediation !== null);
+  const visibleRemediations = [
+    ...priorityRemediations,
+    ...remediations.filter(
+      (remediation) =>
+        !priorityRemediations.some((priority) => priority.id === remediation.id),
+    ),
+  ];
 
   const hasCompletedScan = integration?.lastSyncAt !== null && integration?.lastSyncAt !== undefined;
   const domainCoverageIsPartial = domains.some(
@@ -520,7 +573,7 @@ export default async function OrganizationPage({
             <h2>Remediation playbooks</h2>
           </div>
 
-          {remediations.length === 0 ? (
+          {visibleRemediations.length === 0 ? (
             <div className="empty-state">
               <p>
                 CyberPilot will propose a remediation playbook when a supported
@@ -529,7 +582,7 @@ export default async function OrganizationPage({
             </div>
           ) : (
             <div className="remediation-list">
-              {remediations.map((remediation) => {
+              {visibleRemediations.map((remediation) => {
                 const steps = Array.isArray(remediation.steps)
                   ? remediation.steps.filter(
                       (step): step is string => typeof step === "string",
@@ -542,7 +595,7 @@ export default async function OrganizationPage({
                   : [];
 
                 return (
-                  <article className="remediation-card" key={remediation.id}>
+                  <article className="remediation-card" id={`remediation-${remediation.id}`} key={remediation.id}>
                     <div className="remediation-heading">
                       <div>
                         <p className="priority-score">
@@ -804,7 +857,13 @@ export default async function OrganizationPage({
             </div>
           ) : (
             <ol className="priority-list">
-              {cyberScore.topActions.map((action) => (
+              {cyberScore.topActions.map((action) => {
+                const { source, playbook, href } = getPriorityNavigation(
+                  action.id,
+                  findings,
+                  priorityRemediations,
+                );
+                return (
                 <li className="priority-card" key={action.id}>
                   <div className="priority-header">
                     <div>
@@ -817,8 +876,34 @@ export default async function OrganizationPage({
                   </div>
                   <p>{action.remediation}</p>
                   <p className="priority-rationale">{action.rationale}</p>
+                  <div className="priority-next-steps">
+                    {source ? (
+                      <p>
+                        Last evidence:{" "}
+                        <time dateTime={source.lastSeenAt.toISOString()}>
+                          {source.lastSeenAt.toISOString()}
+                        </time>
+                      </p>
+                    ) : null}
+                    <p className="action-link">
+                      <a href={href}>
+                        {playbook
+                          ? "Review remediation and verification steps"
+                          : "Review finding evidence"}
+                      </a>
+                    </p>
+                    {!playbook ? (
+                      <p className="score-caption">
+                        No active playbook is available for this finding. Review its evidence and guidance.
+                      </p>
+                    ) : null}
+                    <p className="score-caption">
+                      A finding is resolved only when fresh evidence confirms the control.
+                    </p>
+                  </div>
                 </li>
-              ))}
+              );
+              })}
             </ol>
           )}
 
@@ -865,7 +950,7 @@ export default async function OrganizationPage({
           ) : (
             <div className="finding-list">
               {findings.map((finding) => (
-                <article className="finding-card" key={finding.id}>
+                <article className="finding-card" id={`finding-${finding.id}`} key={finding.id}>
                   <div className="finding-header">
                     <h3>{finding.title}</h3>
                     <span className="role-badge">{finding.severity}</span>

@@ -8,6 +8,7 @@ import {
   syncMicrosoft365Integration,
 } from "./microsoft-365-sync";
 import { executeLabRoleAssignmentRemoval } from "./remediation-execution";
+import { getPriorityNavigation } from "./priority-navigation";
 
 async function resetDatabase() {
   await db.auditEvent.deleteMany();
@@ -282,5 +283,53 @@ describe("Microsoft 365 LAB recovery state", () => {
     expect(recovered.lastErrorCode).toBeNull();
     expect(recovered.lastErrorEventId).toBeNull();
     expect(recovered.lastSyncAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("Top Action remediation navigation with LAB evidence", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    await db.$disconnect();
+  });
+
+  it("links an actual open LAB finding to its active database playbook", async () => {
+    const organization = await db.organization.create({
+      data: { name: "Priority LAB", slug: "priority-lab" },
+    });
+    const integration = await seedMicrosoft365Lab(organization.id);
+    await syncMicrosoft365Integration(integration.id);
+
+    const finding = await db.securityFinding.findFirstOrThrow({
+      where: {
+        organizationId: organization.id,
+        ruleId: "M365_GUEST_GLOBAL_ADMIN",
+        status: "OPEN",
+      },
+      select: { id: true, lastSeenAt: true },
+    });
+    const remediations = await db.remediation.findMany({
+      where: {
+        organizationId: organization.id,
+        findingId: finding.id,
+        finding: { status: "OPEN" },
+        status: { in: ["PROPOSED", "APPROVED", "EXECUTING"] },
+      },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        finding: { select: { id: true, status: true } },
+      },
+    });
+    const navigation = getPriorityNavigation(finding.id, [finding], remediations);
+    expect(navigation.playbook).toBeDefined();
+    expect(navigation.href).toBe(`#remediation-${navigation.playbook!.id}`);
+    expect(getPriorityNavigation(finding.id, [finding], []).href).toBe(
+      `#finding-${finding.id}`,
+    );
   });
 });
