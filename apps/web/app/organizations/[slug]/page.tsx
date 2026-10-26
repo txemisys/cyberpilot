@@ -542,7 +542,7 @@ export default async function OrganizationPage({
                   : [];
 
                 return (
-                  <article className="remediation-card" key={remediation.id}>
+                  <article className="remediation-card" id={`remediation-${remediation.id}`} key={remediation.id}>
                     <div className="remediation-heading">
                       <div>
                         <p className="priority-score">
@@ -817,6 +817,31 @@ export default async function OrganizationPage({
                   </div>
                   <p>{action.remediation}</p>
                   <p className="priority-rationale">{action.rationale}</p>
+                  {(() => {
+                    const source = findings.find((finding) => finding.id === action.id);
+                    const playbook = remediations.find((remediation) =>
+                      remediation.finding.id === action.id &&
+                      remediation.finding.status === "OPEN" &&
+                      remediation.status !== "VERIFIED"
+                    );
+                    return (
+                      <div className="priority-next-steps">
+                        {source ? (
+                          <p>Last evidence: <time dateTime={source.lastSeenAt.toISOString()}>
+                            {source.lastSeenAt.toISOString()}
+                          </time></p>
+                        ) : null}
+                        <p className="action-link">
+                          <a href={playbook ? `#remediation-${playbook.id}` : `#finding-${action.id}`}>
+                            {playbook ? "Review remediation and verification steps" : "Review finding evidence"}
+                          </a>
+                        </p>
+                        <p className="score-caption">
+                          Only new verified evidence can resolve a finding.
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </li>
               ))}
             </ol>
@@ -865,7 +890,7 @@ export default async function OrganizationPage({
           ) : (
             <div className="finding-list">
               {findings.map((finding) => (
-                <article className="finding-card" key={finding.id}>
+                <article className="finding-card" id={`finding-${finding.id}`} key={finding.id}>
                   <div className="finding-header">
                     <h3>{finding.title}</h3>
                     <span className="role-badge">{finding.severity}</span>
