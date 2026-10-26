@@ -396,12 +396,27 @@ model Remediation {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
+  guidedProgress GuidedRemediationStep[]
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   finding        SecurityFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
   approvedByUser User?           @relation("RemediationApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status, createdAt])
   @@index([findingId])
+}
+
+model GuidedRemediationStep {
+  id             String   @id @default(cuid())
+  organizationId String
+  remediationId  String
+  stepIndex      Int
+  actorUserId    String
+  acknowledgedAt DateTime @default(now())
+
+  remediation Remediation @relation(fields: [remediationId], references: [id], onDelete: Cascade)
+
+  @@unique([remediationId, stepIndex])
+  @@index([organizationId, remediationId])
 }
 
 model SecurityScore {
