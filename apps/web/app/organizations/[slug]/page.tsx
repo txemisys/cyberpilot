@@ -857,7 +857,13 @@ export default async function OrganizationPage({
             </div>
           ) : (
             <ol className="priority-list">
-              {cyberScore.topActions.map((action) => (
+              {cyberScore.topActions.map((action) => {
+                const { source, playbook, href } = getPriorityNavigation(
+                  action.id,
+                  findings,
+                  priorityRemediations,
+                );
+                return (
                 <li className="priority-card" key={action.id}>
                   <div className="priority-header">
                     <div>
@@ -870,32 +876,34 @@ export default async function OrganizationPage({
                   </div>
                   <p>{action.remediation}</p>
                   <p className="priority-rationale">{action.rationale}</p>
-                  {(() => {
-                    const { source, playbook, href } = getPriorityNavigation(
-                      action.id,
-                      findings,
-                      priorityRemediations,
-                    );
-                    return (
-                      <div className="priority-next-steps">
-                        {source ? (
-                          <p>Last evidence: <time dateTime={source.lastSeenAt.toISOString()}>
-                            {source.lastSeenAt.toISOString()}
-                          </time></p>
-                        ) : null}
-                        <p className="action-link">
-                          <a href={href}>
-                            {playbook ? "Review remediation and verification steps" : "Review finding evidence"}
-                          </a>
-                        </p>
-                        <p className="score-caption">
-                          Only new verified evidence can resolve a finding.
-                        </p>
-                      </div>
-                    );
-                  })()}
+                  <div className="priority-next-steps">
+                    {source ? (
+                      <p>
+                        Last evidence:{" "}
+                        <time dateTime={source.lastSeenAt.toISOString()}>
+                          {source.lastSeenAt.toISOString()}
+                        </time>
+                      </p>
+                    ) : null}
+                    <p className="action-link">
+                      <a href={href}>
+                        {playbook
+                          ? "Review remediation and verification steps"
+                          : "Review finding evidence"}
+                      </a>
+                    </p>
+                    {!playbook ? (
+                      <p className="score-caption">
+                        No active playbook is available for this finding. Review its evidence and guidance.
+                      </p>
+                    ) : null}
+                    <p className="score-caption">
+                      A finding is resolved only when fresh evidence confirms the control.
+                    </p>
+                  </div>
                 </li>
-              ))}
+              );
+              })}
             </ol>
           )}
 
