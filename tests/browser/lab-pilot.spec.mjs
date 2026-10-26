@@ -31,5 +31,5 @@ test("LAB customer journey: account, organization, findings, playbooks and repor
 
   await page.goto(page.url().split("#")[0].replace(/\\/$/, "") + "/report");
   await expect(page.locator(".executive-report")).toBeVisible();
-  await expect(page.getByText("LAB", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("LAB REPORT — SYNTHETIC EVIDENCE")).toBeVisible();
 });
