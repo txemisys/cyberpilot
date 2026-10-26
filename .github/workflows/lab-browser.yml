@@ -1,0 +1,84 @@
+name: LAB browser journey
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "tests/browser/**"
+      - ".github/workflows/lab-browser.yml"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lab-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cyberpilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cyberpilot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cyberpilot
+      AUTH_SECRET: browser-ci-secret-only-not-for-production
+      BETTER_AUTH_URL: http://localhost:3000
+      LAB_AUTH_ENABLED: "true"
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22.12.0"
+          package-manager-cache: false
+      - name: Install app dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install isolated browser runner
+        run: npm install --prefix tests/browser --no-save --package-lock=false @playwright/test@1.58.2
+      - name: Install Chromium
+        run: ./tests/browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Prepare database
+        run: |
+          pnpm db:generate
+          pnpm db:migrate:deploy
+      - name: Start development server
+        run: |
+          pnpm --filter @cyberpilot/web dev > "$RUNNER_TEMP/cyberpilot-browser.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/cyberpilot-browser.pid"
+      - name: Wait for application
+        run: |
+          for _ in $(seq 1 90); do
+            if curl --fail --silent http://localhost:3000/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/cyberpilot-browser.log"
+          exit 1
+      - name: Exercise LAB customer journey in Chromium
+        run: ./tests/browser/node_modules/.bin/playwright test --config tests/browser/playwright.config.mjs
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab-browser-report
+          path: |
+            tests/browser/playwright-report/
+            tests/browser/test-results/
+          if-no-files-found: ignore
+      - name: Print server diagnostics on failure
+        if: failure()
+        run: tail -n 200 "$RUNNER_TEMP/cyberpilot-browser.log"
