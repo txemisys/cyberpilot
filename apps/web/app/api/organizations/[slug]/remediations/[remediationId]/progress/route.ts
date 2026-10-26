@@ -2,6 +2,7 @@ import { db } from "@cyberpilot/database";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "../../../../../../../lib/auth";
+import { parseGuidedStepIndex } from "../../../../../../../lib/guided-progress";
 import {
   consumePersistentRateLimit,
   rateLimitedResponse,
@@ -53,12 +54,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     ? remediation.steps.filter((step): step is string => typeof step === "string")
     : [];
   const form = await request.formData();
-  const rawIndex = form.get("stepIndex");
-  if (typeof rawIndex !== "string" || !/^(0|[1-9][0-9]*)$/.test(rawIndex)) {
-    return new Response("Invalid step.", { status: 400 });
-  }
-  const stepIndex = Number(rawIndex);
-  if (!Number.isSafeInteger(stepIndex) || stepIndex >= steps.length) {
+  const stepIndex = parseGuidedStepIndex(form.get("stepIndex"), steps.length);
+  if (stepIndex === null) {
     return new Response("Invalid step.", { status: 400 });
   }
 
