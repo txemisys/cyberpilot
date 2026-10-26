@@ -145,6 +145,7 @@ export default async function OrganizationPage({
       orderBy: {
         createdAt: "desc",
       },
+      take: 12,
       select: {
         id: true,
         playbookId: true,
@@ -187,6 +188,21 @@ export default async function OrganizationPage({
       description: finding.description,
     })),
   );
+
+  const priorityRemediations = await db.remediation.findMany({
+    where: {
+      organizationId: membership.organization.id,
+      findingId: { in: cyberScore.topActions.map((action) => action.id) },
+      finding: { status: "OPEN" },
+      status: { in: ["PROPOSED", "APPROVED", "EXECUTING"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      finding: { select: { id: true, status: true } },
+    },
+  });
 
   const hasCompletedScan = integration?.lastSyncAt !== null && integration?.lastSyncAt !== undefined;
   const domainCoverageIsPartial = domains.some(
@@ -821,7 +837,7 @@ export default async function OrganizationPage({
                     const { source, playbook, href } = getPriorityNavigation(
                       action.id,
                       findings,
-                      remediations,
+                      priorityRemediations,
                     );
                                         return (
                       <div className="priority-next-steps">
