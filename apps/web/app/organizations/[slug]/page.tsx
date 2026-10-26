@@ -189,39 +189,50 @@ export default async function OrganizationPage({
     })),
   );
 
-  const priorityRemediations = await db.remediation.findMany({
-    where: {
-      organizationId: membership.organization.id,
-      findingId: { in: cyberScore.topActions.map((action) => action.id) },
-      finding: { status: "OPEN" },
-      status: { in: ["PROPOSED", "APPROVED", "EXECUTING"] },
-    },
-    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-    take: Math.max(1, cyberScore.topActions.length) * 10,
-      select: {
-        id: true,
-        playbookId: true,
-        mode: true,
-        status: true,
-        title: true,
-        summary: true,
-        steps: true,
-        verification: true,
-        actionType: true,
-        failureCode: true,
-        approvedAt: true,
-        completedAt: true,
-        createdAt: true,
-        finding: {
-          select: {
-            id: true,
-            title: true,
-            severity: true,
-            status: true,
-          },
-        },
-      },
-  });
+  const priorityRemediationGroups = await Promise.all(
+    cyberScore.topActions.map(async (action) => {
+      const states = ["EXECUTING", "APPROVED", "PROPOSED"] as const;
+      return Promise.all(
+        states.map((status) =>
+          db.remediation.findFirst({
+            where: {
+              organizationId: membership.organization.id,
+              findingId: action.id,
+              finding: { status: "OPEN" },
+              status,
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+            select: {
+              id: true,
+              playbookId: true,
+              mode: true,
+              status: true,
+              title: true,
+              summary: true,
+              steps: true,
+              verification: true,
+              actionType: true,
+              failureCode: true,
+              approvedAt: true,
+              completedAt: true,
+              createdAt: true,
+              finding: {
+                select: {
+                  id: true,
+                  title: true,
+                  severity: true,
+                  status: true,
+                },
+              },
+            },
+          }),
+        ),
+      );
+    }),
+  );
+  const priorityRemediations = priorityRemediationGroups
+    .flat(2)
+    .filter((remediation): remediation is NonNullable<typeof remediation> => remediation !== null);
   const visibleRemediations = [
     ...priorityRemediations,
     ...remediations.filter(
