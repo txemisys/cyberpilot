@@ -86,6 +86,56 @@ describe("guided remediation progress HTTP authorization", () => {
     expect(await db.auditEvent.count({ where: { action: "remediation.guided_step_attested" } })).toBe(0);
   });
 
+  it("prevents cross-organization progress even for an owner of both workspaces", async () => {
+    const context = await setup();
+    await db.membership.create({
+      data: { userId: context.user.id, organizationId: context.other.id, role: "OWNER" },
+    });
+    const otherIntegration = await seedMicrosoft365Lab(context.other.id);
+    await syncMicrosoft365Integration(otherIntegration.id);
+    const otherRemediation = await db.remediation.findFirstOrThrow({
+      where: { organizationId: context.other.id, mode: "GUIDED", status: "PROPOSED" },
+      select: { id: true, findingId: true },
+    });
+    await db.remediation.update({
+      where: { id: otherRemediation.id },
+      data: { status: "APPROVED", approvedAt: new Date() },
+    });
+
+    context.sessionFor(context.user.id);
+    expect((await context.send(context.organization.slug, otherRemediation.id)).status).toBe(409);
+    expect((await context.send(context.other.slug, context.remediation.id)).status).toBe(409);
+    expect(await db.guidedRemediationStep.count()).toBe(0);
+    expect(await db.auditEvent.count({
+      where: { action: "remediation.guided_step_attested" },
+    })).toBe(0);
+    for (const findingId of [context.remediation.findingId, otherRemediation.findingId]) {
+      expect((await db.securityFinding.findUniqueOrThrow({
+        where: { id: findingId }, select: { status: true },
+      })).status).toBe("OPEN");
+    }
+  });
+
+  it("does not attest a resolved finding or an unapproved remediation", async () => {
+    const context = await setup();
+    context.sessionFor(context.user.id);
+    await db.remediation.update({
+      where: { id: context.remediation.id }, data: { status: "PROPOSED" },
+    });
+    expect((await context.send()).status).toBe(409);
+    await db.remediation.update({
+      where: { id: context.remediation.id }, data: { status: "APPROVED" },
+    });
+    await db.securityFinding.update({
+      where: { id: context.remediation.findingId }, data: { status: "RESOLVED" },
+    });
+    expect((await context.send()).status).toBe(409);
+    expect(await db.guidedRemediationStep.count()).toBe(0);
+    expect(await db.auditEvent.count({
+      where: { action: "remediation.guided_step_attested" },
+    })).toBe(0);
+  });
+
   it("rejects invalid steps, and persists authorized acknowledgement without resolving a finding", async () => {
     const context = await setup();
     context.sessionFor(context.user.id);
