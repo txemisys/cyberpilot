@@ -15,8 +15,10 @@ test("LAB customer journey: account, organization, findings, playbooks and repor
   await expect.poll(async () => {
     const heading = await page.getByRole("heading", { name: "Security workspace" }).count();
     if (heading) return "ready";
-    const error = await page.locator(".auth-error").textContent();
-    return error ? `Auth error: ${error.trim()}` : "pending";
+    const error = await page.locator(".auth-error").count()
+      ? await page.locator(".auth-error").textContent()
+      : null;
+    return error ? `Auth error: ${error.trim()}` : `At ${page.url()}: ${(await page.locator("body").innerText()).slice(0,160)}`;
   }, { timeout: 30_000, intervals: [500, 1000, 2000] }).toBe("ready");
 
   await expect(page.getByRole("heading", { name: "Security workspace" })).toBeVisible({ timeout: 30_000 });
