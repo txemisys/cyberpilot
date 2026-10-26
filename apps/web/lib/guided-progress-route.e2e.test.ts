@@ -9,6 +9,9 @@ vi.mock("./auth", () => ({
 import { auth } from "./auth";
 import { seedMicrosoft365Lab } from "./microsoft-365-lab";
 import { syncMicrosoft365Integration } from "./microsoft-365-sync";
+import { getGuidedVerificationReadiness } from "./guided-verification";
+import { buildExecutiveReport } from "./executive-report";
+import { POST as syncRoute } from "../app/api/organizations/[slug]/integrations/microsoft-365/sync/route";
 import { POST } from "../app/api/organizations/[slug]/remediations/[remediationId]/progress/route";
 
 async function reset() {
@@ -101,4 +104,86 @@ describe("guided remediation progress HTTP authorization", () => {
     expect((await db.securityFinding.findUniqueOrThrow({ where: { id: context.remediation.findingId } })).status).toBe("OPEN");
     expect((await db.remediation.findUniqueOrThrow({ where: { id: context.remediation.id } })).status).toBe("APPROVED");
   });
+  it("runs the LAB pilot from finding to guided progress, re-evaluation and executive evidence", async () => {
+    const context = await setup();
+    context.sessionFor(context.user.id);
+    const remediation = await db.remediation.findUniqueOrThrow({
+      where: { id: context.remediation.id },
+      select: { steps: true, status: true, findingId: true },
+    });
+    const steps = Array.isArray(remediation.steps)
+      ? remediation.steps.filter((step): step is string => typeof step === "string")
+      : [];
+    expect(steps.length).toBeGreaterThan(0);
+
+    const before = await db.securityScore.findFirstOrThrow({
+      where: { organizationId: context.organization.id },
+      orderBy: { calculatedAt: "desc" },
+    });
+    const openBefore = await db.securityFinding.count({
+      where: { organizationId: context.organization.id, status: "OPEN" },
+    });
+    expect(getGuidedVerificationReadiness(steps.length, new Set())).toBe("IN_PROGRESS");
+
+    for (let index = 0; index < steps.length; index++) {
+      expect((await context.send(context.organization.slug, context.remediation.id, String(index))).status).toBe(303);
+    }
+    const progress = await db.guidedRemediationStep.findMany({
+      where: { organizationId: context.organization.id, remediationId: context.remediation.id },
+      select: { stepIndex: true },
+    });
+    expect(progress).toHaveLength(steps.length);
+    expect(getGuidedVerificationReadiness(
+      steps.length,
+      new Set(progress.map((record) => record.stepIndex)),
+    )).toBe("READY");
+
+    // Confirmed work is not evidence of resolved risk.
+    expect((await db.securityFinding.findUniqueOrThrow({
+      where: { id: remediation.findingId },
+    })).status).toBe("OPEN");
+
+    const response = await syncRoute(
+      new NextRequest(`http://localhost/api/organizations/${context.organization.slug}/integrations/microsoft-365/sync`, {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ slug: context.organization.slug }) },
+    );
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toContain("sync=completed");
+
+    const after = await db.securityScore.findFirstOrThrow({
+      where: { organizationId: context.organization.id },
+      orderBy: { calculatedAt: "desc" },
+    });
+    const findings = await db.securityFinding.findMany({
+      where: { organizationId: context.organization.id, status: "OPEN" },
+      select: {
+        id: true, ruleId: true, title: true, description: true, severity: true,
+        firstSeenAt: true, lastSeenAt: true,
+      },
+    });
+    const report = buildExecutiveReport({
+      organizationName: context.organization.name,
+      integrationMode: "LAB",
+      integrationDisplayName: "Synthetic pilot",
+      lastSyncAt: new Date(),
+      snapshot: after,
+      previousSnapshot: before,
+      baselineSnapshot: before,
+      scoreHistory: [after, before],
+      findings,
+      domains: [],
+      remediations: [],
+    });
+    expect(report.isLab).toBe(true);
+    expect(after.score).toBe(before.score);
+    expect(report.scoreDelta).toBe(0);
+    expect(report.currentRisk.score).toBe(after.score);
+    expect(findings).toHaveLength(openBefore);
+    expect((await db.securityFinding.findUniqueOrThrow({
+      where: { id: remediation.findingId },
+    })).status).toBe("OPEN");
+  });
+
 });
