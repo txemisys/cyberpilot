@@ -145,7 +145,6 @@ export default async function OrganizationPage({
       orderBy: {
         createdAt: "desc",
       },
-      take: 12,
       select: {
         id: true,
         playbookId: true,
