@@ -86,6 +86,15 @@ export function buildExecutiveReport(input: ExecutiveReportInput) {
     (remediation) => remediation.status === "VERIFIED",
   );
 
+  // Translate open evidence-backed priorities into customer-readable next actions.
+  // Do not claim acknowledgements or proposed playbooks have fixed anything.
+  const nextActions = currentRisk.topActions.slice(0, 3).map((action) => ({
+    title: action.title,
+    severity: action.severity,
+    rationale: action.rationale,
+    remediation: action.remediation,
+  }));
+
   const headlineScore = input.snapshot?.score ?? currentRisk.score;
   const postureStatus =
     severityCounts.CRITICAL > 0
@@ -124,6 +133,7 @@ export function buildExecutiveReport(input: ExecutiveReportInput) {
     currentRisk,
     severityCounts,
     verifiedRemediations,
+    nextActions,
     postureStatus,
     comparableHistory,
     scoreDelta,
