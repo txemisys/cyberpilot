@@ -129,6 +129,34 @@ describe("Microsoft 365 shared sync route mode gates", () => {
     ).toBe(1);
   });
 
+  it("does not sync another workspace or allow a read-only member", async () => {
+    const { user, organization } = await createOwnerWorkspace("sync-primary");
+    const second = await db.organization.create({
+      data: { name: "Other workspace", slug: "sync-other" },
+    });
+    const integration = await seedMicrosoft365Lab(organization.id);
+    await seedMicrosoft365Lab(second.id);
+
+    expect((await POST(request(second.slug), {
+      params: Promise.resolve({ slug: second.slug }),
+    })).status).toBe(404);
+
+    await db.membership.create({
+      data: { organizationId: second.id, userId: user.id, role: "MEMBER" },
+    });
+    expect((await POST(request(second.slug), {
+      params: Promise.resolve({ slug: second.slug }),
+    })).status).toBe(403);
+
+    expect(await db.securityScore.count()).toBe(0);
+    expect(await db.auditEvent.count({
+      where: { action: "integration.microsoft_365.sync_completed" },
+    })).toBe(0);
+    expect((await db.integration.findUniqueOrThrow({
+      where: { id: integration.id }, select: { lastSyncAt: true },
+    })).lastSyncAt).toBeNull();
+  });
+
   it("keeps the first-LIVE static configuration gate enforced", async () => {
     const { organization } = await createOwnerWorkspace("route-live");
 

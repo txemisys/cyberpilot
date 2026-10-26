@@ -36,7 +36,7 @@ test("LAB customer journey: account, organization, findings, playbooks and repor
   await expect(page.locator(".priority-list a[href^='#']").first()).toBeVisible();
   const target = await page.locator(".priority-list a[href^='#']").first().getAttribute("href");
   await page.locator(".priority-list a[href^='#']").first().click();
-  await expect(page).toHaveURL(new RegExp(`${target?.replace("#", "#")}$`));
+  expect(new URL(page.url()).hash).toBe(target);
 
   const reportUrl = new URL(page.url());
   reportUrl.hash = "";
