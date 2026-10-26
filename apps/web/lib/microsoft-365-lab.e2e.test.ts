@@ -333,3 +333,55 @@ describe("Top Action remediation navigation with LAB evidence", () => {
     );
   });
 });
+
+describe("Guided remediation progress audit isolation", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    await db.$disconnect();
+  });
+
+  it("persists step acknowledgements without resolving findings or crossing organizations", async () => {
+    const first = await db.organization.create({
+      data: { name: "Guided One", slug: "guided-one" },
+    });
+    const second = await db.organization.create({
+      data: { name: "Guided Two", slug: "guided-two" },
+    });
+    const integration = await seedMicrosoft365Lab(first.id);
+    await syncMicrosoft365Integration(integration.id);
+    const remediation = await db.remediation.findFirstOrThrow({
+      where: { organizationId: first.id, mode: "GUIDED", status: "PROPOSED" },
+      select: { id: true, findingId: true, playbookId: true },
+    });
+    await db.remediation.update({
+      where: { id: remediation.id },
+      data: { status: "APPROVED", approvedAt: new Date() },
+    });
+    await db.auditEvent.create({
+      data: {
+        organizationId: first.id,
+        actorType: "SYSTEM",
+        action: "remediation.guided_step_attested",
+        resourceType: "remediation",
+        resourceId: remediation.id,
+        metadata: { stepIndex: 0, playbookId: remediation.playbookId },
+      },
+    });
+    expect(await db.auditEvent.count({
+      where: { organizationId: first.id, action: "remediation.guided_step_attested" },
+    })).toBe(1);
+    expect(await db.auditEvent.count({
+      where: { organizationId: second.id, action: "remediation.guided_step_attested" },
+    })).toBe(0);
+    expect((await db.securityFinding.findUniqueOrThrow({
+      where: { id: remediation.findingId }, select: { status: true },
+    })).status).toBe("OPEN");
+    expect((await db.remediation.findUniqueOrThrow({
+      where: { id: remediation.id }, select: { status: true },
+    })).status).toBe("APPROVED");
+  });
+});
