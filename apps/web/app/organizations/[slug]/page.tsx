@@ -241,6 +241,32 @@ export default async function OrganizationPage({
     ),
   ];
 
+  const guidedProgressEvents = await db.auditEvent.findMany({
+    where: {
+      organizationId: membership.organization.id,
+      action: "remediation.guided_step_attested",
+      resourceType: "remediation",
+      resourceId: {
+        in: visibleRemediations
+          .filter((remediation) => remediation.mode === "GUIDED")
+          .map((remediation) => remediation.id),
+      },
+    },
+    select: { resourceId: true, metadata: true },
+    orderBy: { occurredAt: "desc" },
+    take: 1000,
+  });
+  const guidedProgress = new Map<string, Set<number>>();
+  for (const event of guidedProgressEvents) {
+    if (!event.resourceId || !event.metadata ||
+      typeof event.metadata !== "object" || Array.isArray(event.metadata)) continue;
+    const index = (event.metadata as Record<string, unknown>).stepIndex;
+    if (typeof index !== "number" || !Number.isSafeInteger(index) || index < 0) continue;
+    const completed = guidedProgress.get(event.resourceId) ?? new Set<number>();
+    completed.add(index);
+    guidedProgress.set(event.resourceId, completed);
+  }
+
   const hasCompletedScan = integration?.lastSyncAt !== null && integration?.lastSyncAt !== undefined;
   const domainCoverageIsPartial = domains.some(
     (domain) =>
@@ -677,6 +703,38 @@ export default async function OrganizationPage({
                           for this tenant.
                         </p>
                       )
+                    ) : null}
+
+                    {remediation.mode === "GUIDED" &&
+                    remediation.status === "APPROVED" &&
+                    remediation.finding.status === "OPEN" ? (
+                      <div className="remediation-progress">
+                        <p>
+                          Steps acknowledged: {steps.filter((_, index) =>
+                            guidedProgress.get(remediation.id)?.has(index),
+                          ).length} / {steps.length}. This records work performed,
+                          not a verified security fix.
+                        </p>
+                        {canManageIntegrations ? steps.map((step, index) => (
+                          <form
+                            key={remediation.id + "-progress-" + index}
+                            action={"/api/organizations/" + membership.organization.slug + "/remediations/" + remediation.id + "/progress"}
+                            method="post"
+                            className="remediation-actions"
+                          >
+                            <input type="hidden" name="stepIndex" value={index} />
+                            <button
+                              className="secondary-button"
+                              type="submit"
+                              disabled={guidedProgress.get(remediation.id)?.has(index) ?? false}
+                            >
+                              {guidedProgress.get(remediation.id)?.has(index)
+                                ? "Step " + (index + 1) + " acknowledged"
+                                : "Acknowledge step " + (index + 1)}
+                            </button>
+                          </form>
+                        )) : null}
+                      </div>
                     ) : null}
 
                     {remediation.mode === "GUIDED" &&
