@@ -241,30 +241,22 @@ export default async function OrganizationPage({
     ),
   ];
 
-  const guidedProgressEvents = await db.auditEvent.findMany({
+  const guidedProgressSteps = await db.guidedRemediationStep.findMany({
     where: {
       organizationId: membership.organization.id,
-      action: "remediation.guided_step_attested",
-      resourceType: "remediation",
-      resourceId: {
+      remediationId: {
         in: visibleRemediations
           .filter((remediation) => remediation.mode === "GUIDED")
           .map((remediation) => remediation.id),
       },
     },
-    select: { resourceId: true, metadata: true },
-    orderBy: { occurredAt: "desc" },
-    take: 1000,
+    select: { remediationId: true, stepIndex: true },
   });
   const guidedProgress = new Map<string, Set<number>>();
-  for (const event of guidedProgressEvents) {
-    if (!event.resourceId || !event.metadata ||
-      typeof event.metadata !== "object" || Array.isArray(event.metadata)) continue;
-    const index = (event.metadata as Record<string, unknown>).stepIndex;
-    if (typeof index !== "number" || !Number.isSafeInteger(index) || index < 0) continue;
-    const completed = guidedProgress.get(event.resourceId) ?? new Set<number>();
-    completed.add(index);
-    guidedProgress.set(event.resourceId, completed);
+  for (const progress of guidedProgressSteps) {
+    const completed = guidedProgress.get(progress.remediationId) ?? new Set<number>();
+    completed.add(progress.stepIndex);
+    guidedProgress.set(progress.remediationId, completed);
   }
 
   const hasCompletedScan = integration?.lastSyncAt !== null && integration?.lastSyncAt !== undefined;
