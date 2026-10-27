@@ -198,6 +198,19 @@ jobs:
           DATABASE_URL=postgresql://postgres:postgres@localhost:5432/cyberpilot_restore \
             pnpm db:migrate:status
 
+      - name: Verify backup restore did not replace source database
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          source_count="$(
+            docker compose -f compose.dev.yml exec -T postgres \
+              psql -U postgres -d cyberpilot -Atc \
+              'SELECT COUNT(*) FROM "Organization" WHERE "id" = '\''local-stack-e2e-org'\'';'
+          )"
+          test "$source_count" = "1"
+          echo "Original CyberPilot database preserved after isolated restore."
+
       - name: Show diagnostics on failure
         if: failure()
         shell: bash
