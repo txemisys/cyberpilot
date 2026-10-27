@@ -386,6 +386,42 @@ export default async function ExecutiveReportPage({
         </div>
         </div>
 
+        <section className="report-section report-detail-page" aria-label="Evidence provenance and limitations">
+          <h2>Evidence provenance and limitations</h2>
+          <dl className="report-facts">
+            <div>
+              <dt>Evidence source</dt>
+              <dd>{report.integrationMode === "LAB"
+                ? "Deterministic synthetic Microsoft 365 LAB"
+                : report.integrationMode === "LIVE"
+                  ? "Microsoft 365 integration (stored observations)"
+                  : "No Microsoft 365 integration"}</dd>
+            </div>
+            <div>
+              <dt>Last observation</dt>
+              <dd>{report.lastSyncAt?.toISOString() ?? "No inventory synchronization recorded"}</dd>
+            </div>
+            <div>
+              <dt>Score model</dt>
+              <dd>{report.snapshot?.modelVersion ?? "No scored snapshot"}</dd>
+            </div>
+            <div>
+              <dt>Evidence coverage</dt>
+              <dd>{report.snapshot?.coverage ?? "Not assessed"}</dd>
+            </div>
+          </dl>
+          <p>
+            Findings describe the last observed evidence, not continuous monitoring.
+            Changes made after the last synchronization are not verified until fresh
+            evidence is collected. Acknowledging guided work does not close a finding.
+          </p>
+          <p>
+            Only currently implemented checks are scored. Missing or partial evidence
+            must not be interpreted as proof of security. This report is not a security
+            certification or a Microsoft 365 tenant validation.
+          </p>
+        </section>
+
         <section className="report-section report-detail-page">
           <h2>Top priorities</h2>
           {report.currentRisk.topActions.length === 0 ? (
