@@ -1175,6 +1175,107 @@ describe("Microsoft 365 LIVE failure state and recovery", () => {
 });
 
 
+describe("Microsoft 365 LIVE snapshot preservation across failures", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    process.env.M365_GRAPH_CLIENT_ID = "scanner-client";
+    process.env.M365_GRAPH_CLIENT_SECRET = "scanner-secret";
+  });
+
+  afterAll(async () => {
+    await resetDatabase();
+    vi.restoreAllMocks();
+    delete process.env.M365_GRAPH_CLIENT_ID;
+    delete process.env.M365_GRAPH_CLIENT_SECRET;
+    await db.$disconnect();
+  });
+
+  it("keeps the last valid snapshot after Graph returns malformed data, then replaces it on recovery", async () => {
+    mockMicrosoftGraph();
+    const healthyFetch = vi.mocked(fetch).getMockImplementation()!;
+    let graphHealthy = true;
+    vi.mocked(fetch).mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
+      if (!graphHealthy && String(input).includes("/users?")) {
+        return new Response(JSON.stringify({ value: [{ id: "", displayName: "Invalid" }] }), {
+          status: 200, headers: { "content-type": "application/json" },
+        });
+      }
+      return healthyFetch(input, init);
+    });
+
+    const organization = await db.organization.create({
+      data: { name: "LIVE Retained Evidence", slug: "live-retained-evidence" },
+    });
+    const integration = await db.integration.create({
+      data: {
+        organizationId: organization.id,
+        provider: "MICROSOFT_365",
+        mode: "LIVE",
+        status: "CONNECTED",
+        externalTenantId: TENANT_ID,
+        connectedAt: new Date(),
+      },
+    });
+
+    await syncMicrosoft365Integration(integration.id);
+    const before = await db.integration.findUniqueOrThrow({
+      where: { id: integration.id },
+      select: { lastSyncAt: true },
+    });
+    const initialIdentities = await db.directoryIdentity.findMany({
+      where: { integrationId: integration.id }, orderBy: { externalId: "asc" },
+      select: { externalId: true },
+    });
+    const initialScore = await db.securityScore.findFirstOrThrow({
+      where: { organizationId: organization.id },
+      orderBy: { calculatedAt: "desc" },
+      select: { id: true, score: true },
+    });
+    expect(initialIdentities.length).toBeGreaterThan(0);
+
+    graphHealthy = false;
+    await expect(syncMicrosoft365Integration(integration.id)).rejects.toMatchObject({
+      name: "MicrosoftGraphPayloadError",
+    });
+    const failed = await db.integration.findUniqueOrThrow({
+      where: { id: integration.id },
+      select: { lastSyncAt: true, lastErrorCode: true },
+    });
+    expect(failed.lastSyncAt?.getTime()).toBe(before.lastSyncAt?.getTime());
+    expect(failed.lastErrorCode).toBe("GRAPH_PAYLOAD_INVALID");
+    expect(await db.directoryIdentity.findMany({
+      where: { integrationId: integration.id }, orderBy: { externalId: "asc" },
+      select: { externalId: true },
+    })).toEqual(initialIdentities);
+    expect(await db.securityScore.count({
+      where: { organizationId: organization.id },
+    })).toBe(1);
+    expect(await db.securityScore.findUnique({
+      where: { id: initialScore.id }, select: { score: true },
+    })).toEqual({ score: initialScore.score });
+
+    graphHealthy = true;
+    await expect(syncMicrosoft365Integration(integration.id)).resolves.toMatchObject({ users: 5 });
+    const recovered = await db.integration.findUniqueOrThrow({
+      where: { id: integration.id },
+      select: { lastSyncAt: true, lastErrorCode: true, lastErrorAt: true },
+    });
+    expect(recovered.lastSyncAt).toBeInstanceOf(Date);
+    expect(recovered.lastErrorAt).toBeNull();
+    expect(recovered.lastErrorCode).toBeNull();
+    expect(await db.directoryIdentity.count({
+      where: { integrationId: integration.id },
+    })).toBe(5);
+    expect(await db.securityScore.count({
+      where: { organizationId: organization.id },
+    })).toBe(2);
+    expect(await db.integrationSyncLease.count({
+      where: { integrationId: integration.id },
+    })).toBe(0);
+  });
+});
+
 describe("Microsoft 365 LIVE bulk snapshot scale", () => {
   beforeEach(async () => {
     await resetDatabase();
