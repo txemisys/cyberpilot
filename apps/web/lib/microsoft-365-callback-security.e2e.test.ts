@@ -4,10 +4,11 @@ import { NextRequest } from "next/server";
 import { db } from "@cyberpilot/database";
 
 vi.mock("./auth", () => ({ auth: { api: { getSession: vi.fn() } } }));
+const graphOrganization = vi.hoisted(() => vi.fn());
 vi.mock("@cyberpilot/integrations/microsoft-365", () => ({
   assertMicrosoftTenantId: vi.fn(),
   MicrosoftGraphClient: vi.fn().mockImplementation(() => ({
-    getOrganization: vi.fn().mockRejectedValue(new Error("Graph must not be called in callback rejection tests")),
+    getOrganization: graphOrganization,
   })),
 }));
 
@@ -50,7 +51,7 @@ async function setup(options: { expired?: boolean; consumed?: boolean; purpose?:
 }
 
 describe("Microsoft 365 scanner callback security", () => {
-  beforeEach(async () => { await reset(); vi.clearAllMocks(); });
+  beforeEach(async () => { await reset(); vi.clearAllMocks(); graphOrganization.mockRejectedValue(new Error("Mocked Graph service failure")); });
   afterAll(async () => { await reset(); vi.restoreAllMocks(); await db.$disconnect(); });
 
   it("rejects missing, mismatched and anonymous states before any write", async () => {
@@ -99,4 +100,30 @@ describe("Microsoft 365 scanner callback security", () => {
     expect(await db.auditEvent.count({ where: { action: "integration.microsoft_365.consent_denied" } })).toBe(1);
     expect(await db.integration.count()).toBe(0);
   });
+  it("rejects a tenant when Graph returns a different organization ID", async () => {
+    const c = await setup();
+    c.authenticate(c.owner.id);
+    graphOrganization.mockResolvedValue({ id: "22222222-2222-4222-8222-222222222222", displayName: "Wrong tenant" });
+    const response = await c.callback();
+    expect(new URL(response.headers.get("location")!).searchParams.get("code")).toBe("tenant_verification_failed");
+    expect(graphOrganization).toHaveBeenCalledOnce();
+    expect(await db.integration.count()).toBe(0);
+    expect((await db.integrationConsentState.findUniqueOrThrow({ where: { id: c.record.id } })).consumedAt).not.toBeNull();
+    expect(new URL((await c.callback()).headers.get("location")!).searchParams.get("code")).toBe("invalid_state");
+  });
+
+  it("fails closed and audits a Graph lookup failure without saving a connected integration", async () => {
+    const c = await setup();
+    c.authenticate(c.owner.id);
+    const response = await c.callback();
+    expect(new URL(response.headers.get("location")!).searchParams.get("code")).toBe("connection_failed");
+    expect(graphOrganization).toHaveBeenCalledOnce();
+    expect(await db.integration.count()).toBe(0);
+    expect(await db.auditEvent.count({
+      where: { action: "integration.microsoft_365.connection_failed", organizationId: c.org.id },
+    })).toBe(1);
+    expect(new URL((await c.callback()).headers.get("location")!).searchParams.get("code")).toBe("invalid_state");
+    expect(graphOrganization).toHaveBeenCalledOnce();
+  });
+
 });
