@@ -172,7 +172,9 @@ export default async function ExecutiveReportPage({
   const score = report.snapshot?.score ?? null;
   const coverage = report.snapshot?.coverage ?? null;
   const postureLabel =
-    report.postureStatus === "CRITICAL"
+    report.postureStatus === "UNASSESSED"
+      ? "Not assessed"
+      : report.postureStatus === "CRITICAL"
       ? "Critical"
       : report.postureStatus === "HEALTHY"
         ? "Healthy"
@@ -223,8 +225,10 @@ export default async function ExecutiveReportPage({
             <span>Current posture</span>
             <strong>{postureLabel}</strong>
             <p>
-              {report.postureStatus === "CRITICAL"
-                ? "At least one critical evidence-backed risk requires urgent attention."
+              {report.postureStatus === "UNASSESSED"
+                ? "No completed CyberScore snapshot is available. Security posture cannot yet be assessed."
+                : report.postureStatus === "CRITICAL"
+                  ? "At least one critical evidence-backed risk requires urgent attention."
                 : report.postureStatus === "HEALTHY"
                   ? "No Critical or High findings are open and the current CyberScore is at least 80."
                   : "Material risks remain open and should be worked through the prioritized action plan."}
