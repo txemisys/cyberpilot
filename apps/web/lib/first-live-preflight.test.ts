@@ -57,6 +57,39 @@ describe("first LIVE pilot configuration", () => {
     expect(result.errors[0]).toContain("M365_REMEDIATION_FUTURE_FLAG");
   });
 
+  it("rejects local HTTPS callbacks and hidden callback parameters", () => {
+    const result = validateFirstLivePilotConfiguration({
+      ...validEnv,
+      BETTER_AUTH_URL: "https://localhost:3000",
+      M365_GRAPH_REDIRECT_URI:
+        "https://localhost:3000/api/integrations/microsoft-365/callback?next=elsewhere",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      "BETTER_AUTH_URL must use a public hostname for the first LIVE pilot.",
+    );
+    expect(result.errors).toContain(
+      "M365_GRAPH_REDIRECT_URI must use a public hostname for the first LIVE pilot.",
+    );
+    expect(result.errors).toContain(
+      "M365_GRAPH_REDIRECT_URI must not contain credentials, query parameters or fragments.",
+    );
+  });
+
+  it("requires the public application origin without extra path or fragment", () => {
+    const result = validateFirstLivePilotConfiguration({
+      ...validEnv,
+      BETTER_AUTH_URL: "https://pilot.cyberpilot.example/other#test",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      "BETTER_AUTH_URL must use the public application origin without a path.",
+    );
+    expect(result.errors).toContain(
+      "BETTER_AUTH_URL must not contain credentials, query parameters or fragments.",
+    );
+  });
+
   it("requires the exact scanner callback path", () => {
     const result = validateFirstLivePilotConfiguration({
       ...validEnv,
