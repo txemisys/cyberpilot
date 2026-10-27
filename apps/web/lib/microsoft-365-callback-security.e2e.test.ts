@@ -7,9 +7,9 @@ vi.mock("./auth", () => ({ auth: { api: { getSession: vi.fn() } } }));
 const graphOrganization = vi.hoisted(() => vi.fn());
 vi.mock("@cyberpilot/integrations/microsoft-365", () => ({
   assertMicrosoftTenantId: vi.fn(),
-  MicrosoftGraphClient: vi.fn().mockImplementation(() => ({
-    getOrganization: graphOrganization,
-  })),
+  MicrosoftGraphClient: class {
+    getOrganization() { return graphOrganization(); }
+  },
 }));
 
 import { auth } from "./auth";
