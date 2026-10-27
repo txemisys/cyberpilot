@@ -38,6 +38,34 @@ test("LAB customer journey: account, organization, findings, playbooks and repor
   await page.locator(".priority-list a[href^='#']").first().click();
   expect(new URL(page.url()).hash).toBe(target);
 
+  // A guided acknowledgement tracks work, but cannot close a finding or change the score.
+  const guidedCard = page.locator(".remediation-card").filter({ has: page.locator(".priority-score", { hasText: "GUIDED" }) }).first();
+  await expect(guidedCard).toBeVisible();
+  const scoreBefore = await page.locator(".panel").getByText("CyberScore v0").locator("..").locator(".panel-value").innerText();
+  const findingsBefore = await page.locator(".panel").getByText("Open findings").locator("..").locator(".panel-value").innerText();
+  const historyBefore = await page.locator(".history-list .history-row").count();
+
+  const approve = guidedCard.getByRole("button", { name: "Approve playbook" });
+  if (await approve.count()) {
+    await approve.click();
+  }
+  const activeGuidedCard = page.locator(".remediation-card").filter({ has: page.locator(".priority-score", { hasText: "GUIDED" }) }).first();
+  await expect(activeGuidedCard.getByText(/Steps acknowledged: 0 \/ /)).toBeVisible();
+  const acknowledgements = activeGuidedCard.getByRole("button", { name: /^Acknowledge step \d+$/ });
+  const stepCount = await acknowledgements.count();
+  expect(stepCount).toBeGreaterThan(0);
+  for (let step = 1; step <= stepCount; step++) {
+    await activeGuidedCard.getByRole("button", { name: `Acknowledge step ${step}` }).click();
+    await expect(activeGuidedCard.getByRole("button", { name: `Step ${step} acknowledged` })).toBeDisabled();
+    await expect(activeGuidedCard.getByText(new RegExp(`Steps acknowledged: ${step} / ${stepCount}`))).toBeVisible();
+  }
+  await expect(activeGuidedCard.getByRole("button", { name: "Re-evaluate LAB evidence" })).toBeVisible();
+  await expect(page.locator(".panel").getByText("CyberScore v0").locator("..").locator(".panel-value")).toHaveText(scoreBefore);
+  await expect(page.locator(".panel").getByText("Open findings").locator("..").locator(".panel-value")).toHaveText(findingsBefore);
+  expect(await page.locator(".history-list .history-row").count()).toBe(historyBefore);
+  await page.reload();
+  await expect(page.locator(".remediation-card").filter({ has: page.locator(".priority-score", { hasText: "GUIDED" }) }).first().getByText(new RegExp(`Steps acknowledged: ${stepCount} / ${stepCount}`))).toBeVisible();
+
   const reportUrl = new URL(page.url());
   reportUrl.hash = "";
   reportUrl.pathname += "/report";
