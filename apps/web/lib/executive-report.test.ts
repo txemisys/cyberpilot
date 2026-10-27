@@ -129,6 +129,25 @@ describe("executive posture classification", () => {
     remediations: [],
   };
 
+  it("does not label an organization healthy before any score snapshot exists", () => {
+    const report = buildExecutiveReport({ ...base, snapshot: null, findings: [] });
+    expect(report.postureStatus).toBe("UNASSESSED");
+    expect(report.snapshot).toBeNull();
+  });
+
+  it("requires a completed snapshot even when an open critical finding is known", () => {
+    const report = buildExecutiveReport({
+      ...base, snapshot: null,
+      findings: [{
+        id: "critical", ruleId: "M365_GUEST_GLOBAL_ADMIN", title: "Critical",
+        description: "Critical", severity: "CRITICAL",
+        firstSeenAt: new Date(), lastSeenAt: new Date(),
+      }],
+    });
+    expect(report.postureStatus).toBe("UNASSESSED");
+    expect(report.severityCounts.CRITICAL).toBe(1);
+  });
+
   it("is critical when a critical finding is open", () => {
     const report = buildExecutiveReport({
       ...base,
