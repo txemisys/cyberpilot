@@ -154,6 +154,29 @@ describe("guided remediation progress HTTP authorization", () => {
     expect((await db.securityFinding.findUniqueOrThrow({ where: { id: context.remediation.findingId } })).status).toBe("OPEN");
     expect((await db.remediation.findUniqueOrThrow({ where: { id: context.remediation.id } })).status).toBe("APPROVED");
   });
+  it("rate limits guided progress submissions without adding progress or audit records", async () => {
+    const context = await setup();
+    context.sessionFor(context.user.id);
+
+    // Repeated acknowledgements remain idempotent, but every submission counts
+    // against the server-side per-user, per-organization rate limit.
+    for (let attempt = 0; attempt < 20; attempt++) {
+      expect((await context.send()).status).toBe(303);
+    }
+    const blocked = await context.send();
+    expect(blocked.status).toBe(429);
+    expect(Number(blocked.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect(await db.guidedRemediationStep.count({
+      where: { organizationId: context.organization.id, remediationId: context.remediation.id },
+    })).toBe(1);
+    expect(await db.auditEvent.count({
+      where: { organizationId: context.organization.id, action: "remediation.guided_step_attested" },
+    })).toBe(1);
+    expect((await db.securityFinding.findUniqueOrThrow({
+      where: { id: context.remediation.findingId },
+    })).status).toBe("OPEN");
+  });
+
   it("runs the LAB pilot from finding to guided progress, re-evaluation and executive evidence", async () => {
     const context = await setup();
     context.sessionFor(context.user.id);
