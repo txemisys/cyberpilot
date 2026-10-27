@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   MicrosoftGraphError,
   MicrosoftGraphPayloadError,
-  MicrosoftGraphTokenError,
 } from "@cyberpilot/integrations/microsoft-365";
 import {
   getMicrosoft365SyncFailureCode,
