@@ -101,7 +101,7 @@ export function buildExecutiveReport(input: ExecutiveReportInput) {
       ? "UNASSESSED"
       : severityCounts.CRITICAL > 0
       ? "CRITICAL"
-      : severityCounts.HIGH > 0 || headlineScore < 80
+      : input.snapshot.coverage === "PARTIAL" || severityCounts.HIGH > 0 || headlineScore < 80
         ? "NEEDS_ATTENTION"
         : "HEALTHY";
 

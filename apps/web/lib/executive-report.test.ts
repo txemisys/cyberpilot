@@ -174,6 +174,38 @@ describe("executive posture classification", () => {
     expect(report.postureStatus).toBe("CRITICAL");
   });
 
+  it("does not call a partial-coverage snapshot healthy even with a high score", () => {
+    const report = buildExecutiveReport({
+      ...base,
+      snapshot: {
+        score: 95,
+        riskPoints: 5,
+        coverage: "PARTIAL",
+        modelVersion: "v0",
+        calculatedAt: new Date(),
+      },
+      findings: [],
+    });
+    expect(report.postureStatus).toBe("NEEDS_ATTENTION");
+    expect(report.snapshot?.coverage).toBe("PARTIAL");
+  });
+
+  it("keeps critical posture when coverage is partial and a critical finding exists", () => {
+    const report = buildExecutiveReport({
+      ...base,
+      snapshot: {
+        score: 95, riskPoints: 5, coverage: "PARTIAL",
+        modelVersion: "v0", calculatedAt: new Date(),
+      },
+      findings: [{
+        id: "critical", ruleId: "M365_GUEST_GLOBAL_ADMIN", title: "Critical",
+        description: "Critical", severity: "CRITICAL",
+        firstSeenAt: new Date(), lastSeenAt: new Date(),
+      }],
+    });
+    expect(report.postureStatus).toBe("CRITICAL");
+  });
+
   it("is healthy only without high/critical findings and score at least 80", () => {
     const report = buildExecutiveReport({
       ...base,
