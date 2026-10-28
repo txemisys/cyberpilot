@@ -101,3 +101,18 @@ export function extractDmarcFailureOptions(txtRecords: readonly string[]): strin
   if (options.some((option) => !["0", "1", "d", "s"].includes(option)) || new Set(options).size !== options.length) return null;
   return options;
 }
+
+/** Read an explicit DMARC aggregate reporting interval (ri), in seconds.
+ * This does not imply a receiver will honor the requested interval.
+ */
+export function extractDmarcReportInterval(txtRecords: readonly string[]): number | null {
+  const inventory = inventoryDmarcTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tags = inventory.records[0]!.split(";").slice(1).map((tag) => tag.trim());
+  const values = tags.filter((tag) => tag.split("=")[0]?.trim().toLowerCase() === "ri");
+  if (values.length !== 1) return null;
+  const parts = values[0]!.split("=");
+  if (parts.length !== 2 || !/^[0-9]+$/.test(parts[1]!.trim())) return null;
+  const interval = Number(parts[1]!.trim());
+  return Number.isSafeInteger(interval) && interval > 0 ? interval : null;
+}
