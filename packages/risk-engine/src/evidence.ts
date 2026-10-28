@@ -45,14 +45,15 @@ export function summarizeEvidenceCoverage(
  */
 export function summarizeEvidenceControlCoverage(
   evidence: readonly SecurityEvidenceV1[],
-  expectedControls: readonly { domain: EvidenceDomain; controlId: string; scope?: string }[],
+  expectedControls: readonly { domain: EvidenceDomain; controlId: string; scope?: string; source?: EvidenceSource }[],
 ) {
   const unique = [...new Map(expectedControls.map((control) =>
-    [`${control.domain}:\u0000${control.controlId}:\u0000${control.scope ?? "*"}`, control],
+    [`${control.domain}:\u0000${control.controlId}:\u0000${control.scope ?? "*"}:\u0000${control.source ?? "*"}`, control],
   )).values()];
   const assessed = unique.filter((control) => evidence.some((item) =>
     item.domain === control.domain &&
     item.controlId === control.controlId &&
+    (control.source === undefined || item.source === control.source) &&
     (control.scope === undefined || item.scope === control.scope) &&
     item.state === "OBSERVED" &&
     item.observedAt !== null,
