@@ -1,6 +1,7 @@
 import { db } from "@cyberpilot/database";
 import {
   summarizeEvidenceCoverage,
+  summarizeEvidenceControlCoverage,
   type SecurityEvidenceV1,
   type EvidenceDomain,
   type EvidenceSource,
@@ -112,4 +113,35 @@ export async function getOrganizationEvidenceCoverageForUser(
       details: {},
     }));
   return summarizeEvidenceCoverage(evidence, expectedDomains);
+}
+
+/**
+ * Authorized exact-control coverage for a caller-supplied manifest.
+ * Preview only: this does not change historical CyberScore snapshots.
+ */
+export async function getOrganizationControlCoverageForUser(
+  organizationId: string,
+  userId: string,
+  requiredControls: readonly { domain: EvidenceDomain; controlId: string }[],
+) {
+  const records = await listOrganizationEvidenceForUser(organizationId, userId);
+  if (records === null) return null;
+  const observed: SecurityEvidenceV1[] = records
+    .filter((record) =>
+      record.organizationId === organizationId &&
+      record.schemaVersion === 1 &&
+      EVIDENCE_SOURCES.includes(record.source as EvidenceSource) &&
+      EVIDENCE_DOMAINS.includes(record.domain as EvidenceDomain) &&
+      record.state === "OBSERVED" &&
+      record.observedAt !== null,
+    )
+    .map((record) => ({
+      schemaVersion: 1, organizationId,
+      source: record.source as EvidenceSource,
+      domain: record.domain as EvidenceDomain,
+      controlId: record.controlId,
+      state: "OBSERVED", observedAt: record.observedAt,
+      scope: record.scope, details: {},
+    }));
+  return summarizeEvidenceControlCoverage(observed, requiredControls);
 }
