@@ -21,13 +21,17 @@ export type SecurityEvidenceV1 = {
   details: Record<string, string | number | boolean | null>;
 };
 
+function isValidObservation(item: SecurityEvidenceV1): boolean {
+  return item.state === "OBSERVED" && item.observedAt instanceof Date && Number.isFinite(item.observedAt.getTime());
+}
+
 export function summarizeEvidenceCoverage(
   evidence: readonly SecurityEvidenceV1[],
   expectedDomains: readonly EvidenceDomain[],
 ): { coverage: EvidenceCoverage; assessedDomains: EvidenceDomain[]; unassessedDomains: EvidenceDomain[] } {
   const domains = [...new Set(expectedDomains)];
   const assessedDomains = domains.filter((domain) =>
-    evidence.some((item) => item.domain === domain && item.state === "OBSERVED" && item.observedAt !== null),
+    evidence.some((item) => item.domain === domain && isValidObservation(item)),
   );
   const unassessedDomains = domains.filter((domain) => !assessedDomains.includes(domain));
   return {
