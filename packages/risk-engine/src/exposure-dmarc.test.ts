@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
+import { extractDmarcReportInterval, extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 
 describe("passive DMARC record inventory", () => {
   it("does not count unrelated records or lookalike versions", () => {
@@ -108,5 +108,20 @@ describe("passive DMARC forensic report destinations", () => {
     expect(extractDmarcFailureReportUris(["v=DMARC1; rua=mailto:aggregate@example.test"])).toBeNull();
     expect(extractDmarcFailureReportUris(["v=DMARC1; ruf=https://example.test"])).toBeNull();
     expect(extractDmarcFailureReportUris(["v=DMARC1; ruf=mailto:a@example.test; ruf=mailto:b@example.test"])).toBeNull();
+  });
+});
+
+describe("explicit DMARC report interval", () => {
+  it("extracts positive integer seconds from an explicit ri tag", () => {
+    expect(extractDmarcReportInterval(["v=DMARC1; p=reject; ri=86400"])).toBe(86400);
+    expect(extractDmarcReportInterval(["v=DMARC1; RI = 3600"])).toBe(3600);
+  });
+  it("does not invent defaults or accept invalid and repeated values", () => {
+    expect(extractDmarcReportInterval(["v=DMARC1; p=reject"])).toBeNull();
+    expect(extractDmarcReportInterval(["v=DMARC1; ri=0"])).toBeNull();
+    expect(extractDmarcReportInterval(["v=DMARC1; ri=-1"])).toBeNull();
+    expect(extractDmarcReportInterval(["v=DMARC1; ri=1.5"])).toBeNull();
+    expect(extractDmarcReportInterval(["v=DMARC1; ri=1; ri=2"])).toBeNull();
+    expect(extractDmarcReportInterval(["v=DMARC1; ri=99999999999999999999"])).toBeNull();
   });
 });
