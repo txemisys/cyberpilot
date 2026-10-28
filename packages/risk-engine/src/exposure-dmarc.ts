@@ -46,3 +46,19 @@ export function extractDmarcPercentage(txtRecords: readonly string[]): number | 
   const value = Number(match[1]);
   return value <= 100 ? value : null;
 }
+
+/** Extract explicit DMARC alignment mode (strict or relaxed) from collected TXT. */
+export function extractDmarcAlignment(
+  txtRecords: readonly string[],
+  tag: "adkim" | "aspf",
+): "strict" | "relaxed" | null {
+  const inventory = inventoryDmarcTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tags = inventory.records[0]!.split(";").slice(1).map((part) => part.trim());
+  const matches = tags.filter((part) => part.split("=")[0]?.trim().toLowerCase() === tag);
+  if (matches.length !== 1) return null;
+  const value = matches[0]!.split("=");
+  if (value.length !== 2) return null;
+  const mode = value[1]!.trim().toLowerCase();
+  return mode === "s" ? "strict" : mode === "r" ? "relaxed" : null;
+}
