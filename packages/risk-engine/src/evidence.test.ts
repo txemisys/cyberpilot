@@ -27,6 +27,12 @@ describe("provider-neutral evidence coverage", () => {
     expect(summarizeEvidenceCoverage(evidence, ["BACKUP"]).coverage).toBe("UNASSESSED");
   });
 
+  it("does not count invalid observation timestamps as technical verification", () => {
+    const bad = { ...observed("EMAIL"), observedAt: new Date(Number.NaN) };
+    expect(summarizeEvidenceCoverage([bad], ["EMAIL"]).coverage).toBe("UNASSESSED");
+    expect(summarizeEvidenceControlCoverage([bad], [{ domain: "EMAIL", controlId: "TEST_CONTROL" }]).coverage).toBe("UNASSESSED");
+  });
+
   it("reports partial scope rather than a misleading complete posture", () => {
     expect(summarizeEvidenceCoverage([observed("EMAIL")], ["EMAIL", "BACKUP"])).toEqual({
       coverage: "PARTIAL",
