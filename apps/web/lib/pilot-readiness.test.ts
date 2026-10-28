@@ -96,6 +96,37 @@ describe("buildPilotReadiness", () => {
     expect(readiness.readyForReadOnlyAssessment).toBe(false);
   });
 
+  it("flags a failed LIVE integration for attention even with earlier evidence", () => {
+    const readiness = buildPilotReadiness({
+      scannerConfigured: true,
+      configurationSafe: true,
+      remediationConfigured: false,
+      integration: { mode: "LIVE", status: "ERROR", lastSyncAt: new Date() },
+      readonlyProbeResult: "READY",
+      hasScoreSnapshot: true,
+    });
+    expect(readiness.readyForReadOnlyAssessment).toBe(false);
+    expect(readiness.needsAttention).toBe(true);
+    expect(readiness.steps.find((step) => step.id === "tenant")).toMatchObject({
+      state: "ATTENTION",
+      detail: expect.stringContaining("Resolve the connection failure"),
+    });
+    expect(readiness.steps.find((step) => step.id === "sync")?.state).toBe("PENDING");
+  });
+
+  it("keeps a disconnected LIVE integration pending rather than ready", () => {
+    const readiness = buildPilotReadiness({
+      scannerConfigured: true,
+      configurationSafe: true,
+      remediationConfigured: false,
+      integration: { mode: "LIVE", status: "DISCONNECTED", lastSyncAt: new Date() },
+      readonlyProbeResult: "READY",
+      hasScoreSnapshot: true,
+    });
+    expect(readiness.readyForReadOnlyAssessment).toBe(false);
+    expect(readiness.steps.find((step) => step.id === "tenant")?.state).toBe("PENDING");
+  });
+
   it("does not confuse partial evidence with successful consent even after a prior sync", () => {
     const readiness = buildPilotReadiness({
       scannerConfigured: true,
