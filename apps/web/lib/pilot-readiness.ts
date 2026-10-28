@@ -60,12 +60,16 @@ export function buildPilotReadiness(input: PilotReadinessInput) {
         ? "COMPLETE"
         : input.integration?.mode === "LAB"
           ? "BLOCKED"
-          : "PENDING",
+          : input.integration?.status === "ERROR"
+            ? "ATTENTION"
+            : "PENDING",
       detail: liveConnected
         ? "A real Microsoft 365 tenant is connected in LIVE mode."
         : input.integration?.mode === "LAB"
           ? "Lab evidence is synthetic and does not count as a customer tenant connection."
-          : "A tenant administrator must complete read-only admin consent.",
+          : input.integration?.status === "ERROR"
+            ? "The LIVE integration is in error. Resolve the connection failure before the pilot."
+            : "A tenant administrator must complete read-only admin consent.",
     },
     {
       id: "probe",
