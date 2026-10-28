@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
+import { extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 
 describe("passive DMARC record inventory", () => {
   it("does not count unrelated records or lookalike versions", () => {
@@ -69,5 +69,19 @@ describe("explicit DMARC alignment", () => {
     expect(extractDmarcAlignment(["v=DMARC1; adkim=x"], "adkim")).toBeNull();
     expect(extractDmarcAlignment(["v=DMARC1; adkim=s; adkim=r"], "adkim")).toBeNull();
     expect(extractDmarcAlignment(["v=DMARC1; aspf=s", "v=DMARC1; aspf=r"], "aspf")).toBeNull();
+  });
+});
+
+describe("passive DMARC aggregate report destinations", () => {
+  it("extracts mailto destinations without sending requests", () => {
+    expect(extractDmarcAggregateReportUris(["v=DMARC1; p=reject; rua=mailto:one@example.test, mailto:two@example.test"])).toEqual([
+      "mailto:one@example.test", "mailto:two@example.test",
+    ]);
+  });
+  it("fails closed on absent, repeated and malformed destinations", () => {
+    expect(extractDmarcAggregateReportUris(["v=DMARC1; p=reject"])).toBeNull();
+    expect(extractDmarcAggregateReportUris(["v=DMARC1; rua=mailto:a@example.test; rua=mailto:b@example.test"])).toBeNull();
+    expect(extractDmarcAggregateReportUris(["v=DMARC1; rua=https://example.test"])).toBeNull();
+    expect(extractDmarcAggregateReportUris(["v=DMARC1; rua=mailto:a@example.test,"])).toBeNull();
   });
 });
