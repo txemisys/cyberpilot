@@ -11,3 +11,14 @@ export function inventoryDmarcTxtRecords(txtRecords: readonly string[]): DmarcRe
     records,
   };
 }
+
+/** Extract only an unambiguous DMARC p= tag; this is not full policy validation. */
+export function extractDmarcPolicy(txtRecords: readonly string[]): "none" | "quarantine" | "reject" | null {
+  const inventory = inventoryDmarcTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tags = inventory.records[0]!.split(";").slice(1).map((tag) => tag.trim());
+  const policies = tags.filter((tag) => /^p\s*=/i.test(tag));
+  if (policies.length !== 1) return null;
+  const match = /^p\s*=\s*(none|quarantine|reject)\s*$/i.exec(policies[0]!);
+  return match ? match[1]!.toLowerCase() as "none" | "quarantine" | "reject" : null;
+}

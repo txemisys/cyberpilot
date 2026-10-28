@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryDmarcTxtRecords } from "./exposure-dmarc";
+import { extractDmarcPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 
 describe("passive DMARC record inventory", () => {
   it("does not count unrelated records or lookalike versions", () => {
@@ -14,5 +14,20 @@ describe("passive DMARC record inventory", () => {
   });
   it("detects multiple records at the same DMARC query name", () => {
     expect(inventoryDmarcTxtRecords(["v=DMARC1; p=none", "v=DMARC1; p=reject"]).status).toBe("MULTIPLE");
+  });
+});
+
+describe("passive DMARC policy extraction", () => {
+  it("extracts the unambiguous policy tag", () => {
+    expect(extractDmarcPolicy(["v=DMARC1; p=reject; rua=mailto:report@example.test"])).toBe("reject");
+    expect(extractDmarcPolicy(["V=DMARC1; P = Quarantine"])).toBe("quarantine");
+    expect(extractDmarcPolicy(["v=DMARC1; p=none"])).toBe("none");
+  });
+  it("fails closed on missing, duplicate, invalid or ambiguous policy tags", () => {
+    expect(extractDmarcPolicy([])).toBeNull();
+    expect(extractDmarcPolicy(["v=DMARC1; rua=mailto:a@example.test"])).toBeNull();
+    expect(extractDmarcPolicy(["v=DMARC1; p=reject; p=none"])).toBeNull();
+    expect(extractDmarcPolicy(["v=DMARC1; p=invalid"])).toBeNull();
+    expect(extractDmarcPolicy(["v=DMARC1; p=none", "v=DMARC1; p=reject"])).toBeNull();
   });
 });
