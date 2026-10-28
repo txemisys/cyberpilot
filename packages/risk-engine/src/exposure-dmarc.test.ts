@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
+import { extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 
 describe("passive DMARC record inventory", () => {
   it("does not count unrelated records or lookalike versions", () => {
@@ -42,5 +42,19 @@ describe("explicit DMARC subdomain policy", () => {
     expect(extractDmarcSubdomainPolicy(["v=DMARC1; sp=none; sp=reject"])).toBeNull();
     expect(extractDmarcSubdomainPolicy(["v=DMARC1; sp=invalid"])).toBeNull();
     expect(extractDmarcSubdomainPolicy(["v=DMARC1; sp=none", "v=DMARC1; sp=reject"])).toBeNull();
+  });
+});
+
+describe("explicit DMARC percentage", () => {
+  it("extracts configured values from 0 through 100", () => {
+    expect(extractDmarcPercentage(["v=DMARC1; p=reject; pct=0"])).toBe(0);
+    expect(extractDmarcPercentage(["v=DMARC1; p=reject; PCT = 100"])).toBe(100);
+  });
+  it("rejects absent, malformed, duplicate or out-of-range values", () => {
+    expect(extractDmarcPercentage(["v=DMARC1; p=reject"])).toBeNull();
+    expect(extractDmarcPercentage(["v=DMARC1; pct=101"])).toBeNull();
+    expect(extractDmarcPercentage(["v=DMARC1; pct=-1"])).toBeNull();
+    expect(extractDmarcPercentage(["v=DMARC1; pct=20; pct=50"])).toBeNull();
+    expect(extractDmarcPercentage(["v=DMARC1; pct=50", "v=DMARC1; pct=100"])).toBeNull();
   });
 });
