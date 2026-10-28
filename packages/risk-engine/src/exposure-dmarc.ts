@@ -75,7 +75,7 @@ function extractDmarcMailtoUris(txtRecords: readonly string[], tag: "rua" | "ruf
   const pieces = values[0]!.split("=");
   if (pieces.length !== 2) return null;
   const uris = pieces[1]!.split(",").map((uri) => uri.trim());
-  if (uris.length === 0 || uris.some((uri) => !/^mailto:[^\\s@,]+@[^\\s@,]+$/i.test(uri))) return null;
+  if (uris.length === 0 || uris.some((uri) => !/^mailto:[^\s@,]+@[^\s@,]+$/i.test(uri))) return null;
   return uris;
 }
 
