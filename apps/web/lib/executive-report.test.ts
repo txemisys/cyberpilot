@@ -148,6 +148,39 @@ describe("executive posture classification", () => {
     expect(report.severityCounts.CRITICAL).toBe(1);
   });
 
+  it("does not call a snapshot healthy when no inventory sync is recorded", () => {
+    const report = buildExecutiveReport({
+      ...base,
+      lastSyncAt: null,
+      snapshot: {
+        score: 100,
+        riskPoints: 0,
+        coverage: "COMPLETE",
+        modelVersion: "v0",
+        calculatedAt: new Date(),
+      },
+      findings: [],
+    });
+    expect(report.postureStatus).toBe("UNASSESSED");
+    expect(report.snapshot?.score).toBe(100);
+  });
+
+  it("preserves a critical classification when a sync has completed", () => {
+    const report = buildExecutiveReport({
+      ...base,
+      snapshot: {
+        score: 90, riskPoints: 10, coverage: "COMPLETE",
+        modelVersion: "v0", calculatedAt: new Date(),
+      },
+      findings: [{
+        id: "critical", ruleId: "M365_GUEST_GLOBAL_ADMIN",
+        title: "Critical", description: "Critical", severity: "CRITICAL",
+        firstSeenAt: new Date(), lastSeenAt: new Date(),
+      }],
+    });
+    expect(report.postureStatus).toBe("CRITICAL");
+  });
+
   it("is critical when a critical finding is open", () => {
     const report = buildExecutiveReport({
       ...base,
