@@ -16,7 +16,7 @@ describe("provider-neutral evidence authorization", () => {
       memberships: { create: { userId: owner.id, role: "AUDITOR" } },
     } });
     try {
-      for (const [organizationId, scope] of [[a.id, "a.example.test"], [b.id, "b.example.test"]]) {
+      for (const { organizationId, scope } of [{ organizationId: a.id, scope: "a.example.test" }, { organizationId: b.id, scope: "b.example.test" }]) {
         await db.securityEvidence.create({ data: {
           organizationId, source: "DOMAIN", domain: "EMAIL",
           controlId: "DMARC", scope, state: "OBSERVED",
