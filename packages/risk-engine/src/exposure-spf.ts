@@ -5,7 +5,7 @@ export type SpfRecordInventory = {
 };
 
 export function inventorySpfTxtRecords(txtRecords: readonly string[]): SpfRecordInventory {
-  const records = txtRecords.filter((record) => /^v=spf1(?:\\s|$)/i.test(record.trim()));
+  const records = txtRecords.filter((record) => /^v=spf1(?:\s|$)/i.test(record.trim()));
   return {
     status: records.length === 0 ? "MISSING" : records.length === 1 ? "PRESENT" : "MULTIPLE",
     records,
