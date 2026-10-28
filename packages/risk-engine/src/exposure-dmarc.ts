@@ -33,3 +33,16 @@ export function extractDmarcSubdomainPolicy(txtRecords: readonly string[]): "non
   const match = /^sp\s*=\s*(none|quarantine|reject)\s*$/i.exec(policies[0]!);
   return match ? match[1]!.toLowerCase() as "none" | "quarantine" | "reject" : null;
 }
+
+/** Returns an explicitly configured DMARC pct integer; null means absent or invalid. */
+export function extractDmarcPercentage(txtRecords: readonly string[]): number | null {
+  const inventory = inventoryDmarcTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tags = inventory.records[0]!.split(";").slice(1).map((tag) => tag.trim());
+  const values = tags.filter((tag) => /^pct\s*=/i.test(tag));
+  if (values.length !== 1) return null;
+  const match = /^pct\s*=\s*(\d{1,3})\s*$/i.exec(values[0]!);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return value <= 100 ? value : null;
+}
