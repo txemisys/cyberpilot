@@ -76,4 +76,15 @@ describe("required control coverage", () => {
   it("treats no expected controls as unassessed", () => {
     expect(summarizeEvidenceControlCoverage([observed("EMAIL")], []).coverage).toBe("UNASSESSED");
   });
+  it("does not count a verified control at the wrong scope", () => {
+    const evidence = [{ ...observed("EMAIL"), controlId: "DMARC", scope: "a.example.test" }];
+    expect(summarizeEvidenceControlCoverage(evidence, [
+      { domain: "EMAIL", controlId: "DMARC", scope: "a.example.test" },
+      { domain: "EMAIL", controlId: "DMARC", scope: "b.example.test" },
+    ])).toEqual({
+      coverage: "PARTIAL", assessedCount: 1, expectedCount: 2,
+      missingControls: [{ domain: "EMAIL", controlId: "DMARC", scope: "b.example.test" }],
+    });
+  });
+
 });
