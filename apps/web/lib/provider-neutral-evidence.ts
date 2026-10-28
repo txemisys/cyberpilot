@@ -122,7 +122,7 @@ export async function getOrganizationEvidenceCoverageForUser(
 export async function getOrganizationControlCoverageForUser(
   organizationId: string,
   userId: string,
-  requiredControls: readonly { domain: EvidenceDomain; controlId: string; scope?: string }[],
+  requiredControls: readonly { domain: EvidenceDomain; controlId: string; scope?: string; source?: EvidenceSource }[],
 ) {
   const records = await listOrganizationEvidenceForUser(organizationId, userId);
   if (records === null) return null;
