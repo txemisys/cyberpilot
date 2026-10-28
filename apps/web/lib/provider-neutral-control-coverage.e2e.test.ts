@@ -40,6 +40,21 @@ describe("authorized required-control coverage", () => {
         coverage: "PARTIAL", assessedCount: 1, expectedCount: 2,
         missingControls: [{ domain: "EMAIL", controlId: "SPF", scope: "secondary.test" }],
       });
+      // A synthetic LAB observation cannot satisfy a DOMAIN provenance requirement.
+      await db.securityEvidence.create({ data: {
+        organizationId: org.id, source: "LAB", domain: "EMAIL", controlId: "DMARC",
+        scope: "primary.test", state: "OBSERVED", observedAt: new Date(), details: {},
+      } });
+      expect(await getOrganizationControlCoverageForUser(org.id, owner.id, [
+        { domain: "EMAIL", controlId: "DMARC", scope: "primary.test", source: "DOMAIN" },
+        { domain: "EMAIL", controlId: "DMARC", scope: "primary.test", source: "LAB" },
+      ])).toEqual({
+        coverage: "PARTIAL", assessedCount: 1, expectedCount: 2,
+        missingControls: [{ domain: "EMAIL", controlId: "DMARC", scope: "primary.test", source: "DOMAIN" }],
+      });
+      expect(await getOrganizationControlCoverageForUser(org.id, stranger.id, [
+        { domain: "EMAIL", controlId: "DMARC", scope: "primary.test", source: "LAB" },
+      ])).toBeNull();
     } finally {
       await db.organization.deleteMany({ where: { id: { in: [org.id, other.id] } } });
       await db.user.deleteMany({ where: { id: { in: [owner.id, stranger.id] } } });
