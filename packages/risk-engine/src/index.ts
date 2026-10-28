@@ -1,3 +1,5 @@
+export { inventoryDmarcTxtRecords } from "./exposure-dmarc";
+export type { DmarcRecordInventory } from "./exposure-dmarc";
 export { inventorySpfTxtRecords } from "./exposure-spf";
 export type { SpfRecordInventory } from "./exposure-spf";
 export { summarizeEvidenceControlCoverage } from "./evidence";
