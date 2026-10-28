@@ -21,9 +21,11 @@ describe("provider-neutral evidence persistence", () => {
         where: { organizationId: a.id, domain: "BACKUP" },
       });
       expect(scoped).toHaveLength(1);
-      expect(scoped[0].organizationId).toBe(a.id);
-      expect(scoped[0].observedAt).toBeNull();
-      expect(scoped[0].state).toBe("DECLARED");
+      expect(scoped[0]).toMatchObject({
+        organizationId: a.id,
+        observedAt: null,
+        state: "DECLARED",
+      });
 
       await expect(db.securityEvidence.create({
         data: {
