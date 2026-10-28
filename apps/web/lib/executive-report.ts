@@ -97,7 +97,7 @@ export function buildExecutiveReport(input: ExecutiveReportInput) {
 
   const headlineScore = input.snapshot?.score ?? currentRisk.score;
   const postureStatus =
-    !input.snapshot
+    (!input.snapshot || !input.lastSyncAt)
       ? "UNASSESSED"
       : severityCounts.CRITICAL > 0
       ? "CRITICAL"
