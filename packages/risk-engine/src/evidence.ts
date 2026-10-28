@@ -38,3 +38,30 @@ export function summarizeEvidenceCoverage(
     unassessedDomains,
   };
 }
+
+/**
+ * Precise control coverage: one observed control must never imply that every
+ * required control in its domain was evaluated.
+ */
+export function summarizeEvidenceControlCoverage(
+  evidence: readonly SecurityEvidenceV1[],
+  expectedControls: readonly { domain: EvidenceDomain; controlId: string }[],
+) {
+  const unique = [...new Map(expectedControls.map((control) =>
+    [`${control.domain}:\u0000${control.controlId}`, control],
+  )).values()];
+  const assessed = unique.filter((control) => evidence.some((item) =>
+    item.domain === control.domain &&
+    item.controlId === control.controlId &&
+    item.state === "OBSERVED" &&
+    item.observedAt !== null,
+  ));
+  return {
+    coverage: (unique.length === 0 || assessed.length === 0
+      ? "UNASSESSED"
+      : assessed.length === unique.length ? "COMPLETE" : "PARTIAL") as EvidenceCoverage,
+    assessedCount: assessed.length,
+    expectedCount: unique.length,
+    missingControls: unique.filter((control) => !assessed.includes(control)),
+  };
+}
