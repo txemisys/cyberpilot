@@ -62,3 +62,19 @@ export function extractDmarcAlignment(
   const mode = value[1]!.trim().toLowerCase();
   return mode === "s" ? "strict" : mode === "r" ? "relaxed" : null;
 }
+
+/** Extract raw aggregate-report destinations from an unambiguous rua tag.
+ * Addresses are informational only; no messages or requests are sent.
+ */
+export function extractDmarcAggregateReportUris(txtRecords: readonly string[]): string[] | null {
+  const inventory = inventoryDmarcTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tags = inventory.records[0]!.split(";").slice(1).map((part) => part.trim());
+  const values = tags.filter((part) => part.split("=")[0]?.trim().toLowerCase() === "rua");
+  if (values.length !== 1) return null;
+  const pieces = values[0]!.split("=");
+  if (pieces.length !== 2) return null;
+  const uris = pieces[1]!.split(",").map((uri) => uri.trim());
+  if (uris.length === 0 || uris.some((uri) => !/^mailto:[^\s@,]+@[^\s@,]+$/i.test(uri))) return null;
+  return uris;
+}
