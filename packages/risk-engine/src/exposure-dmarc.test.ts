@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
+import { extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 
 describe("passive DMARC record inventory", () => {
   it("does not count unrelated records or lookalike versions", () => {
@@ -56,5 +56,18 @@ describe("explicit DMARC percentage", () => {
     expect(extractDmarcPercentage(["v=DMARC1; pct=-1"])).toBeNull();
     expect(extractDmarcPercentage(["v=DMARC1; pct=20; pct=50"])).toBeNull();
     expect(extractDmarcPercentage(["v=DMARC1; pct=50", "v=DMARC1; pct=100"])).toBeNull();
+  });
+});
+
+describe("explicit DMARC alignment", () => {
+  it("extracts strict and relaxed modes independently", () => {
+    expect(extractDmarcAlignment(["v=DMARC1; p=reject; adkim=s; aspf=r"], "adkim")).toBe("strict");
+    expect(extractDmarcAlignment(["v=DMARC1; p=reject; adkim=s; aspf=r"], "aspf")).toBe("relaxed");
+  });
+  it("does not infer defaults and rejects malformed or duplicate values", () => {
+    expect(extractDmarcAlignment(["v=DMARC1; p=reject"], "adkim")).toBeNull();
+    expect(extractDmarcAlignment(["v=DMARC1; adkim=x"], "adkim")).toBeNull();
+    expect(extractDmarcAlignment(["v=DMARC1; adkim=s; adkim=r"], "adkim")).toBeNull();
+    expect(extractDmarcAlignment(["v=DMARC1; aspf=s", "v=DMARC1; aspf=r"], "aspf")).toBeNull();
   });
 });
