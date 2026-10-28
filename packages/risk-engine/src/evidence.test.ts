@@ -79,6 +79,17 @@ describe("required control coverage", () => {
       coverage: "COMPLETE", assessedCount: 2, expectedCount: 2, missingControls: [],
     });
   });
+  it("keeps wildcard requirements distinct from literal asterisk scopes", () => {
+    const evidence = [{ ...observed("EMAIL"), controlId: "SPF", scope: "primary.test" }];
+    expect(summarizeEvidenceControlCoverage(evidence, [
+      { domain: "EMAIL", controlId: "SPF" },
+      { domain: "EMAIL", controlId: "SPF", scope: "*" },
+    ])).toEqual({
+      coverage: "PARTIAL", assessedCount: 1, expectedCount: 2,
+      missingControls: [{ domain: "EMAIL", controlId: "SPF", scope: "*" }],
+    });
+  });
+
   it("treats no expected controls as unassessed", () => {
     expect(summarizeEvidenceControlCoverage([observed("EMAIL")], []).coverage).toBe("UNASSESSED");
   });
