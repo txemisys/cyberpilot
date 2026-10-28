@@ -116,6 +116,57 @@ describe("buildExecutiveReport", () => {
 });
 
 
+describe("executive score model comparability", () => {
+  const snapshot = {
+    score: 85,
+    riskPoints: 15,
+    coverage: "COMPLETE" as const,
+    modelVersion: "v2",
+    calculatedAt: new Date("2026-10-28T10:00:00.000Z"),
+  };
+
+  it("never presents a score delta against a different model version", () => {
+    const earlier = { ...snapshot, score: 55, modelVersion: "v1", calculatedAt: new Date("2026-10-27T10:00:00.000Z") };
+    const report = buildExecutiveReport({
+      organizationName: "Model upgrade lab",
+      integrationMode: "LAB",
+      integrationDisplayName: "Synthetic",
+      lastSyncAt: snapshot.calculatedAt,
+      snapshot,
+      previousSnapshot: earlier,
+      baselineSnapshot: earlier,
+      scoreHistory: [earlier, snapshot],
+      findings: [],
+      domains: [],
+      remediations: [],
+    });
+    expect(report.scoreDelta).toBeNull();
+    expect(report.baselineDelta).toBeNull();
+    expect(report.comparableHistory).toEqual([snapshot]);
+    expect(report.snapshot?.score).toBe(85);
+  });
+
+  it("calculates deltas and chronological history within the same model version", () => {
+    const earlier = { ...snapshot, score: 75, calculatedAt: new Date("2026-10-27T10:00:00.000Z") };
+    const report = buildExecutiveReport({
+      organizationName: "Stable model lab",
+      integrationMode: "LAB",
+      integrationDisplayName: "Synthetic",
+      lastSyncAt: snapshot.calculatedAt,
+      snapshot,
+      previousSnapshot: earlier,
+      baselineSnapshot: earlier,
+      scoreHistory: [snapshot, earlier],
+      findings: [],
+      domains: [],
+      remediations: [],
+    });
+    expect(report.scoreDelta).toBe(10);
+    expect(report.baselineDelta).toBe(10);
+    expect(report.comparableHistory).toEqual([earlier, snapshot]);
+  });
+});
+
 describe("executive posture classification", () => {
   const base = {
     organizationName: "Test",
