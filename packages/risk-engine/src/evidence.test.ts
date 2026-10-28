@@ -87,4 +87,15 @@ describe("required control coverage", () => {
     });
   });
 
+  it("does not let LAB observations satisfy a DOMAIN source requirement", () => {
+    const evidence = [{ ...observed("EMAIL"), controlId: "DMARC", scope: "primary.test", source: "LAB" as const }];
+    expect(summarizeEvidenceControlCoverage(evidence, [
+      { domain: "EMAIL", controlId: "DMARC", scope: "primary.test", source: "DOMAIN" },
+      { domain: "EMAIL", controlId: "DMARC", scope: "primary.test", source: "LAB" },
+    ])).toEqual({
+      coverage: "PARTIAL", assessedCount: 1, expectedCount: 2,
+      missingControls: [{ domain: "EMAIL", controlId: "DMARC", scope: "primary.test", source: "DOMAIN" }],
+    });
+  });
+
 });
