@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractDmarcPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
+import { extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 
 describe("passive DMARC record inventory", () => {
   it("does not count unrelated records or lookalike versions", () => {
@@ -29,5 +29,18 @@ describe("passive DMARC policy extraction", () => {
     expect(extractDmarcPolicy(["v=DMARC1; p=reject; p=none"])).toBeNull();
     expect(extractDmarcPolicy(["v=DMARC1; p=invalid"])).toBeNull();
     expect(extractDmarcPolicy(["v=DMARC1; p=none", "v=DMARC1; p=reject"])).toBeNull();
+  });
+});
+
+describe("explicit DMARC subdomain policy", () => {
+  it("extracts an explicit sp tag independently of p", () => {
+    expect(extractDmarcSubdomainPolicy(["v=DMARC1; p=none; sp=reject"])).toBe("reject");
+    expect(extractDmarcSubdomainPolicy(["v=DMARC1; p=reject; SP = Quarantine"])).toBe("quarantine");
+  });
+  it("does not invent inherited policy or accept repeated or malformed tags", () => {
+    expect(extractDmarcSubdomainPolicy(["v=DMARC1; p=reject"])).toBeNull();
+    expect(extractDmarcSubdomainPolicy(["v=DMARC1; sp=none; sp=reject"])).toBeNull();
+    expect(extractDmarcSubdomainPolicy(["v=DMARC1; sp=invalid"])).toBeNull();
+    expect(extractDmarcSubdomainPolicy(["v=DMARC1; sp=none", "v=DMARC1; sp=reject"])).toBeNull();
   });
 });

@@ -22,3 +22,14 @@ export function extractDmarcPolicy(txtRecords: readonly string[]): "none" | "qua
   const match = /^p\s*=\s*(none|quarantine|reject)\s*$/i.exec(policies[0]!);
   return match ? match[1]!.toLowerCase() as "none" | "quarantine" | "reject" : null;
 }
+
+/** Extract an explicit sp= policy; null means absent or ambiguous, not inherited. */
+export function extractDmarcSubdomainPolicy(txtRecords: readonly string[]): "none" | "quarantine" | "reject" | null {
+  const inventory = inventoryDmarcTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tags = inventory.records[0]!.split(";").slice(1).map((tag) => tag.trim());
+  const policies = tags.filter((tag) => /^sp\s*=/i.test(tag));
+  if (policies.length !== 1) return null;
+  const match = /^sp\s*=\s*(none|quarantine|reject)\s*$/i.exec(policies[0]!);
+  return match ? match[1]!.toLowerCase() as "none" | "quarantine" | "reject" : null;
+}
