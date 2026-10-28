@@ -6,6 +6,7 @@ import {
   type ExecutiveReportFinding,
 } from "../../../../lib/executive-report";
 import { requireOrganizationAccess } from "../../../../lib/organizations";
+import { getOrganizationEvidenceCoverageForUser } from "../../../../lib/provider-neutral-evidence";
 import { PrintReportButton } from "../../../../components/print-report-button";
 
 type ReportPageProps = {
@@ -18,7 +19,12 @@ export default async function ExecutiveReportPage({
   params,
 }: ReportPageProps) {
   const { slug } = await params;
-  const { membership } = await requireOrganizationAccess(slug);
+  const { membership, session } = await requireOrganizationAccess(slug);
+  const multiSourceCoverage = await getOrganizationEvidenceCoverageForUser(
+    membership.organization.id,
+    session.user.id,
+    ["IDENTITY", "EMAIL", "WEB", "ENDPOINT", "BACKUP", "GOVERNANCE"],
+  );
 
   const [
     integration,
@@ -389,6 +395,25 @@ export default async function ExecutiveReportPage({
         </section>
         </div>
         </div>
+
+        <section className="report-section" aria-label="Multi-source evidence coverage">
+          <h2>Multi-source evidence coverage (preview)</h2>
+          <p>
+            Verified coverage: {multiSourceCoverage?.coverage ?? "UNASSESSED"}.
+            This separate view currently uses only provider-neutral observations and
+            does not change the existing CyberScore or its Microsoft 365 coverage.
+          </p>
+          <p>
+            Observed areas: {multiSourceCoverage?.assessedDomains.join(", ") || "None"}.
+          </p>
+          <p>
+            Areas without verified evidence: {multiSourceCoverage?.unassessedDomains.join(", ") || "None"}.
+          </p>
+          <p>
+            Customer declarations are not independently verified. Missing evidence
+            is not a passing security control.
+          </p>
+        </section>
 
         <section className="report-section report-detail-page" aria-label="Evidence provenance and limitations">
           <h2>Evidence provenance and limitations</h2>

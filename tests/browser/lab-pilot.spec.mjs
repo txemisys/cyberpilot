@@ -72,4 +72,6 @@ test("LAB customer journey: account, organization, findings, playbooks and repor
   await page.goto(reportUrl.toString());
   await expect(page.locator(".executive-report")).toBeVisible();
   await expect(page.getByText("LAB REPORT — SYNTHETIC EVIDENCE")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Multi-source evidence coverage (preview)" })).toBeVisible();
+  await expect(page.getByText("Missing evidence is not a passing security control.", { exact: false })).toBeVisible();
 });
