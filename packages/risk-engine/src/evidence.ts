@@ -52,7 +52,7 @@ export function summarizeEvidenceControlCoverage(
   expectedControls: readonly { domain: EvidenceDomain; controlId: string; scope?: string; source?: EvidenceSource }[],
 ) {
   const unique = [...new Map(expectedControls.map((control) =>
-    [`${control.domain}:\u0000${control.controlId}:\u0000${control.scope ?? "*"}:\u0000${control.source ?? "*"}`, control],
+    [JSON.stringify([control.domain, control.controlId, control.scope ?? null, control.source ?? null]), control],
   )).values()];
   const assessed = unique.filter((control) => evidence.some((item) =>
     item.domain === control.domain &&
