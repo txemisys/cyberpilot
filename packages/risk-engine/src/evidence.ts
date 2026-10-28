@@ -59,8 +59,7 @@ export function summarizeEvidenceControlCoverage(
     item.controlId === control.controlId &&
     (control.source === undefined || item.source === control.source) &&
     (control.scope === undefined || item.scope === control.scope) &&
-    item.state === "OBSERVED" &&
-    item.observedAt !== null,
+    isValidObservation(item),
   ));
   return {
     coverage: (unique.length === 0 || assessed.length === 0
