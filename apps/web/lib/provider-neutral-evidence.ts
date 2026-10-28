@@ -1,4 +1,16 @@
 import { db } from "@cyberpilot/database";
+import {
+  summarizeEvidenceCoverage,
+  type SecurityEvidenceV1,
+  type EvidenceDomain,
+  type EvidenceSource,
+  type EvidenceState,
+} from "@cyberpilot/risk-engine";
+
+const EVIDENCE_SOURCES: readonly EvidenceSource[] = ["MICROSOFT_365", "DOMAIN", "BASELINE", "ASSETS", "GOOGLE_WORKSPACE", "LAB"];
+const EVIDENCE_DOMAINS: readonly EvidenceDomain[] = ["IDENTITY", "EMAIL", "WEB", "ENDPOINT", "BACKUP", "GOVERNANCE"];
+const EVIDENCE_STATES: readonly EvidenceState[] = ["OBSERVED", "DECLARED", "UNKNOWN", "ERROR"];
+
 
 /**
  * Server-side read boundary for provider-neutral evidence.
@@ -66,4 +78,38 @@ export async function upsertDeclaredOrganizationEvidenceForUser(
     });
     return evidence;
   });
+}
+
+/**
+ * A scoped, read-only coverage view for future Exposure/Baseline reports.
+ * Unknown database values fail closed instead of being counted as observations.
+ * No impact on the existing M365 CyberScore until a versioned migration.
+ */
+export async function getOrganizationEvidenceCoverageForUser(
+  organizationId: string,
+  userId: string,
+  expectedDomains: readonly EvidenceDomain[],
+) {
+  const records = await listOrganizationEvidenceForUser(organizationId, userId);
+  if (records === null) return null;
+  const evidence: SecurityEvidenceV1[] = records
+    .filter((record) =>
+      record.schemaVersion === 1 &&
+      EVIDENCE_SOURCES.includes(record.source as EvidenceSource) &&
+      EVIDENCE_DOMAINS.includes(record.domain as EvidenceDomain) &&
+      EVIDENCE_STATES.includes(record.state as EvidenceState) &&
+      (record.state !== "OBSERVED" || record.observedAt !== null),
+    )
+    .map((record) => ({
+      schemaVersion: 1,
+      organizationId: record.organizationId,
+      source: record.source as EvidenceSource,
+      domain: record.domain as EvidenceDomain,
+      controlId: record.controlId,
+      state: record.state as EvidenceState,
+      observedAt: record.observedAt,
+      scope: record.scope,
+      details: {},
+    }));
+  return summarizeEvidenceCoverage(evidence, expectedDomains);
 }
