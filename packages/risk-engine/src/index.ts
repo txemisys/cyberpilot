@@ -1,4 +1,4 @@
-export { extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
+export { extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 export type { DmarcRecordInventory } from "./exposure-dmarc";
 export { inventorySpfTxtRecords } from "./exposure-spf";
 export type { SpfRecordInventory } from "./exposure-spf";

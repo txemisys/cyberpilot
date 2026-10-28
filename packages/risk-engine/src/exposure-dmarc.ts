@@ -66,17 +66,26 @@ export function extractDmarcAlignment(
 /** Extract raw aggregate-report destinations from an unambiguous rua tag.
  * Addresses are informational only; no messages or requests are sent.
  */
-export function extractDmarcAggregateReportUris(txtRecords: readonly string[]): string[] | null {
+function extractDmarcMailtoUris(txtRecords: readonly string[], tag: "rua" | "ruf"): string[] | null {
   const inventory = inventoryDmarcTxtRecords(txtRecords);
   if (inventory.status !== "PRESENT") return null;
   const tags = inventory.records[0]!.split(";").slice(1).map((part) => part.trim());
-  const values = tags.filter((part) => part.split("=")[0]?.trim().toLowerCase() === "rua");
+  const values = tags.filter((part) => part.split("=")[0]?.trim().toLowerCase() === tag);
   if (values.length !== 1) return null;
   const pieces = values[0]!.split("=");
   if (pieces.length !== 2) return null;
   const uris = pieces[1]!.split(",").map((uri) => uri.trim());
   if (uris.length === 0 || uris.some((uri) => !/^mailto:[^\s@,]+@[^\s@,]+$/i.test(uri))) return null;
   return uris;
+}
+
+export function extractDmarcAggregateReportUris(txtRecords: readonly string[]): string[] | null {
+  return extractDmarcMailtoUris(txtRecords, "rua");
+}
+
+/** Read explicit forensic report addresses, without contacting them. */
+export function extractDmarcFailureReportUris(txtRecords: readonly string[]): string[] | null {
+  return extractDmarcMailtoUris(txtRecords, "ruf");
 }
 
 /** Explicit DMARC failure-reporting options; null denotes missing or ambiguous input. */

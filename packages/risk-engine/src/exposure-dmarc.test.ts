@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
+import { extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 
 describe("passive DMARC record inventory", () => {
   it("does not count unrelated records or lookalike versions", () => {
@@ -97,5 +97,16 @@ describe("explicit DMARC failure reporting options", () => {
     expect(extractDmarcFailureOptions(["v=DMARC1; fo=1:1"])).toBeNull();
     expect(extractDmarcFailureOptions(["v=DMARC1; fo=1; fo=d"])).toBeNull();
     expect(extractDmarcFailureOptions(["v=DMARC1; fo=1", "v=DMARC1; fo=d"])).toBeNull();
+  });
+});
+
+describe("passive DMARC forensic report destinations", () => {
+  it("extracts only explicit ruf mailto addresses", () => {
+    expect(extractDmarcFailureReportUris(["v=DMARC1; p=reject; rua=mailto:aggregate@example.test; ruf=mailto:forensic@example.test"])).toEqual(["mailto:forensic@example.test"]);
+  });
+  it("does not reuse aggregate addresses or accept ambiguous and invalid ruf", () => {
+    expect(extractDmarcFailureReportUris(["v=DMARC1; rua=mailto:aggregate@example.test"])).toBeNull();
+    expect(extractDmarcFailureReportUris(["v=DMARC1; ruf=https://example.test"])).toBeNull();
+    expect(extractDmarcFailureReportUris(["v=DMARC1; ruf=mailto:a@example.test; ruf=mailto:b@example.test"])).toBeNull();
   });
 });
