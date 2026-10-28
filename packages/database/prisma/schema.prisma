@@ -190,6 +190,7 @@ model Organization {
   domains                  Domain[]
   securityScores           SecurityScore[]
   remediations             Remediation[]
+  securityEvidence         SecurityEvidence[]
 }
 
 model Membership {
@@ -343,6 +344,27 @@ model Domain {
   @@unique([organizationId, name])
   @@index([integrationId])
   @@index([organizationId, isInitial])
+}
+
+
+model SecurityEvidence {
+  id             String   @id @default(cuid())
+  organizationId String
+  schemaVersion  Int      @default(1)
+  source         String
+  domain         String
+  controlId      String
+  state          String
+  scope          String
+  observedAt     DateTime?
+  details        Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, source, domain, controlId, scope])
+  @@index([organizationId, domain, state])
 }
 
 model SecurityFinding {
