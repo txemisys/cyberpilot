@@ -1,3 +1,6 @@
+export { summarizeEvidenceCoverage } from "./evidence";
+export type { SecurityEvidenceV1, EvidenceSource, EvidenceDomain, EvidenceState, EvidenceCoverage } from "./evidence";
+
 export type RiskSeverity =
   | "INFO"
   | "LOW"
