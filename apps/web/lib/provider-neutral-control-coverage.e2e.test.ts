@@ -33,6 +33,13 @@ describe("authorized required-control coverage", () => {
       });
       expect((await getOrganizationControlCoverageForUser(org.id, owner.id, [...expected, expected[0]!]))?.expectedCount).toBe(2);
       expect((await getOrganizationControlCoverageForUser(org.id, owner.id, []))?.coverage).toBe("UNASSESSED");
+      expect(await getOrganizationControlCoverageForUser(org.id, owner.id, [
+        { domain: "EMAIL", controlId: "SPF", scope: "primary.test" },
+        { domain: "EMAIL", controlId: "SPF", scope: "secondary.test" },
+      ])).toEqual({
+        coverage: "PARTIAL", assessedCount: 1, expectedCount: 2,
+        missingControls: [{ domain: "EMAIL", controlId: "SPF", scope: "secondary.test" }],
+      });
     } finally {
       await db.organization.deleteMany({ where: { id: { in: [org.id, other.id] } } });
       await db.user.deleteMany({ where: { id: { in: [owner.id, stranger.id] } } });
