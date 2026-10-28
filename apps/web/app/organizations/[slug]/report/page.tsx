@@ -226,7 +226,7 @@ export default async function ExecutiveReportPage({
             <strong>{postureLabel}</strong>
             <p>
               {report.postureStatus === "UNASSESSED"
-                ? "No completed CyberScore snapshot is available. Security posture cannot yet be assessed."
+                ? "A completed inventory synchronization and CyberScore snapshot are required before security posture can be assessed."
                 : report.postureStatus === "CRITICAL"
                   ? "At least one critical evidence-backed risk requires urgent attention."
                 : report.postureStatus === "HEALTHY"
