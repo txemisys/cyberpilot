@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
+import { extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 
 describe("passive DMARC record inventory", () => {
   it("does not count unrelated records or lookalike versions", () => {
@@ -83,5 +83,19 @@ describe("passive DMARC aggregate report destinations", () => {
     expect(extractDmarcAggregateReportUris(["v=DMARC1; rua=mailto:a@example.test; rua=mailto:b@example.test"])).toBeNull();
     expect(extractDmarcAggregateReportUris(["v=DMARC1; rua=https://example.test"])).toBeNull();
     expect(extractDmarcAggregateReportUris(["v=DMARC1; rua=mailto:a@example.test,"])).toBeNull();
+  });
+});
+
+describe("explicit DMARC failure reporting options", () => {
+  it("extracts recognized fo values from mock records", () => {
+    expect(extractDmarcFailureOptions(["v=DMARC1; p=reject; fo=1:d"])).toEqual(["1", "d"]);
+    expect(extractDmarcFailureOptions(["v=DMARC1; fo=0"])).toEqual(["0"]);
+  });
+  it("does not infer defaults or accept invalid, repeated or ambiguous tags", () => {
+    expect(extractDmarcFailureOptions(["v=DMARC1; p=reject"])).toBeNull();
+    expect(extractDmarcFailureOptions(["v=DMARC1; fo=x"])).toBeNull();
+    expect(extractDmarcFailureOptions(["v=DMARC1; fo=1:1"])).toBeNull();
+    expect(extractDmarcFailureOptions(["v=DMARC1; fo=1; fo=d"])).toBeNull();
+    expect(extractDmarcFailureOptions(["v=DMARC1; fo=1", "v=DMARC1; fo=d"])).toBeNull();
   });
 });

@@ -78,3 +78,17 @@ export function extractDmarcAggregateReportUris(txtRecords: readonly string[]): 
   if (uris.length === 0 || uris.some((uri) => !/^mailto:[^\s@,]+@[^\s@,]+$/i.test(uri))) return null;
   return uris;
 }
+
+/** Explicit DMARC failure-reporting options; null denotes missing or ambiguous input. */
+export function extractDmarcFailureOptions(txtRecords: readonly string[]): string[] | null {
+  const inventory = inventoryDmarcTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tags = inventory.records[0]!.split(";").slice(1).map((part) => part.trim());
+  const values = tags.filter((part) => part.split("=")[0]?.trim().toLowerCase() === "fo");
+  if (values.length !== 1) return null;
+  const pieces = values[0]!.split("=");
+  if (pieces.length !== 2) return null;
+  const options = pieces[1]!.trim().split(":");
+  if (options.some((option) => !["0", "1", "d", "s"].includes(option)) || new Set(options).size !== options.length) return null;
+  return options;
+}
