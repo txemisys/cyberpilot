@@ -1,3 +1,5 @@
+export { summarizeActionAlerts } from "./evidence-action-alert-digest";
+export type { ActionAlertDigest } from "./evidence-action-alert-digest";
 export { suggestActionAlerts } from "./evidence-action-alerts";
 export type { ActionAlert } from "./evidence-action-alerts";
 export { filterActionPlan } from "./evidence-action-filter";
