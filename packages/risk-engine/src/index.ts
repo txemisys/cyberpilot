@@ -1,3 +1,5 @@
+export { exportActionTrendReport } from "./evidence-action-trend-report-export";
+export type { ActionTrendReportExport } from "./evidence-action-trend-report-export";
 export { buildActionTrendReport } from "./evidence-action-trend-report";
 export type { ActionTrendReport } from "./evidence-action-trend-report";
 export { summarizeActionWorkspaceTrend } from "./evidence-action-workspace-trend";
