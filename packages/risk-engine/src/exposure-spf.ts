@@ -38,7 +38,9 @@ export function extractSpfRedirect(txtRecords: readonly string[]): string | null
   const redirects = tokens.filter((token) => /^redirect=/i.test(token));
   if (redirects.length !== 1) return null;
   const target = redirects[0]!.slice("redirect=".length);
-  if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(target) || target.includes("..")) return null;
+  if (target.length > 253 || !target.split(".").every((label) =>
+    label.length >= 1 && label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label)
+  )) return null;
   return target.toLowerCase();
 }
 
