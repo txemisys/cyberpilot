@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventorySpfTxtRecords, extractSpfAllQualifier } from "./exposure-spf";
+import { inventorySpfTxtRecords, extractSpfAllQualifier, extractSpfRedirect } from "./exposure-spf";
 
 describe("passive SPF inventory", () => {
   it("ignores unrelated TXT records and SPF lookalikes", () => {
@@ -28,5 +28,17 @@ describe("SPF all qualifier", () => {
     expect(extractSpfAllQualifier(["v=spf1 ip4:192.0.2.1"])).toBeNull();
     expect(extractSpfAllQualifier(["v=spf1 -all ~all"])).toBeNull();
     expect(extractSpfAllQualifier(["v=spf1 -all", "v=spf1 ~all"])).toBeNull();
+  });
+});
+
+describe("SPF redirect target", () => {
+  it("extracts explicit DNS target without resolving it", () => {
+    expect(extractSpfRedirect(["v=spf1 include:_spf.example.test redirect=Mail.Example.test"])).toBe("mail.example.test");
+  });
+  it("returns unknown for missing, repeated, invalid or multiple SPF records", () => {
+    expect(extractSpfRedirect(["v=spf1 -all"])).toBeNull();
+    expect(extractSpfRedirect(["v=spf1 redirect=a.test redirect=b.test"])).toBeNull();
+    expect(extractSpfRedirect(["v=spf1 redirect=invalid..test"])).toBeNull();
+    expect(extractSpfRedirect(["v=spf1 redirect=a.test", "v=spf1 -all"])).toBeNull();
   });
 });
