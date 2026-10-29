@@ -37,15 +37,17 @@ export function summarizeMxRouting(records: readonly MxRecord[]): {
   backupExchanges: string[];
   distinctExchangeCount: number;
   lowestPreference: number | null;
+  preferenceTiers: number[];
 } {
   const inventory = inventoryMxRecords(records);
   if (inventory.status !== "PRESENT") {
-    return { status: inventory.status, primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null };
+    return { status: inventory.status, primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [] };
   }
   const minimum = Math.min(...inventory.records.map((record) => record.priority));
   return {
     status: inventory.status,
     lowestPreference: minimum,
+    preferenceTiers: [...new Set(inventory.records.map((record) => record.priority))].sort((a, b) => a - b),
     primaryExchanges: inventory.records.filter((record) => record.priority === minimum).map((record) => record.exchange),
     backupExchanges: inventory.records.filter((record) => record.priority > minimum).map((record) => record.exchange),
     distinctExchangeCount: new Set(inventory.records.map((record) => record.exchange.toLowerCase().replace(/\.$/, ""))).size,
