@@ -122,3 +122,19 @@ describe("passive MX preference groups", () => {
     expect(groupMxByPreference([{ priority: -1, exchange: "mail.test" }])).toEqual({ status: "INVALID", groups: [] });
   });
 });
+
+describe("MX preference grouping normalization", () => {
+  it("does not duplicate equivalent records in the same priority group", () => {
+    expect(groupMxByPreference([
+      { priority: 10, exchange: "MAIL.EXAMPLE.TEST." },
+      { priority: 10, exchange: "mail.example.test" },
+      { priority: 20, exchange: "backup.example.test" },
+    ])).toEqual({
+      status: "PRESENT",
+      groups: [
+        { priority: 10, exchanges: ["MAIL.EXAMPLE.TEST."] },
+        { priority: 20, exchanges: ["backup.example.test"] },
+      ],
+    });
+  });
+});
