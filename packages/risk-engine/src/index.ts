@@ -1,3 +1,5 @@
+export { assessWorkspaceInventory, GOOGLE_WORKSPACE_SCOPES } from "./google-workspace";
+export type { WorkspaceUser, WorkspaceGroup, WorkspaceDomain, WorkspaceInventory, WorkspaceAssessment, WorkspaceCoverage } from "./google-workspace";
 export { parseAssetCsv, ASSET_COLUMNS } from "./assets-csv";
 export type { AssetRecord, AssetKind, AssetImportIssue, AssetImportResult } from "./assets-csv";
 export { assessAssetInventory, summarizeAssetInventory, ASSET_HYGIENE_RULES } from "./assets-assessment";
