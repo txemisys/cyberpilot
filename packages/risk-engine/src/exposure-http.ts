@@ -48,3 +48,12 @@ export function inventoryCspDirectives(value: string | null | undefined): string
   if (names.some((name) => !/^[a-z][a-z0-9-]*$/.test(name)) || new Set(names).size !== names.length) return null;
   return names;
 }
+
+/** Read literal script-src source expressions; no browser policy evaluation is implied. */
+export function extractCspScriptSources(value: string | null | undefined): string[] | null {
+  if (!value?.trim() || inventoryCspDirectives(value) === null) return null;
+  const directive = value.split(";").map((part) => part.trim())
+    .find((part) => /^script-src(?:\s|$)/i.test(part));
+  if (!directive) return null;
+  return directive.split(/\s+/).slice(1);
+}
