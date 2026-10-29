@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy } from "./exposure-http";
+import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives } from "./exposure-http";
 
 describe("passive HTTP security header inventory", () => {
   it("returns missing for unavailable headers", () => {
@@ -49,5 +49,19 @@ describe("Referrer-Policy fallback tokens", () => {
     expect(inspectReferrerPolicy("unknown")).toBeNull();
     expect(inspectReferrerPolicy("")).toBeNull();
     expect(inspectReferrerPolicy(undefined)).toBeNull();
+  });
+});
+
+describe("CSP directive inventory", () => {
+  it("lists supplied directives without assessing enforcement", () => {
+    expect(inventoryCspDirectives("default-src 'self'; script-src 'none'; upgrade-insecure-requests")).toEqual([
+      "default-src", "script-src", "upgrade-insecure-requests",
+    ]);
+  });
+  it("distinguishes missing input from ambiguous or invalid directives", () => {
+    expect(inventoryCspDirectives(undefined)).toBeNull();
+    expect(inventoryCspDirectives("   ")).toBeNull();
+    expect(inventoryCspDirectives("script-src a; script-src b")).toBeNull();
+    expect(inventoryCspDirectives("invalid@directive x")).toBeNull();
   });
 });
