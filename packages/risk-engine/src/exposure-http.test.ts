@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives, extractCspScriptSources, extractCspDefaultSources, extractCspObjectSources } from "./exposure-http";
+import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives, extractCspScriptSources, extractCspDefaultSources, extractCspObjectSources, extractCspBaseUriSources } from "./exposure-http";
 
 describe("passive HTTP security header inventory", () => {
   it("returns missing for unavailable headers", () => {
@@ -98,5 +98,16 @@ describe("CSP object-src expressions", () => {
     expect(extractCspObjectSources(undefined)).toBeNull();
     expect(extractCspObjectSources("default-src 'self'")).toBeNull();
     expect(extractCspObjectSources("object-src a; object-src b")).toBeNull();
+  });
+});
+
+describe("CSP base-uri expressions", () => {
+  it("extracts only explicitly configured base-uri sources", () => {
+    expect(extractCspBaseUriSources("default-src 'self'; base-uri 'none'")).toEqual(["'none'"]);
+  });
+  it("does not infer configuration for absent or duplicate base-uri directives", () => {
+    expect(extractCspBaseUriSources(undefined)).toBeNull();
+    expect(extractCspBaseUriSources("default-src 'self'")).toBeNull();
+    expect(extractCspBaseUriSources("base-uri a; base-uri b")).toBeNull();
   });
 });

@@ -75,3 +75,12 @@ export function extractCspObjectSources(value: string | null | undefined): strin
   if (!directive) return null;
   return directive.split(/\s+/).slice(1);
 }
+
+/** Read explicitly declared CSP base-uri sources from a supplied policy. */
+export function extractCspBaseUriSources(value: string | null | undefined): string[] | null {
+  if (!value?.trim() || inventoryCspDirectives(value) === null) return null;
+  const directive = value.split(";").map((part) => part.trim())
+    .find((part) => /^base-uri(?:\s|$)/i.test(part));
+  if (!directive) return null;
+  return directive.split(/\s+/).slice(1);
+}
