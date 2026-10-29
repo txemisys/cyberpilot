@@ -58,3 +58,17 @@ export function extractSpfIncludes(txtRecords: readonly string[]): string[] | nu
   )) return null;
   return targets.map((target) => target.toLowerCase());
 }
+
+/** Inventory explicit exists: mechanisms from one collected SPF policy.
+ * No DNS lookups are performed; null denotes missing or ambiguous input.
+ */
+export function extractSpfExistsDomains(txtRecords: readonly string[]): string[] | null {
+  const inventory = inventorySpfTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tokens = inventory.records[0]!.trim().split(/\s+/).slice(1);
+  const matches = tokens.filter((token) => /^[+~?-]?exists:/i.test(token));
+  const domains = matches.map((token) => token.replace(/^[+~?-]?exists:/i, ""));
+  if (domains.some((domain) => domain.length === 0 || domain.length > 253 ||
+    !/^[a-z0-9_%{}.-]+$/i.test(domain) || domain.includes(".."))) return null;
+  return domains.map((domain) => domain.toLowerCase());
+}

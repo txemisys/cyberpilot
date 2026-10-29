@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventorySpfTxtRecords, extractSpfAllQualifier, extractSpfRedirect, extractSpfIncludes } from "./exposure-spf";
+import { inventorySpfTxtRecords, extractSpfAllQualifier, extractSpfRedirect, extractSpfIncludes, extractSpfExistsDomains } from "./exposure-spf";
 
 describe("passive SPF inventory", () => {
   it("ignores unrelated TXT records and SPF lookalikes", () => {
@@ -54,5 +54,19 @@ describe("passive SPF include mechanisms", () => {
     expect(extractSpfIncludes([])).toBeNull();
     expect(extractSpfIncludes(["v=spf1 include:a.test", "v=spf1 include:b.test"])).toBeNull();
     expect(extractSpfIncludes(["v=spf1 include:bad..test"])).toBeNull();
+  });
+});
+
+describe("passive SPF exists mechanism", () => {
+  it("extracts targets without performing any lookup", () => {
+    expect(extractSpfExistsDomains(["v=spf1 exists:auth.example.test ~exists:%{i}.spf.example.test -all"])).toEqual([
+      "auth.example.test", "%{i}.spf.example.test",
+    ]);
+  });
+  it("does not accept invalid or ambiguous TXT input", () => {
+    expect(extractSpfExistsDomains(["v=spf1 -all"])).toEqual([]);
+    expect(extractSpfExistsDomains([])).toBeNull();
+    expect(extractSpfExistsDomains(["v=spf1 exists:a.test", "v=spf1 exists:b.test"])).toBeNull();
+    expect(extractSpfExistsDomains(["v=spf1 exists:bad..test"])).toBeNull();
   });
 });
