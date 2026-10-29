@@ -24,7 +24,7 @@ export function inventoryMxRecords(records: readonly MxRecord[]): MxInventory {
   });
   // RFC 7505: a null MX is valid only as the sole MX with preference zero.
   if (records.some((record) => record.exchange === ".") &&
-      (unique.length !== 1 || unique[0]!.priority !== 0)) {
+      (records.length !== 1 || records[0]!.priority !== 0)) {
     return { status: "INVALID", records: [] };
   }
   return { status: records.length === 0 ? "MISSING" : records[0]?.exchange === "." ? "NULL_MX" : "PRESENT", records: unique };
