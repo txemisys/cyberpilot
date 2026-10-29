@@ -11,3 +11,19 @@ export function inventorySpfTxtRecords(txtRecords: readonly string[]): SpfRecord
     records,
   };
 }
+
+/** Extract the explicit SPF all mechanism only for a single SPF record.
+ * null means absent or ambiguous; it does not represent SPF pass/fail.
+ */
+export function extractSpfAllQualifier(txtRecords: readonly string[]): "pass" | "fail" | "softfail" | "neutral" | null {
+  const inventory = inventorySpfTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tokens = inventory.records[0]!.trim().split(/\s+/).slice(1);
+  const all = tokens.filter((token) => /^[+~?-]?all$/i.test(token));
+  if (all.length !== 1) return null;
+  const token = all[0]!.toLowerCase();
+  if (token === "-all") return "fail";
+  if (token === "~all") return "softfail";
+  if (token === "?all") return "neutral";
+  return "pass";
+}
