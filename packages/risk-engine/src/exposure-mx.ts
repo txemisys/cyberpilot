@@ -55,3 +55,20 @@ export function summarizeMxRouting(records: readonly MxRecord[]): {
     distinctExchangeCount: new Set(inventory.records.map((record) => record.exchange.toLowerCase().replace(/\.$/, ""))).size,
   };
 }
+
+/** Full passive MX preference groups, suitable for display without delivery claims. */
+export function groupMxByPreference(records: readonly MxRecord[]): {
+  status: MxInventory["status"];
+  groups: Array<{ priority: number; exchanges: string[] }>;
+} {
+  const inventory = inventoryMxRecords(records);
+  if (inventory.status !== "PRESENT") return { status: inventory.status, groups: [] };
+  const priorities = [...new Set(inventory.records.map((record) => record.priority))].sort((a, b) => a - b);
+  return {
+    status: inventory.status,
+    groups: priorities.map((priority) => ({
+      priority,
+      exchanges: inventory.records.filter((record) => record.priority === priority).map((record) => record.exchange),
+    })),
+  };
+}

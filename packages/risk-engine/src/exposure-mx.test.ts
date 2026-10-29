@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryMxRecords, summarizeMxRouting } from "./exposure-mx";
+import { inventoryMxRecords, summarizeMxRouting, groupMxByPreference } from "./exposure-mx";
 
 describe("passive MX inventory", () => {
   it("distinguishes no supplied MX records from present ones", () => {
@@ -97,5 +97,28 @@ describe("MX preference tiers", () => {
       { priority: 20, exchange: "b.example.test" },
       { priority: 10, exchange: "d.example.test" },
     ]).preferenceTiers).toEqual([10, 20, 30]);
+  });
+});
+
+describe("passive MX preference groups", () => {
+  it("groups all levels in ascending preference order, retaining exchanges per tier", () => {
+    expect(groupMxByPreference([
+      { priority: 30, exchange: "backup.test" },
+      { priority: 10, exchange: "primary-a.test" },
+      { priority: 10, exchange: "primary-b.test" },
+      { priority: 20, exchange: "middle.test" },
+    ])).toEqual({
+      status: "PRESENT",
+      groups: [
+        { priority: 10, exchanges: ["primary-a.test", "primary-b.test"] },
+        { priority: 20, exchanges: ["middle.test"] },
+        { priority: 30, exchanges: ["backup.test"] },
+      ],
+    });
+  });
+  it("never infers MX preference groups for missing, null or invalid MX", () => {
+    expect(groupMxByPreference([])).toEqual({ status: "MISSING", groups: [] });
+    expect(groupMxByPreference([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", groups: [] });
+    expect(groupMxByPreference([{ priority: -1, exchange: "mail.test" }])).toEqual({ status: "INVALID", groups: [] });
   });
 });
