@@ -54,6 +54,6 @@ it("45 reversed dates",()=>{expect(summarizeActionWorkspaceTrend([snapshot(1,2),
 it("46 tampered total",()=>{const s=snapshot(1,0);s.totals.open=2;expect(summarizeActionWorkspaceTrend([s],"org-a")).toBeNull();});
 it("47 tampered tenant",()=>{const s=snapshot(1,0);s.organizationId="x";expect(summarizeActionWorkspaceTrend([s],"org-a")).toBeNull();});
 it("48 closed actions change",()=>{const a=snapshot(1,0),b=snapshot(1,1);b.totals.completed=1;b.totals.open=0;b.totals.completionPercent=100;expect(summarizeActionWorkspaceTrend([a,b],"org-a")?.totals.completed).toBe(1);});
-it("49 alert increases",()=>{const a=snapshot(1,0),b=snapshot(1,1);b.alerts.high=1;b.alerts.total=1;expect(summarizeActionWorkspaceTrend([a,b],"org-a")?.totals.alerts).toBe(1);});
+it("49 alert increases",()=>{const a=snapshot(1,0),b=snapshot(1,1);b.alerts.high+=1;b.alerts.total+=1;expect(summarizeActionWorkspaceTrend([a,b],"org-a")?.totals.alerts).toBe(1);});
 it("50 event increases",()=>{const a=snapshot(1,0),b=snapshot(1,1);b.events.accepted=4;expect(summarizeActionWorkspaceTrend([a,b],"org-a")?.totals.acceptedEvents).toBe(4);});
 });
