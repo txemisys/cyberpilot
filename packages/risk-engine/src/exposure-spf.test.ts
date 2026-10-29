@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventorySpfTxtRecords, extractSpfAllQualifier, extractSpfRedirect } from "./exposure-spf";
+import { inventorySpfTxtRecords, extractSpfAllQualifier, extractSpfRedirect, extractSpfIncludes } from "./exposure-spf";
 
 describe("passive SPF inventory", () => {
   it("ignores unrelated TXT records and SPF lookalikes", () => {
@@ -40,5 +40,19 @@ describe("SPF redirect target", () => {
     expect(extractSpfRedirect(["v=spf1 redirect=a.test redirect=b.test"])).toBeNull();
     expect(extractSpfRedirect(["v=spf1 redirect=invalid..test"])).toBeNull();
     expect(extractSpfRedirect(["v=spf1 redirect=a.test", "v=spf1 -all"])).toBeNull();
+  });
+});
+
+describe("passive SPF include mechanisms", () => {
+  it("returns a list of DNS targets but does not resolve them", () => {
+    expect(extractSpfIncludes(["v=spf1 include:_spf.Example.test ~include:backup.example.test -all"])).toEqual([
+      "_spf.example.test", "backup.example.test",
+    ]);
+  });
+  it("returns empty list for no include, and unknown on ambiguous or invalid records", () => {
+    expect(extractSpfIncludes(["v=spf1 -all"])).toEqual([]);
+    expect(extractSpfIncludes([])).toBeNull();
+    expect(extractSpfIncludes(["v=spf1 include:a.test", "v=spf1 include:b.test"])).toBeNull();
+    expect(extractSpfIncludes(["v=spf1 include:bad..test"])).toBeNull();
   });
 });
