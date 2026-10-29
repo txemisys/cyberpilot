@@ -1,7 +1,7 @@
 /** Read-only MX inventory using DNS answers supplied by a trusted caller. No DNS lookups. */
 export type MxRecord = { priority: number; exchange: string };
 export type MxInventory = {
-  status: "MISSING" | "PRESENT" | "INVALID";
+  status: "MISSING" | "PRESENT" | "NULL_MX" | "INVALID";
   records: MxRecord[];
 };
 
@@ -19,5 +19,5 @@ export function inventoryMxRecords(records: readonly MxRecord[]): MxInventory {
       (records.length !== 1 || records[0]!.priority !== 0)) {
     return { status: "INVALID", records: [] };
   }
-  return { status: records.length === 0 ? "MISSING" : "PRESENT", records: [...records] };
+  return { status: records.length === 0 ? "MISSING" : records[0]?.exchange === "." ? "NULL_MX" : "PRESENT", records: [...records] };
 }
