@@ -19,3 +19,8 @@ export function inventoryHttpSecurityHeaders(
     referrerPolicy: status("referrer-policy"),
   };
 }
+
+export function inspectXContentTypeOptions(value: string | null | undefined): "NOSNIFF" | "MISSING" | "INVALID" {
+  if (value == null || value.trim() === "") return "MISSING";
+  return value.trim().toLowerCase() === "nosniff" ? "NOSNIFF" : "INVALID";
+}
