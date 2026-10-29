@@ -1,3 +1,5 @@
+export { auditEvidenceReport } from "./evidence-report-audit";
+export type { ReportIntegrityIssue } from "./evidence-report-audit";
 export { buildEvidenceReport } from "./evidence-report";
 export type { EvidenceReport, EvidenceReportRow } from "./evidence-report";
 export { assessWorkspaceInventory, GOOGLE_WORKSPACE_SCOPES } from "./google-workspace";
