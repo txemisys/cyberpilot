@@ -1,3 +1,5 @@
+export { exportEvidenceCsv, exportEvidenceJson } from "./evidence-report-export";
+export type { ExportResult } from "./evidence-report-export";
 export { auditEvidenceReport } from "./evidence-report-audit";
 export type { ReportIntegrityIssue } from "./evidence-report-audit";
 export { buildEvidenceReport } from "./evidence-report";
