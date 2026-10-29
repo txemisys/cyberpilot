@@ -71,6 +71,8 @@ export function extractSpfExistsDomains(txtRecords: readonly string[]): string[]
   const matches = tokens.filter((token) => /^[+~?-]?exists:/i.test(token));
   const domains = matches.map((token) => token.replace(/^[+~?-]?exists:/i, ""));
   if (domains.some((domain) => domain.length === 0 || domain.length > 253 ||
-    !/^[a-z0-9_%{}.-]+$/i.test(domain) || domain.includes(".."))) return null;
+    !/^[a-z0-9_%{}.-]+$/i.test(domain) || domain.includes("..") ||
+    (!domain.includes("%") && !domain.split(".").every((label) =>
+      label.length >= 1 && label.length <= 63 && /^[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?$/i.test(label))))) return null;
   return domains.map((domain) => domain.toLowerCase());
 }
