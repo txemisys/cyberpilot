@@ -1,3 +1,5 @@
+export { inventoryHttpSecurityHeaders } from "./exposure-http";
+export type { HttpSecurityHeaderInventory } from "./exposure-http";
 export { inventoryDkimTxtRecords } from "./exposure-dkim";
 export type { DkimTxtInventory } from "./exposure-dkim";
 export { inventoryMxRecords, summarizeMxRouting, groupMxByPreference, classifyMxTopology } from "./exposure-mx";
