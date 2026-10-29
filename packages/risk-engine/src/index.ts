@@ -1,3 +1,5 @@
+export { summarizeActionStatus } from "./evidence-action-status";
+export type { ActionStatusDashboard } from "./evidence-action-status";
 export { buildActionTimeline } from "./evidence-action-timeline";
 export type { ActionTimeline, ActionTimelineItem } from "./evidence-action-timeline";
 export { applyActionProgress } from "./evidence-action-progress";
