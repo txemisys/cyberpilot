@@ -1,3 +1,5 @@
+export { inventoryMxRecords } from "./exposure-mx";
+export type { MxRecord, MxInventory } from "./exposure-mx";
 export { extractDmarcFailureReportFormat, extractDmarcReportInterval, extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 export type { DmarcRecordInventory } from "./exposure-dmarc";
 export { inventorySpfTxtRecords } from "./exposure-spf";
