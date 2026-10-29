@@ -7,8 +7,8 @@ describe("passive MX inventory", () => {
     const records = [{ priority: 10, exchange: "mail.example.test." }];
     expect(inventoryMxRecords(records)).toEqual({ status: "PRESENT", records });
   });
-  it("recognizes a null MX record but does not infer mail delivery capability", () => {
-    expect(inventoryMxRecords([{ priority: 0, exchange: "." }]).status).toBe("PRESENT");
+  it("identifies a null MX explicitly rather than reporting a mail exchanger", () => {
+    expect(inventoryMxRecords([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", records: [{ priority: 0, exchange: "." }] });
   });
   it("rejects invalid null MX combinations", () => {
     expect(inventoryMxRecords([{ priority: 10, exchange: "." }]).status).toBe("INVALID");
