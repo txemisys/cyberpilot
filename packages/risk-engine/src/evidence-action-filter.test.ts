@@ -53,6 +53,6 @@ it("45 oversized limit",()=>{expect(filterActionPlan(plan(1),"org-a",{limit:1001
 it("46 empty result",()=>{expect(filterActionPlan(plan(0),"org-a")?.total).toBe(0);});
 it("47 filter HIGH",()=>{expect(filterActionPlan(plan(2),"org-a",{priority:"HIGH"})?.total).toBe(2);});
 it("48 filter TODO",()=>{expect(filterActionPlan(plan(2),"org-a",{status:"TODO"})?.total).toBe(2);});
-it("49 filter query",()=>{expect(filterActionPlan(plan(2),"org-a",{query:"id01"})?.items[0]?.id).toBe("id1");});
+it("49 filter query",()=>{expect(filterActionPlan(plan(2),"org-a",{query:"id01"})?.items[0]?.id).toBe("id01");});
 it("50 bad asOf",()=>{expect(filterActionPlan(plan(1),"org-a",{},"bad")).toBeNull();});
 });
