@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives, extractCspScriptSources, extractCspDefaultSources } from "./exposure-http";
+import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives, extractCspScriptSources, extractCspDefaultSources, extractCspObjectSources } from "./exposure-http";
 
 describe("passive HTTP security header inventory", () => {
   it("returns missing for unavailable headers", () => {
@@ -87,5 +87,16 @@ describe("CSP default-src expressions", () => {
     expect(extractCspDefaultSources(undefined)).toBeNull();
     expect(extractCspDefaultSources("script-src 'self'")).toBeNull();
     expect(extractCspDefaultSources("default-src a; default-src b")).toBeNull();
+  });
+});
+
+describe("CSP object-src expressions", () => {
+  it("extracts explicit object-src tokens", () => {
+    expect(extractCspObjectSources("default-src 'self'; object-src 'none'")).toEqual(["'none'"]);
+  });
+  it("does not infer missing or ambiguous object-src", () => {
+    expect(extractCspObjectSources(undefined)).toBeNull();
+    expect(extractCspObjectSources("default-src 'self'")).toBeNull();
+    expect(extractCspObjectSources("object-src a; object-src b")).toBeNull();
   });
 });

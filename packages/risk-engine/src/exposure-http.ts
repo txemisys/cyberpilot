@@ -66,3 +66,12 @@ export function extractCspDefaultSources(value: string | null | undefined): stri
   if (!directive) return null;
   return directive.split(/\s+/).slice(1);
 }
+
+/** Read explicit object-src expressions only; no browser enforcement evaluation. */
+export function extractCspObjectSources(value: string | null | undefined): string[] | null {
+  if (!value?.trim() || inventoryCspDirectives(value) === null) return null;
+  const directive = value.split(";").map((part) => part.trim())
+    .find((part) => /^object-src(?:\s|$)/i.test(part));
+  if (!directive) return null;
+  return directive.split(/\s+/).slice(1);
+}
