@@ -14,6 +14,9 @@ export function inventoryMxRecords(records: readonly MxRecord[]): MxInventory {
     typeof record.exchange !== "string" ||
     (record.exchange !== "." && !/^(?=.{1,253}\.?$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.?$/i.test(record.exchange))
   )) return { status: "INVALID", records: [] };
+  // Reject duplicate identical MX answers rather than counting them as independent exchangers.
+  const keys = records.map((record) => `${record.priority}:${record.exchange.toLowerCase().replace(/\\.$/, "")}`);
+  if (new Set(keys).size !== keys.length) return { status: "INVALID", records: [] };
   // RFC 7505: a null MX is valid only as the sole MX with preference zero.
   if (records.some((record) => record.exchange === ".") &&
       (records.length !== 1 || records[0]!.priority !== 0)) {
