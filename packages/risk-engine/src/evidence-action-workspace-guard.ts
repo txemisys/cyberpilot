@@ -9,7 +9,7 @@ export function validateActionWorkspacePlan(plan:ActionPlan,organizationId:strin
  const ids=new Set<string>();
  for(const a of plan.actions){
   if(!a.id||ids.has(a.id)||a.state!=="PROPOSED"||a.verifiedRisk!==false||
-   !statuses.has(a.status)||!priorities.has(a.priority)||!["WEB","EMAIL","IDENTITY","ENDPOINT","CLOUD","DATA","GOVERNANCE"].includes(a.domain)||
+   !statuses.has(a.status)||!priorities.has(a.priority)||
    (a.owner!==null&&(typeof a.owner!=="string"||a.owner.length>160))||
    (a.notes!==null&&(typeof a.notes!=="string"||a.notes.length>2000))||
    (a.dueDate!==null&&!date(a.dueDate)))return false;
