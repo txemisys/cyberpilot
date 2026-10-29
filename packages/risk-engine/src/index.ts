@@ -1,3 +1,7 @@
+export { BASELINE_IG1_QUESTIONS, BASELINE_QUESTIONNAIRE_VERSION } from "./baseline-questions";
+export type { BaselineDomain, BaselineAnswer, BaselineQuestion, BaselineResponse, BaselineSubmission } from "./baseline-questions";
+export { validateBaselineSubmission, summarizeBaseline } from "./baseline-evaluation";
+export type { BaselineValidation, BaselineSummary } from "./baseline-evaluation";
 export { normalizeTlsDnsNames, tlsNameMatches, inspectTlsTransport } from "./exposure-tls-names";
 export type { TlsTransportMetadata } from "./exposure-tls-names";
 export { classifyHttpStatus, inspectHttpScheme, inspectRedirect, inventoryResponseHeaders, inspectPermissionsPolicy, inspectXFrameOptions } from "./exposure-http-observation";
