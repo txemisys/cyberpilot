@@ -116,3 +116,14 @@ export function extractDmarcReportInterval(txtRecords: readonly string[]): numbe
   const interval = Number(parts[1]!.trim());
   return Number.isSafeInteger(interval) && interval > 0 ? interval : null;
 }
+
+/** Explicit DMARC failure-report format; no assumption about receiver support. */
+export function extractDmarcFailureReportFormat(txtRecords: readonly string[]): "afrf" | null {
+  const inventory = inventoryDmarcTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tags = inventory.records[0]!.split(";").slice(1).map((tag) => tag.trim());
+  const values = tags.filter((tag) => tag.split("=")[0]?.trim().toLowerCase() === "rf");
+  if (values.length !== 1) return null;
+  const pieces = values[0]!.split("=");
+  return pieces.length === 2 && pieces[1]!.trim().toLowerCase() === "afrf" ? "afrf" : null;
+}
