@@ -23,6 +23,10 @@ describe("passive MX inventory", () => {
       ],
     });
   });
+  it("retains distinct MX priorities for the same exchange", () => {
+    const result = inventoryMxRecords([{ priority: 10, exchange: "mail.example.test" }, { priority: 20, exchange: "MAIL.EXAMPLE.TEST." }]);
+    expect(result.records).toHaveLength(2);
+  });
   it("rejects invalid null MX combinations", () => {
     expect(inventoryMxRecords([{ priority: 10, exchange: "." }]).status).toBe("INVALID");
     expect(inventoryMxRecords([{ priority: 0, exchange: "." }, { priority: 10, exchange: "mail.example.test" }]).status).toBe("INVALID");
