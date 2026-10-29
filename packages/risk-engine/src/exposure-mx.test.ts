@@ -10,6 +10,19 @@ describe("passive MX inventory", () => {
   it("identifies a null MX explicitly rather than reporting a mail exchanger", () => {
     expect(inventoryMxRecords([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", records: [{ priority: 0, exchange: "." }] });
   });
+  it("deduplicates case-insensitive equivalent MX answers", () => {
+    expect(inventoryMxRecords([
+      { priority: 10, exchange: "MAIL.EXAMPLE.TEST." },
+      { priority: 10, exchange: "mail.example.test" },
+      { priority: 20, exchange: "backup.example.test" },
+    ])).toEqual({
+      status: "PRESENT",
+      records: [
+        { priority: 10, exchange: "MAIL.EXAMPLE.TEST." },
+        { priority: 20, exchange: "backup.example.test" },
+      ],
+    });
+  });
   it("rejects invalid null MX combinations", () => {
     expect(inventoryMxRecords([{ priority: 10, exchange: "." }]).status).toBe("INVALID");
     expect(inventoryMxRecords([{ priority: 0, exchange: "." }, { priority: 10, exchange: "mail.example.test" }]).status).toBe("INVALID");
