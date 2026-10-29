@@ -1,3 +1,5 @@
+export { buildActionWorkspaceSnapshot, serializeActionWorkspaceSnapshot } from "./evidence-action-workspace-snapshot";
+export type { ActionWorkspaceSnapshot } from "./evidence-action-workspace-snapshot";
 export { validateActionWorkspacePlan } from "./evidence-action-workspace-guard";
 export { buildActionWorkspace } from "./evidence-action-workspace";
 export { exportActionAlertDigest } from "./evidence-action-alert-export";
