@@ -15,6 +15,12 @@ describe("passive MX inventory", () => {
     expect(inventoryMxRecords([{ priority: 0, exchange: "." }, { priority: 10, exchange: "mail.example.test" }]).status).toBe("INVALID");
     expect(inventoryMxRecords([{ priority: 0, exchange: "." }, { priority: 0, exchange: "." }]).status).toBe("INVALID");
   });
+  it("rejects DNS host labels longer than 63 characters", () => {
+    const oversized = "a".repeat(64) + ".example.test";
+    expect(inventoryMxRecords([{ priority: 10, exchange: oversized }]).status).toBe("INVALID");
+    expect(inventoryMxRecords([{ priority: 10, exchange: "-mail.example.test" }]).status).toBe("INVALID");
+    expect(inventoryMxRecords([{ priority: 10, exchange: "mail-.example.test" }]).status).toBe("INVALID");
+  });
   it("fails closed on malformed priority or hostname", () => {
     expect(inventoryMxRecords([{ priority: -1, exchange: "mx.example.test" }]).status).toBe("INVALID");
     expect(inventoryMxRecords([{ priority: 65536, exchange: "mx.example.test" }]).status).toBe("INVALID");
