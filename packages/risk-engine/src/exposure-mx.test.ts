@@ -61,12 +61,13 @@ describe("passive MX routing summary", () => {
       distinctExchangeCount: 3,
       lowestPreference: 10,
       preferenceTiers: [10, 20],
+      preferenceTierCount: 2,
     });
   });
   it("does not mistake null MX or invalid data for a routable mail exchange", () => {
-    expect(summarizeMxRouting([])).toEqual({ status: "MISSING", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [] });
-    expect(summarizeMxRouting([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [] });
-    expect(summarizeMxRouting([{ priority: -1, exchange: "broken.test" }])).toEqual({ status: "INVALID", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [] });
+    expect(summarizeMxRouting([])).toEqual({ status: "MISSING", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [], preferenceTierCount: 0 });
+    expect(summarizeMxRouting([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [], preferenceTierCount: 0 });
+    expect(summarizeMxRouting([{ priority: -1, exchange: "broken.test" }])).toEqual({ status: "INVALID", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [], preferenceTierCount: 0 });
   });
 });
 
@@ -81,6 +82,14 @@ describe("MX distinct-host metric", () => {
 });
 
 describe("MX preference tiers", () => {
+  it("counts unique priority tiers", () => {
+    expect(summarizeMxRouting([
+      { priority: 5, exchange: "a.test" },
+      { priority: 5, exchange: "b.test" },
+      { priority: 20, exchange: "c.test" },
+    ]).preferenceTierCount).toBe(2);
+  });
+
   it("orders unique preference values without modifying the source order", () => {
     expect(summarizeMxRouting([
       { priority: 30, exchange: "c.example.test" },
