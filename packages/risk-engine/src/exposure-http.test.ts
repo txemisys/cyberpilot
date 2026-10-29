@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives } from "./exposure-http";
+import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives, extractCspScriptSources } from "./exposure-http";
 
 describe("passive HTTP security header inventory", () => {
   it("returns missing for unavailable headers", () => {
@@ -63,5 +63,18 @@ describe("CSP directive inventory", () => {
     expect(inventoryCspDirectives("   ")).toBeNull();
     expect(inventoryCspDirectives("script-src a; script-src b")).toBeNull();
     expect(inventoryCspDirectives("invalid@directive x")).toBeNull();
+  });
+});
+
+describe("CSP script-src expressions", () => {
+  it("extracts only explicit script-src tokens", () => {
+    expect(extractCspScriptSources("default-src 'self'; script-src 'self' https://scripts.example.test")).toEqual(["'self'", "https://scripts.example.test"]);
+    expect(extractCspScriptSources("script-src 'none'")).toEqual(["'none'"]);
+  });
+  it("returns unknown for missing, ambiguous or invalid policies", () => {
+    expect(extractCspScriptSources(undefined)).toBeNull();
+    expect(extractCspScriptSources("default-src 'self'")).toBeNull();
+    expect(extractCspScriptSources("script-src a; script-src b")).toBeNull();
+    expect(extractCspScriptSources("bad@directive a; script-src b")).toBeNull();
   });
 });
