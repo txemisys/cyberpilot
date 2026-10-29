@@ -6,7 +6,7 @@ export type BaselineAnswer = "YES" | "PARTIAL" | "NO" | "UNKNOWN" | "NOT_APPLICA
 export type BaselineQuestion = { id: string; domain: BaselineDomain; prompt: string; guidance: string; evidenceHint: string };
 export type BaselineResponse = { questionId: string; answer: BaselineAnswer; notes?: string | null; evidenceReference?: string | null };
 export type BaselineSubmission = { organizationId: string; submittedAt: string; responses: readonly BaselineResponse[]; questionnaireVersion: 1 };
-export const BASELINE_IG1_QUESTIONS: readonly BaselineQuestion[] = [
+export const BASELINE_IG1_QUESTIONS: readonly BaselineQuestion[] = ([
   ["ASSETS","inventory-hardware","¿Se mantiene un inventario actualizado de dispositivos?","Registrar propietario y última revisión","CSV o registro de activos"],
   ["ASSETS","unknown-devices","¿Se identifican dispositivos desconocidos?","Documentar proceso de detección","Procedimiento"],
   ["ASSETS","asset-owners","¿Cada activo tiene responsable asignado?","Identificar responsable operativo","Inventario"],
