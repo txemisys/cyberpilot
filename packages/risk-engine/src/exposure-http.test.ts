@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives, extractCspScriptSources, extractCspDefaultSources, extractCspObjectSources, extractCspBaseUriSources } from "./exposure-http";
+import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives, extractCspScriptSources, extractCspDefaultSources, extractCspObjectSources, extractCspBaseUriSources, extractCspFrameAncestors } from "./exposure-http";
 
 describe("passive HTTP security header inventory", () => {
   it("returns missing for unavailable headers", () => {
@@ -109,5 +109,16 @@ describe("CSP base-uri expressions", () => {
     expect(extractCspBaseUriSources(undefined)).toBeNull();
     expect(extractCspBaseUriSources("default-src 'self'")).toBeNull();
     expect(extractCspBaseUriSources("base-uri a; base-uri b")).toBeNull();
+  });
+});
+
+describe("CSP frame-ancestors expressions", () => {
+  it("extracts explicitly configured frame-ancestors sources", () => {
+    expect(extractCspFrameAncestors("default-src 'self'; frame-ancestors 'none'")).toEqual(["'none'"]);
+  });
+  it("does not infer absent or ambiguous frame-ancestors policy", () => {
+    expect(extractCspFrameAncestors(undefined)).toBeNull();
+    expect(extractCspFrameAncestors("default-src 'self'")).toBeNull();
+    expect(extractCspFrameAncestors("frame-ancestors a; frame-ancestors b")).toBeNull();
   });
 });
