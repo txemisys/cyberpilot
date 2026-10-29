@@ -1,3 +1,5 @@
+export { exportActionPlanCsv, exportActionPlanJson } from "./evidence-action-export";
+export type { ActionPlanExport } from "./evidence-action-export";
 export { summarizeActionStatus } from "./evidence-action-status";
 export type { ActionStatusDashboard } from "./evidence-action-status";
 export { buildActionTimeline } from "./evidence-action-timeline";
