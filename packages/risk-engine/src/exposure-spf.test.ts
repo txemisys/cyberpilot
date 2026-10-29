@@ -74,5 +74,8 @@ describe("passive SPF exists mechanism", () => {
     expect(extractSpfExistsDomains([])).toBeNull();
     expect(extractSpfExistsDomains(["v=spf1 exists:a.test", "v=spf1 exists:b.test"])).toBeNull();
     expect(extractSpfExistsDomains(["v=spf1 exists:bad..test"])).toBeNull();
+    expect(extractSpfExistsDomains(["v=spf1 exists:-bad.test"])).toBeNull();
+    expect(extractSpfExistsDomains(["v=spf1 exists:bad-.test"])).toBeNull();
+    expect(extractSpfExistsDomains(["v=spf1 exists:" + "a".repeat(64) + ".test"])).toBeNull();
   });
 });
