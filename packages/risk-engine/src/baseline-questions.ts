@@ -1,0 +1,61 @@
+/** A provider-neutral, read-only baseline questionnaire.
+ * CIS IG1 themes are mapped editorially; this is not a certified CIS assessment.
+ */
+export type BaselineDomain = "ASSETS" | "SOFTWARE" | "DATA" | "CONFIGURATION" | "ACCOUNTS" | "ACCESS" | "VULNERABILITIES" | "LOGGING" | "EMAIL_WEB" | "MALWARE" | "RECOVERY" | "NETWORK" | "AWARENESS" | "SERVICE_PROVIDERS" | "APPLICATIONS" | "INCIDENT_RESPONSE" | "TESTING";
+export type BaselineAnswer = "YES" | "PARTIAL" | "NO" | "UNKNOWN" | "NOT_APPLICABLE";
+export type BaselineQuestion = { id: string; domain: BaselineDomain; prompt: string; guidance: string; evidenceHint: string };
+export type BaselineResponse = { questionId: string; answer: BaselineAnswer; notes?: string | null; evidenceReference?: string | null };
+export type BaselineSubmission = { organizationId: string; submittedAt: string; responses: readonly BaselineResponse[]; questionnaireVersion: 1 };
+export const BASELINE_IG1_QUESTIONS: readonly BaselineQuestion[] = ([
+  ["ASSETS","inventory-hardware","¿Se mantiene un inventario actualizado de dispositivos?","Registrar propietario y última revisión","CSV o registro de activos"],
+  ["ASSETS","unknown-devices","¿Se identifican dispositivos desconocidos?","Documentar proceso de detección","Procedimiento"],
+  ["ASSETS","asset-owners","¿Cada activo tiene responsable asignado?","Identificar responsable operativo","Inventario"],
+  ["SOFTWARE","inventory-software","¿Existe inventario de software autorizado?","Documentar versiones y responsables","Inventario"],
+  ["SOFTWARE","unauthorized-software","¿Se detecta software no autorizado?","Describir revisiones periódicas","Registro de revisión"],
+  ["SOFTWARE","software-support","¿Se detecta software sin soporte?","Controlar fecha de fin de soporte","Lista de versiones"],
+  ["DATA","data-catalog","¿Se identifican los datos sensibles?","Clasificar tipos de información","Catálogo"],
+  ["DATA","data-handling","¿Hay reglas documentadas de tratamiento de datos?","Definir acceso y retención","Política"],
+  ["DATA","data-disposal","¿Se eliminan datos de forma segura?","Documentar borrado","Procedimiento"],
+  ["CONFIGURATION","secure-config","¿Existen configuraciones seguras estándar?","Mantener configuración base","Plantilla"],
+  ["CONFIGURATION","config-review","¿Se revisan los cambios de configuración?","Registrar cambios","Historial"],
+  ["CONFIGURATION","device-lock","¿Se bloquean automáticamente los equipos?","Definir inactividad máxima","Política"],
+  ["ACCOUNTS","account-inventory","¿Existe inventario de cuentas?","Incluir cuentas técnicas","Listado"],
+  ["ACCOUNTS","offboarding","¿Se retiran accesos al salir una persona?","Definir plazo y responsable","Checklist"],
+  ["ACCOUNTS","inactive-accounts","¿Se revisan las cuentas inactivas?","Periodicidad definida","Informe"],
+  ["ACCESS","mfa","¿Se utiliza MFA en los servicios relevantes?","Distinguir obligatorio de opcional","Política MFA"],
+  ["ACCESS","least-privilege","¿Se aplica mínimo privilegio?","Justificar privilegios","Matriz"],
+  ["ACCESS","admin-separation","¿Se separan cuentas administrativas?","Evitar uso cotidiano","Listado"],
+  ["VULNERABILITIES","patch-inventory","¿Se identifican actualizaciones pendientes?","Contar con proceso","Reporte"],
+  ["VULNERABILITIES","patch-deadlines","¿Hay plazos de corrección por gravedad?","Definir SLA","Procedimiento"],
+  ["VULNERABILITIES","patch-exceptions","¿Se registran excepciones?","Documentar riesgo y vencimiento","Registro"],
+  ["LOGGING","audit-logs","¿Se recopilan logs de seguridad?","Enumerar fuentes","Configuración"],
+  ["LOGGING","log-retention","¿Está definida la retención de logs?","Considerar regulación","Política"],
+  ["LOGGING","log-review","¿Se revisan alertas y eventos?","Asignar responsables","Bitácora"],
+  ["EMAIL_WEB","email-protection","¿Se usan medidas contra phishing y suplantación?","Describir SPF/DKIM/DMARC","Configuración"],
+  ["EMAIL_WEB","dns-protection","¿Se controlan cambios DNS?","Restringir permisos","Historial"],
+  ["EMAIL_WEB","browser-security","¿Se gestionan ajustes del navegador?","Endurecimiento y actualizaciones","Política"],
+  ["MALWARE","endpoint-protection","¿Se protege el endpoint frente a malware?","Cobertura y actualizaciones","Consola"],
+  ["MALWARE","malware-alerts","¿Se revisan alertas de malware?","Escalado documentado","Alertas"],
+  ["MALWARE","removable-media","¿Se controla el uso de medios extraíbles?","Definir excepciones","Política"],
+  ["RECOVERY","backups","¿Existen copias de seguridad de datos críticos?","Cobertura y frecuencia","Plan"],
+  ["RECOVERY","restore-tests","¿Se realizan restauraciones de prueba?","Anotar última ejecución","Evidencia"],
+  ["RECOVERY","backup-protection","¿Se protegen copias frente a modificaciones?","Revisar permisos e inmutabilidad","Configuración"],
+  ["NETWORK","network-inventory","¿Se conoce la topología de red?","Mantener diagrama","Diagrama"],
+  ["NETWORK","network-segmentation","¿Se separan redes según riesgo?","Documentar segmentos","Reglas"],
+  ["NETWORK","wifi-security","¿Se gestionan accesos Wi-Fi seguros?","Distinguir invitados","Configuración"],
+  ["AWARENESS","security-training","¿Hay formación básica de ciberseguridad?","Cobertura y frecuencia","Registro"],
+  ["AWARENESS","phishing-reporting","¿Saben los usuarios informar sospechas?","Canal de reporte","Instrucciones"],
+  ["AWARENESS","training-review","¿Se actualiza el contenido formativo?","Plan de revisión","Calendario"],
+  ["SERVICE_PROVIDERS","provider-inventory","¿Se inventarían proveedores relevantes?","Indicar servicio y responsable","Listado"],
+  ["SERVICE_PROVIDERS","provider-risk","¿Se evalúan riesgos de terceros?","Priorizar críticos","Evaluación"],
+  ["SERVICE_PROVIDERS","provider-offboarding","¿Se revocan accesos de proveedores al terminar?","Comprobar credenciales","Checklist"],
+  ["APPLICATIONS","app-inventory","¿Se inventarían aplicaciones internas?","Indicar propietarios","Inventario"],
+  ["APPLICATIONS","app-updates","¿Se actualizan aplicaciones críticas?","Definir responsables","Plan"],
+  ["APPLICATIONS","app-access","¿Se revisan permisos de aplicaciones?","Controles de acceso","Matriz"],
+  ["INCIDENT_RESPONSE","incident-plan","¿Existe plan de respuesta a incidentes?","Roles y contactos","Plan"],
+  ["INCIDENT_RESPONSE","incident-reporting","¿Hay canal para comunicar incidentes?","Definir tiempos","Procedimiento"],
+  ["INCIDENT_RESPONSE","incident-exercises","¿Se practica la respuesta a incidentes?","Registrar simulacros","Acta"],
+  ["TESTING","security-reviews","¿Se revisan controles de seguridad periódicamente?","Definir calendario","Informes"],
+  ["TESTING","remediation-tracking","¿Se sigue el cierre de acciones de mejora?","Registrar responsable y plazo","Tablero"],
+] satisfies readonly [BaselineDomain, string, string, string, string][]).map(([domain,id,prompt,guidance,evidenceHint]) => ({ domain, id, prompt, guidance, evidenceHint }));
+export const BASELINE_QUESTIONNAIRE_VERSION = 1 as const;
