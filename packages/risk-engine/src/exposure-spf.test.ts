@@ -57,6 +57,9 @@ describe("passive SPF include mechanisms", () => {
     expect(extractSpfIncludes([])).toBeNull();
     expect(extractSpfIncludes(["v=spf1 include:a.test", "v=spf1 include:b.test"])).toBeNull();
     expect(extractSpfIncludes(["v=spf1 include:bad..test"])).toBeNull();
+    expect(extractSpfIncludes(["v=spf1 include:bad-.test"])).toBeNull();
+    expect(extractSpfIncludes(["v=spf1 include:-bad.test"])).toBeNull();
+    expect(extractSpfIncludes(["v=spf1 include:" + "a".repeat(64) + ".test"])).toBeNull();
   });
 });
 
