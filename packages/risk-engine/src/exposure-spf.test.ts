@@ -39,6 +39,9 @@ describe("SPF redirect target", () => {
     expect(extractSpfRedirect(["v=spf1 -all"])).toBeNull();
     expect(extractSpfRedirect(["v=spf1 redirect=a.test redirect=b.test"])).toBeNull();
     expect(extractSpfRedirect(["v=spf1 redirect=invalid..test"])).toBeNull();
+    expect(extractSpfRedirect(["v=spf1 redirect=bad-.test"])).toBeNull();
+    expect(extractSpfRedirect(["v=spf1 redirect=-bad.test"])).toBeNull();
+    expect(extractSpfRedirect(["v=spf1 redirect=" + "a".repeat(64) + ".test"])).toBeNull();
     expect(extractSpfRedirect(["v=spf1 redirect=a.test", "v=spf1 -all"])).toBeNull();
   });
 });
