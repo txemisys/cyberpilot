@@ -4,7 +4,7 @@ export { inventoryMxRecords, summarizeMxRouting, groupMxByPreference, classifyMx
 export type { MxRecord, MxInventory } from "./exposure-mx";
 export { extractDmarcFailureReportFormat, extractDmarcReportInterval, extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 export type { DmarcRecordInventory } from "./exposure-dmarc";
-export { inventorySpfTxtRecords, extractSpfAllQualifier, extractSpfRedirect } from "./exposure-spf";
+export { inventorySpfTxtRecords, extractSpfAllQualifier, extractSpfRedirect, extractSpfIncludes } from "./exposure-spf";
 export type { SpfRecordInventory } from "./exposure-spf";
 export { summarizeEvidenceControlCoverage } from "./evidence";
 export { summarizeEvidenceCoverage } from "./evidence";
