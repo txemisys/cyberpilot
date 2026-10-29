@@ -10,6 +10,11 @@ describe("passive MX inventory", () => {
   it("recognizes a null MX record but does not infer mail delivery capability", () => {
     expect(inventoryMxRecords([{ priority: 0, exchange: "." }]).status).toBe("PRESENT");
   });
+  it("rejects invalid null MX combinations", () => {
+    expect(inventoryMxRecords([{ priority: 10, exchange: "." }]).status).toBe("INVALID");
+    expect(inventoryMxRecords([{ priority: 0, exchange: "." }, { priority: 10, exchange: "mail.example.test" }]).status).toBe("INVALID");
+    expect(inventoryMxRecords([{ priority: 0, exchange: "." }, { priority: 0, exchange: "." }]).status).toBe("INVALID");
+  });
   it("fails closed on malformed priority or hostname", () => {
     expect(inventoryMxRecords([{ priority: -1, exchange: "mx.example.test" }]).status).toBe("INVALID");
     expect(inventoryMxRecords([{ priority: 65536, exchange: "mx.example.test" }]).status).toBe("INVALID");
