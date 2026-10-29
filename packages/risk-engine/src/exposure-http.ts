@@ -57,3 +57,12 @@ export function extractCspScriptSources(value: string | null | undefined): strin
   if (!directive) return null;
   return directive.split(/\s+/).slice(1);
 }
+
+/** Inventory explicit default-src expressions; do not infer effective fallback policies. */
+export function extractCspDefaultSources(value: string | null | undefined): string[] | null {
+  if (!value?.trim() || inventoryCspDirectives(value) === null) return null;
+  const directive = value.split(";").map((part) => part.trim())
+    .find((part) => /^default-src(?:\s|$)/i.test(part));
+  if (!directive) return null;
+  return directive.split(/\s+/).slice(1);
+}
