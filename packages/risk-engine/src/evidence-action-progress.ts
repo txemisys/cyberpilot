@@ -20,7 +20,7 @@ export function applyActionProgress(plan: ActionPlan, events: readonly ActionPro
     if(event.organizationId!==plan.organizationId){reject("FOREIGN_TENANT");continue;}
     const action=current.get(event.actionId);
     if(!action){reject("UNKNOWN_ACTION");continue;}
-    if(typeof event.at!=="string"||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(event.at)||!Number.isFinite(Date.parse(event.at))||new Date(Date.parse(event.at)).toISOString()!==event.at.replace(/\.0+Z$/,".000Z")){reject("INVALID_TIME");continue;}
+    if(typeof event.at!=="string"||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(event.at)||!Number.isFinite(Date.parse(event.at))||new Date(Date.parse(event.at)).toISOString().slice(0,19)!==event.at.slice(0,19)){reject("INVALID_TIME");continue;}
     const ts=Date.parse(event.at);
     const fingerprint=JSON.stringify([event.actionId,event.at,event.status]);
     if(seen.has(fingerprint)){reject("DUPLICATE_EVENT");continue;}
