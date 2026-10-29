@@ -1,3 +1,4 @@
+export { validateActionWorkspacePlan } from "./evidence-action-workspace-guard";
 export { buildActionWorkspace } from "./evidence-action-workspace";
 export { exportActionAlertDigest } from "./evidence-action-alert-export";
 export type { ActionAlertExport } from "./evidence-action-alert-export";
