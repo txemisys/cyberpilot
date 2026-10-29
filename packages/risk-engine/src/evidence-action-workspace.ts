@@ -1,3 +1,4 @@
+import { validateActionWorkspacePlan } from "./evidence-action-workspace-guard";
 import type { ActionPlan } from "./evidence-action-plan";
 import type { ActionProgressEvent } from "./evidence-action-progress";
 import { applyActionProgress } from "./evidence-action-progress";
@@ -9,7 +10,7 @@ import { filterActionPlan } from "./evidence-action-filter";
 import type { ActionFilter } from "./evidence-action-filter";
 /** An offline, tenant-scoped view that composes the action workflow. Never persists or sends alerts. */
 export function buildActionWorkspace(plan:ActionPlan,events:readonly ActionProgressEvent[],organizationId:string,asOf:string,options:ActionFilter = {}) {
- if(!organizationId||organizationId!==plan.organizationId)return null;
+ if(!validateActionWorkspacePlan(plan,organizationId,asOf))return null;
  const progressed=applyActionProgress(plan,events,asOf);
  const timeline=buildActionTimeline(plan,events,asOf);
  const dashboard=summarizeActionStatus(progressed.plan,timeline,organizationId);
