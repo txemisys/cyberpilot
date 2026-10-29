@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryMxRecords, summarizeMxRouting, groupMxByPreference } from "./exposure-mx";
+import { inventoryMxRecords, summarizeMxRouting, groupMxByPreference, classifyMxTopology } from "./exposure-mx";
 
 describe("passive MX inventory", () => {
   it("distinguishes no supplied MX records from present ones", () => {
@@ -136,5 +136,22 @@ describe("MX preference grouping normalization", () => {
         { priority: 20, exchanges: ["backup.example.test"] },
       ],
     });
+  });
+});
+
+describe("passive MX topology", () => {
+  it("distinguishes null MX, unavailable, single and multiple hosts", () => {
+    expect(classifyMxTopology([])).toBe("UNKNOWN");
+    expect(classifyMxTopology([{ priority: 0, exchange: "." }])).toBe("NO_MAIL");
+    expect(classifyMxTopology([{ priority: -1, exchange: "bad.test" }])).toBe("UNKNOWN");
+    expect(classifyMxTopology([{ priority: 10, exchange: "mail.test" }])).toBe("SINGLE_HOST");
+    expect(classifyMxTopology([
+      { priority: 10, exchange: "MAIL.TEST." },
+      { priority: 20, exchange: "mail.test" },
+    ])).toBe("SINGLE_HOST");
+    expect(classifyMxTopology([
+      { priority: 10, exchange: "mail.test" },
+      { priority: 20, exchange: "backup.test" },
+    ])).toBe("MULTI_HOST");
   });
 });

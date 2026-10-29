@@ -1,4 +1,4 @@
-export { inventoryMxRecords, summarizeMxRouting, groupMxByPreference } from "./exposure-mx";
+export { inventoryMxRecords, summarizeMxRouting, groupMxByPreference, classifyMxTopology } from "./exposure-mx";
 export type { MxRecord, MxInventory } from "./exposure-mx";
 export { extractDmarcFailureReportFormat, extractDmarcReportInterval, extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 export type { DmarcRecordInventory } from "./exposure-dmarc";

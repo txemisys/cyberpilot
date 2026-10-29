@@ -72,3 +72,11 @@ export function groupMxByPreference(records: readonly MxRecord[]): {
     })),
   };
 }
+
+/** Passive topology classification; does not measure availability or deliverability. */
+export function classifyMxTopology(records: readonly MxRecord[]): "UNKNOWN" | "NO_MAIL" | "SINGLE_HOST" | "MULTI_HOST" {
+  const summary = summarizeMxRouting(records);
+  if (summary.status === "NULL_MX") return "NO_MAIL";
+  if (summary.status !== "PRESENT") return "UNKNOWN";
+  return summary.distinctExchangeCount > 1 ? "MULTI_HOST" : "SINGLE_HOST";
+}
