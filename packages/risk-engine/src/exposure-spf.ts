@@ -41,3 +41,20 @@ export function extractSpfRedirect(txtRecords: readonly string[]): string | null
   if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(target) || target.includes("..")) return null;
   return target.toLowerCase();
 }
+
+/** Inventory explicit include mechanisms in a single pre-collected SPF record.
+ * Returns null for absent or ambiguous SPF records, never resolves includes.
+ */
+export function extractSpfIncludes(txtRecords: readonly string[]): string[] | null {
+  const inventory = inventorySpfTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tokens = inventory.records[0]!.trim().split(/\s+/).slice(1);
+  const includes = tokens.filter((token) => /^[+~?-]?include:/i.test(token));
+  const targets = includes.map((token) => token.replace(/^[+~?-]?include:/i, ""));
+  if (targets.some((target) =>
+    target.length > 253 ||
+    !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(target) ||
+    target.includes("..")
+  )) return null;
+  return targets.map((target) => target.toLowerCase());
+}
