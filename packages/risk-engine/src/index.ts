@@ -1,3 +1,5 @@
+export { suggestActionAlerts } from "./evidence-action-alerts";
+export type { ActionAlert } from "./evidence-action-alerts";
 export { filterActionPlan } from "./evidence-action-filter";
 export type { ActionFilter, ActionFilterResult } from "./evidence-action-filter";
 export { exportActionPlanCsv, exportActionPlanJson } from "./evidence-action-export";
