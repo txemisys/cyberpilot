@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryMxRecords } from "./exposure-mx";
+import { inventoryMxRecords, summarizeMxRouting } from "./exposure-mx";
 
 describe("passive MX inventory", () => {
   it("distinguishes no supplied MX records from present ones", () => {
@@ -44,5 +44,25 @@ describe("passive MX inventory", () => {
     expect(inventoryMxRecords([{ priority: 1.5, exchange: "mx.example.test" }]).status).toBe("INVALID");
     expect(inventoryMxRecords([{ priority: 10, exchange: "bad host" }]).status).toBe("INVALID");
     expect(inventoryMxRecords([{ priority: 10, exchange: "mx.example.test" }, { priority: 20, exchange: "" }])).toEqual({ status: "INVALID", records: [] });
+  });
+});
+
+describe("passive MX routing summary", () => {
+  it("groups equal-minimum preference routes and backup routes", () => {
+    expect(summarizeMxRouting([
+      { priority: 20, exchange: "backup.test" },
+      { priority: 10, exchange: "primary-a.test" },
+      { priority: 10, exchange: "primary-b.test" },
+      { priority: 10, exchange: "PRIMARY-A.TEST." },
+    ])).toEqual({
+      status: "PRESENT",
+      primaryExchanges: ["primary-a.test", "primary-b.test"],
+      backupExchanges: ["backup.test"],
+    });
+  });
+  it("does not mistake null MX or invalid data for a routable mail exchange", () => {
+    expect(summarizeMxRouting([])).toEqual({ status: "MISSING", primaryExchanges: [], backupExchanges: [] });
+    expect(summarizeMxRouting([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", primaryExchanges: [], backupExchanges: [] });
+    expect(summarizeMxRouting([{ priority: -1, exchange: "broken.test" }])).toEqual({ status: "INVALID", primaryExchanges: [], backupExchanges: [] });
   });
 });
