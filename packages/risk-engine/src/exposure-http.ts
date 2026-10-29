@@ -38,3 +38,13 @@ export function inspectReferrerPolicy(value: string | null | undefined): string 
   }
   return null;
 }
+
+/** Inventory names of explicitly supplied CSP directives, without evaluating browser enforcement. */
+export function inventoryCspDirectives(value: string | null | undefined): string[] | null {
+  if (!value?.trim()) return null;
+  const directives = value.split(";").map((part) => part.trim()).filter(Boolean);
+  if (directives.length === 0) return null;
+  const names = directives.map((directive) => directive.split(/\s+/)[0]!.toLowerCase());
+  if (names.some((name) => !/^[a-z][a-z0-9-]*$/.test(name)) || new Set(names).size !== names.length) return null;
+  return names;
+}
