@@ -20,13 +20,13 @@ export function applyActionProgress(plan: ActionPlan, events: readonly ActionPro
     if(event.organizationId!==plan.organizationId){reject("FOREIGN_TENANT");continue;}
     const action=current.get(event.actionId);
     if(!action){reject("UNKNOWN_ACTION");continue;}
-    if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(event.at)||!Number.isFinite(Date.parse(event.at))){reject("INVALID_TIME");continue;}
+    if(typeof event.at!=="string"||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/.test(event.at)||!Number.isFinite(Date.parse(event.at))){reject("INVALID_TIME");continue;}
     const ts=Date.parse(event.at);
-    if((timestamps.get(event.actionId)??-Infinity)>ts){reject("OUT_OF_ORDER");continue;}
     const fingerprint=JSON.stringify([event.actionId,event.at,event.status]);
     if(seen.has(fingerprint)){reject("DUPLICATE_EVENT");continue;}
+    if((timestamps.get(event.actionId)??-Infinity)>=ts){reject("OUT_OF_ORDER");continue;}
     if(!allowed[action.status].includes(event.status)){reject("INVALID_TRANSITION");continue;}
-    if((event.note?.length??0)>2000){reject("INVALID_NOTE");continue;}
+    if(event.note!==undefined&&event.note!==null&&(typeof event.note!=="string"||event.note.length>2000)){reject("INVALID_NOTE");continue;}
     current.set(event.actionId,{...action,status:event.status,notes:event.note?.trim()||action.notes});
     timestamps.set(event.actionId,ts);seen.add(fingerprint);applied++;
   }
