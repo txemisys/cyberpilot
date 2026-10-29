@@ -1,3 +1,9 @@
+export { parseAssetCsv, ASSET_COLUMNS } from "./assets-csv";
+export type { AssetRecord, AssetKind, AssetImportIssue, AssetImportResult } from "./assets-csv";
+export { assessAssetInventory, summarizeAssetInventory, ASSET_HYGIENE_RULES } from "./assets-assessment";
+export type { AssetFinding, AssetInventorySummary } from "./assets-assessment";
+export { matchDeclaredVulnerabilities } from "./assets-vulnerabilities";
+export type { VulnerabilityAdvisory, VulnerabilityCandidate } from "./assets-vulnerabilities";
 export { BASELINE_IG1_QUESTIONS, BASELINE_QUESTIONNAIRE_VERSION } from "./baseline-questions";
 export type { BaselineDomain, BaselineAnswer, BaselineQuestion, BaselineResponse, BaselineSubmission } from "./baseline-questions";
 export { validateBaselineSubmission, summarizeBaseline } from "./baseline-evaluation";
