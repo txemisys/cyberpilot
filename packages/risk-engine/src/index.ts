@@ -1,3 +1,5 @@
+export { buildEvidenceReport } from "./evidence-report";
+export type { EvidenceReport, EvidenceReportRow } from "./evidence-report";
 export { assessWorkspaceInventory, GOOGLE_WORKSPACE_SCOPES } from "./google-workspace";
 export type { WorkspaceUser, WorkspaceGroup, WorkspaceDomain, WorkspaceInventory, WorkspaceAssessment, WorkspaceCoverage } from "./google-workspace";
 export { parseAssetCsv, ASSET_COLUMNS } from "./assets-csv";
