@@ -59,12 +59,13 @@ describe("passive MX routing summary", () => {
       primaryExchanges: ["primary-a.test", "primary-b.test"],
       backupExchanges: ["backup.test"],
       distinctExchangeCount: 3,
+      lowestPreference: 10,
     });
   });
   it("does not mistake null MX or invalid data for a routable mail exchange", () => {
-    expect(summarizeMxRouting([])).toEqual({ status: "MISSING", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0 });
-    expect(summarizeMxRouting([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0 });
-    expect(summarizeMxRouting([{ priority: -1, exchange: "broken.test" }])).toEqual({ status: "INVALID", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0 });
+    expect(summarizeMxRouting([])).toEqual({ status: "MISSING", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null });
+    expect(summarizeMxRouting([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null });
+    expect(summarizeMxRouting([{ priority: -1, exchange: "broken.test" }])).toEqual({ status: "INVALID", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null });
   });
 });
 
