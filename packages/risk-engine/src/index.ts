@@ -1,3 +1,5 @@
+export { buildActionPlan } from "./evidence-action-plan";
+export type { PlannedAction, ActionPlan } from "./evidence-action-plan";
 export { prioritizeEvidenceActions } from "./evidence-actions";
 export type { EvidenceAction, ActionPriority } from "./evidence-actions";
 export { buildExecutiveEvidenceSummary } from "./evidence-executive";
