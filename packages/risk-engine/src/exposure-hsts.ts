@@ -9,3 +9,15 @@ export function extractHstsMaxAge(value: string | null | undefined): number | nu
   const seconds = Number(match[1]);
   return Number.isSafeInteger(seconds) ? seconds : null;
 }
+
+/** Inspect HSTS flag directives only after finding one valid max-age. */
+export function inspectHstsFlags(value: string | null | undefined): { includeSubDomains: boolean; preload: boolean } | null {
+  if (extractHstsMaxAge(value) === null || !value) return null;
+  const directives = value.split(";").map((part) => part.trim().toLowerCase());
+  const check = (name: string) => {
+    const tokens = directives.filter((part) => part === name || part.startsWith(name + "="));
+    return tokens.length <= 1 && (tokens.length === 0 || tokens[0] === name);
+  };
+  if (!check("includesubdomains") || !check("preload")) return null;
+  return { includeSubDomains: directives.includes("includesubdomains"), preload: directives.includes("preload") };
+}
