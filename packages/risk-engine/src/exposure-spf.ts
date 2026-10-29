@@ -55,8 +55,8 @@ export function extractSpfIncludes(txtRecords: readonly string[]): string[] | nu
   const targets = includes.map((token) => token.replace(/^[+~?-]?include:/i, ""));
   if (targets.some((target) =>
     target.length > 253 ||
-    !/^[a-z0-9_](?:[a-z0-9_.-]*[a-z0-9_])?$/i.test(target) ||
-    target.includes("..")
+    !target.split(".").every((label) => label.length >= 1 && label.length <= 63 &&
+      /^[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?$/i.test(label))
   )) return null;
   return targets.map((target) => target.toLowerCase());
 }
