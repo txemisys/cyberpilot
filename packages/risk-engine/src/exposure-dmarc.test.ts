@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractDmarcReportInterval, extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
+import { extractDmarcFailureReportFormat, extractDmarcReportInterval, extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
 
 describe("passive DMARC record inventory", () => {
   it("does not count unrelated records or lookalike versions", () => {
@@ -123,5 +123,18 @@ describe("explicit DMARC report interval", () => {
     expect(extractDmarcReportInterval(["v=DMARC1; ri=1.5"])).toBeNull();
     expect(extractDmarcReportInterval(["v=DMARC1; ri=1; ri=2"])).toBeNull();
     expect(extractDmarcReportInterval(["v=DMARC1; ri=99999999999999999999"])).toBeNull();
+  });
+});
+
+describe("explicit DMARC failure report format", () => {
+  it("recognizes the explicit AFRF format", () => {
+    expect(extractDmarcFailureReportFormat(["v=DMARC1; p=reject; rf=afrf"])).toBe("afrf");
+    expect(extractDmarcFailureReportFormat(["v=DMARC1; RF = AFRF"])).toBe("afrf");
+  });
+  it("does not assume defaults or accept unknown, duplicate or multiple records", () => {
+    expect(extractDmarcFailureReportFormat(["v=DMARC1; p=reject"])).toBeNull();
+    expect(extractDmarcFailureReportFormat(["v=DMARC1; rf=other"])).toBeNull();
+    expect(extractDmarcFailureReportFormat(["v=DMARC1; rf=afrf; rf=afrf"])).toBeNull();
+    expect(extractDmarcFailureReportFormat(["v=DMARC1; rf=afrf", "v=DMARC1; rf=afrf"])).toBeNull();
   });
 });
