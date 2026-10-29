@@ -58,11 +58,22 @@ describe("passive MX routing summary", () => {
       status: "PRESENT",
       primaryExchanges: ["primary-a.test", "primary-b.test"],
       backupExchanges: ["backup.test"],
+      distinctExchangeCount: 3,
     });
   });
   it("does not mistake null MX or invalid data for a routable mail exchange", () => {
-    expect(summarizeMxRouting([])).toEqual({ status: "MISSING", primaryExchanges: [], backupExchanges: [] });
-    expect(summarizeMxRouting([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", primaryExchanges: [], backupExchanges: [] });
-    expect(summarizeMxRouting([{ priority: -1, exchange: "broken.test" }])).toEqual({ status: "INVALID", primaryExchanges: [], backupExchanges: [] });
+    expect(summarizeMxRouting([])).toEqual({ status: "MISSING", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0 });
+    expect(summarizeMxRouting([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0 });
+    expect(summarizeMxRouting([{ priority: -1, exchange: "broken.test" }])).toEqual({ status: "INVALID", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0 });
+  });
+});
+
+describe("MX distinct-host metric", () => {
+  it("counts the same MX hostname only once across priorities", () => {
+    expect(summarizeMxRouting([
+      { priority: 10, exchange: "mail.example.test" },
+      { priority: 20, exchange: "MAIL.EXAMPLE.TEST." },
+      { priority: 30, exchange: "backup.example.test" },
+    ]).distinctExchangeCount).toBe(2);
   });
 });
