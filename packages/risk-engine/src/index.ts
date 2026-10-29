@@ -1,3 +1,5 @@
+export { createActionTrendManifest } from "./evidence-action-trend-manifest";
+export type { ActionTrendManifest } from "./evidence-action-trend-manifest";
 export { createActionTrendReportPackage } from "./evidence-action-trend-report-pipeline";
 export { auditActionTrendReport } from "./evidence-action-trend-report-audit";
 export type { TrendReportAudit } from "./evidence-action-trend-report-audit";
