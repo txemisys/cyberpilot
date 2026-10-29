@@ -17,7 +17,7 @@ export function inventoryMxRecords(records: readonly MxRecord[]): MxInventory {
   // Collapse identical answers while preserving the first representative.
   const seen = new Set<string>();
   const unique = records.filter((record) => {
-    const key = JSON.stringify([record.priority, record.exchange.toLowerCase().replace(/\\.$/, "")]);
+    const key = JSON.stringify([record.priority, record.exchange.toLowerCase().replace(/\.$/, "")]);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
