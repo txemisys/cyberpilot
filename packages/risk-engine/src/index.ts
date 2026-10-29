@@ -1,5 +1,5 @@
 export { extractHstsMaxAge, inspectHstsFlags } from "./exposure-hsts";
-export { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives } from "./exposure-http";
+export { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives, extractCspScriptSources } from "./exposure-http";
 export type { HttpSecurityHeaderInventory } from "./exposure-http";
 export { inventoryDkimTxtRecords } from "./exposure-dkim";
 export type { DkimTxtInventory } from "./exposure-dkim";
