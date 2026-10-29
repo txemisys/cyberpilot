@@ -38,7 +38,7 @@ export function extractSpfRedirect(txtRecords: readonly string[]): string | null
   const redirects = tokens.filter((token) => /^redirect=/i.test(token));
   if (redirects.length !== 1) return null;
   const target = redirects[0]!.slice("redirect=".length);
-  if (!/^[a-z0-9_](?:[a-z0-9_.-]*[a-z0-9_])?$/i.test(target) || target.includes("..")) return null;
+  if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(target) || target.includes("..")) return null;
   return target.toLowerCase();
 }
 
@@ -53,7 +53,7 @@ export function extractSpfIncludes(txtRecords: readonly string[]): string[] | nu
   const targets = includes.map((token) => token.replace(/^[+~?-]?include:/i, ""));
   if (targets.some((target) =>
     target.length > 253 ||
-    !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(target) ||
+    !/^[a-z0-9_](?:[a-z0-9_.-]*[a-z0-9_])?$/i.test(target) ||
     target.includes("..")
   )) return null;
   return targets.map((target) => target.toLowerCase());
