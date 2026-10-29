@@ -1,3 +1,5 @@
+export { inventoryTlsCertificate } from "./exposure-tls";
+export type { TlsCertificateMetadata, TlsCertificateInventory } from "./exposure-tls";
 export { extractHstsMaxAge, inspectHstsFlags } from "./exposure-hsts";
 export { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy, inventoryCspDirectives, extractCspScriptSources, extractCspDefaultSources, extractCspObjectSources, extractCspBaseUriSources, extractCspFrameAncestors } from "./exposure-http";
 export type { HttpSecurityHeaderInventory } from "./exposure-http";
