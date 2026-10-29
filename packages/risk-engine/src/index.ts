@@ -1,3 +1,5 @@
+export { prioritizeEvidenceActions } from "./evidence-actions";
+export type { EvidenceAction, ActionPriority } from "./evidence-actions";
 export { buildExecutiveEvidenceSummary } from "./evidence-executive";
 export type { ExecutiveEvidenceSummary } from "./evidence-executive";
 export { exportEvidenceCsv, exportEvidenceJson } from "./evidence-report-export";
