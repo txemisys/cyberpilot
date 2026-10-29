@@ -84,3 +84,12 @@ export function extractCspBaseUriSources(value: string | null | undefined): stri
   if (!directive) return null;
   return directive.split(/\s+/).slice(1);
 }
+
+/** Inventory explicit CSP frame-ancestors sources without evaluating enforcement. */
+export function extractCspFrameAncestors(value: string | null | undefined): string[] | null {
+  if (!value?.trim() || inventoryCspDirectives(value) === null) return null;
+  const directive = value.split(";").map((part) => part.trim())
+    .find((part) => /^frame-ancestors(?:\s|$)/i.test(part));
+  if (!directive) return null;
+  return directive.split(/\s+/).slice(1);
+}
