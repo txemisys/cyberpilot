@@ -57,5 +57,5 @@ export const BASELINE_IG1_QUESTIONS: readonly BaselineQuestion[] = [
   ["INCIDENT_RESPONSE","incident-exercises","¿Se practica la respuesta a incidentes?","Registrar simulacros","Acta"],
   ["TESTING","security-reviews","¿Se revisan controles de seguridad periódicamente?","Definir calendario","Informes"],
   ["TESTING","remediation-tracking","¿Se sigue el cierre de acciones de mejora?","Registrar responsable y plazo","Tablero"],
-].map(([domain,id,prompt,guidance,evidenceHint]) => ({ domain: domain as BaselineDomain, id, prompt, guidance, evidenceHint }));
+] satisfies readonly [BaselineDomain, string, string, string, string][]).map(([domain,id,prompt,guidance,evidenceHint]) => ({ domain, id, prompt, guidance, evidenceHint }));
 export const BASELINE_QUESTIONNAIRE_VERSION = 1 as const;
