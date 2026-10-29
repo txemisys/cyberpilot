@@ -1,3 +1,5 @@
+export { inventoryDkimTxtRecords } from "./exposure-dkim";
+export type { DkimTxtInventory } from "./exposure-dkim";
 export { inventoryMxRecords, summarizeMxRouting, groupMxByPreference, classifyMxTopology } from "./exposure-mx";
 export type { MxRecord, MxInventory } from "./exposure-mx";
 export { extractDmarcFailureReportFormat, extractDmarcReportInterval, extractDmarcFailureReportUris, extractDmarcFailureOptions, extractDmarcAggregateReportUris, extractDmarcAlignment, extractDmarcPercentage, extractDmarcPolicy, extractDmarcSubdomainPolicy, inventoryDmarcTxtRecords } from "./exposure-dmarc";
