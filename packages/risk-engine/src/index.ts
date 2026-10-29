@@ -1,3 +1,5 @@
+export { buildExecutiveEvidenceSummary } from "./evidence-executive";
+export type { ExecutiveEvidenceSummary } from "./evidence-executive";
 export { exportEvidenceCsv, exportEvidenceJson } from "./evidence-report-export";
 export type { ExportResult } from "./evidence-report-export";
 export { auditEvidenceReport } from "./evidence-report-audit";
