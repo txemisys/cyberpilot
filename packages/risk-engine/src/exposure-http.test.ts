@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryHttpSecurityHeaders } from "./exposure-http";
+import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions } from "./exposure-http";
 
 describe("passive HTTP security header inventory", () => {
   it("returns missing for unavailable headers", () => {
@@ -25,5 +25,17 @@ describe("passive HTTP security header inventory", () => {
   });
   it("never treats blank values as evidence of configuration", () => {
     expect(inventoryHttpSecurityHeaders({ "Content-Security-Policy": "  " }).contentSecurityPolicy).toBe("MISSING");
+  });
+});
+
+describe("X-Content-Type-Options value", () => {
+  it("accepts only the nosniff token", () => {
+    expect(inspectXContentTypeOptions(" NoSniff ")).toBe("NOSNIFF");
+    expect(inspectXContentTypeOptions("nosniff, nosniff")).toBe("INVALID");
+    expect(inspectXContentTypeOptions("invalid")).toBe("INVALID");
+  });
+  it("keeps absent and blank headers separate from invalid values", () => {
+    expect(inspectXContentTypeOptions(undefined)).toBe("MISSING");
+    expect(inspectXContentTypeOptions("  ")).toBe("MISSING");
   });
 });
