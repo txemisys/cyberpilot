@@ -1,3 +1,5 @@
+export { buildActionTimeline } from "./evidence-action-timeline";
+export type { ActionTimeline, ActionTimelineItem } from "./evidence-action-timeline";
 export { applyActionProgress } from "./evidence-action-progress";
 export type { ActionProgressEvent, ActionProgressResult } from "./evidence-action-progress";
 export { buildActionPlan } from "./evidence-action-plan";
