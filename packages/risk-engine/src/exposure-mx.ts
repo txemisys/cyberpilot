@@ -29,3 +29,21 @@ export function inventoryMxRecords(records: readonly MxRecord[]): MxInventory {
   }
   return { status: records.length === 0 ? "MISSING" : records[0]?.exchange === "." ? "NULL_MX" : "PRESENT", records: unique };
 }
+
+/** Descriptive summary only: DNS MX presence cannot prove that inbound mail works. */
+export function summarizeMxRouting(records: readonly MxRecord[]): {
+  status: MxInventory["status"];
+  primaryExchanges: string[];
+  backupExchanges: string[];
+} {
+  const inventory = inventoryMxRecords(records);
+  if (inventory.status !== "PRESENT") {
+    return { status: inventory.status, primaryExchanges: [], backupExchanges: [] };
+  }
+  const minimum = Math.min(...inventory.records.map((record) => record.priority));
+  return {
+    status: inventory.status,
+    primaryExchanges: inventory.records.filter((record) => record.priority === minimum).map((record) => record.exchange),
+    backupExchanges: inventory.records.filter((record) => record.priority > minimum).map((record) => record.exchange),
+  };
+}
