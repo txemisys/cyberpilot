@@ -27,3 +27,17 @@ export function extractSpfAllQualifier(txtRecords: readonly string[]): "pass" | 
   if (token === "?all") return "neutral";
   return "pass";
 }
+
+/** Read an explicit redirect= domain from a single collected SPF TXT record.
+ * This does not follow redirects or validate DNS targets.
+ */
+export function extractSpfRedirect(txtRecords: readonly string[]): string | null {
+  const inventory = inventorySpfTxtRecords(txtRecords);
+  if (inventory.status !== "PRESENT") return null;
+  const tokens = inventory.records[0]!.trim().split(/\s+/).slice(1);
+  const redirects = tokens.filter((token) => /^redirect=/i.test(token));
+  if (redirects.length !== 1) return null;
+  const target = redirects[0]!.slice("redirect=".length);
+  if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(target) || target.includes("..")) return null;
+  return target.toLowerCase();
+}
