@@ -24,3 +24,17 @@ export function inspectXContentTypeOptions(value: string | null | undefined): "N
   if (value == null || value.trim() === "") return "MISSING";
   return value.trim().toLowerCase() === "nosniff" ? "NOSNIFF" : "INVALID";
 }
+
+/** Read the final valid policy token from a supplied Referrer-Policy value. */
+export function inspectReferrerPolicy(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null;
+  const policies = new Set([
+    "no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin",
+    "same-origin", "strict-origin", "strict-origin-when-cross-origin", "unsafe-url",
+  ]);
+  const tokens = value.split(",").map((token) => token.trim().toLowerCase());
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    if (policies.has(tokens[i]!)) return tokens[i]!;
+  }
+  return null;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions } from "./exposure-http";
+import { inventoryHttpSecurityHeaders, inspectXContentTypeOptions, inspectReferrerPolicy } from "./exposure-http";
 
 describe("passive HTTP security header inventory", () => {
   it("returns missing for unavailable headers", () => {
@@ -37,5 +37,17 @@ describe("X-Content-Type-Options value", () => {
   it("keeps absent and blank headers separate from invalid values", () => {
     expect(inspectXContentTypeOptions(undefined)).toBe("MISSING");
     expect(inspectXContentTypeOptions("  ")).toBe("MISSING");
+  });
+});
+
+describe("Referrer-Policy fallback tokens", () => {
+  it("selects the final recognized policy", () => {
+    expect(inspectReferrerPolicy("no-referrer, strict-origin-when-cross-origin")).toBe("strict-origin-when-cross-origin");
+    expect(inspectReferrerPolicy("unknown, SAME-ORIGIN")).toBe("same-origin");
+  });
+  it("does not treat unknown or empty tokens as configured", () => {
+    expect(inspectReferrerPolicy("unknown")).toBeNull();
+    expect(inspectReferrerPolicy("")).toBeNull();
+    expect(inspectReferrerPolicy(undefined)).toBeNull();
   });
 });
