@@ -60,12 +60,13 @@ describe("passive MX routing summary", () => {
       backupExchanges: ["backup.test"],
       distinctExchangeCount: 3,
       lowestPreference: 10,
+      preferenceTiers: [10, 20],
     });
   });
   it("does not mistake null MX or invalid data for a routable mail exchange", () => {
-    expect(summarizeMxRouting([])).toEqual({ status: "MISSING", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null });
-    expect(summarizeMxRouting([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null });
-    expect(summarizeMxRouting([{ priority: -1, exchange: "broken.test" }])).toEqual({ status: "INVALID", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null });
+    expect(summarizeMxRouting([])).toEqual({ status: "MISSING", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [] });
+    expect(summarizeMxRouting([{ priority: 0, exchange: "." }])).toEqual({ status: "NULL_MX", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [] });
+    expect(summarizeMxRouting([{ priority: -1, exchange: "broken.test" }])).toEqual({ status: "INVALID", primaryExchanges: [], backupExchanges: [], distinctExchangeCount: 0, lowestPreference: null, preferenceTiers: [] });
   });
 });
 
@@ -76,5 +77,16 @@ describe("MX distinct-host metric", () => {
       { priority: 20, exchange: "MAIL.EXAMPLE.TEST." },
       { priority: 30, exchange: "backup.example.test" },
     ]).distinctExchangeCount).toBe(2);
+  });
+});
+
+describe("MX preference tiers", () => {
+  it("orders unique preference values without modifying the source order", () => {
+    expect(summarizeMxRouting([
+      { priority: 30, exchange: "c.example.test" },
+      { priority: 10, exchange: "a.example.test" },
+      { priority: 20, exchange: "b.example.test" },
+      { priority: 10, exchange: "d.example.test" },
+    ]).preferenceTiers).toEqual([10, 20, 30]);
   });
 });
