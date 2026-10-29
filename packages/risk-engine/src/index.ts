@@ -1,3 +1,11 @@
+export { normalizeTlsDnsNames, tlsNameMatches, inspectTlsTransport } from "./exposure-tls-names";
+export type { TlsTransportMetadata } from "./exposure-tls-names";
+export { classifyHttpStatus, inspectHttpScheme, inspectRedirect, inventoryResponseHeaders, inspectPermissionsPolicy, inspectXFrameOptions } from "./exposure-http-observation";
+export type { HttpObservation } from "./exposure-http-observation";
+export { parseCspDirectives, extractCspSources, inspectCspFlag, inventoryCspUnsafeSources, inspectCspEvidence } from "./exposure-csp-extended";
+export type { CspEvidence, CspDirectiveObservation } from "./exposure-csp-extended";
+export { validateExposureEvidence, selectTenantExposureEvidence } from "./exposure-evidence";
+export type { ExposureEvidenceSource, ExposureEvidenceEnvelope, ExposureEvidenceResult } from "./exposure-evidence";
 export { inventoryTlsCertificate } from "./exposure-tls";
 export type { TlsCertificateMetadata, TlsCertificateInventory } from "./exposure-tls";
 export { extractHstsMaxAge, inspectHstsFlags } from "./exposure-hsts";
