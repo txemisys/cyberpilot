@@ -1,3 +1,5 @@
+export { applyActionProgress } from "./evidence-action-progress";
+export type { ActionProgressEvent, ActionProgressResult } from "./evidence-action-progress";
 export { buildActionPlan } from "./evidence-action-plan";
 export type { PlannedAction, ActionPlan } from "./evidence-action-plan";
 export { prioritizeEvidenceActions } from "./evidence-actions";
