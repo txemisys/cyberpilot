@@ -17,6 +17,8 @@ export function buildActionPlan(organizationId:string, actions:readonly Evidence
     const value=Object.hasOwn(assignments,action.id)?assignments[action.id]:undefined;
     const dueDate=value?.dueDate??null;
     if(dueDate!==null && !isExactUtcDay(dueDate)) return null;
+    if(value?.owner!=null&&typeof value.owner!=="string")return null;
+    if(value?.notes!=null&&typeof value.notes!=="string")return null;
     const owner=value?.owner?.trim()||null,notes=value?.notes?.trim()||null;
     if((owner?.length??0)>160||(notes?.length??0)>2000)return null;
     const status=value?.status??"TODO";
