@@ -19,7 +19,9 @@ export function buildActionPlan(organizationId:string, actions:readonly Evidence
     if(dueDate!==null && !isExactUtcDay(dueDate)) return null;
     const owner=value?.owner?.trim()||null,notes=value?.notes?.trim()||null;
     if((owner?.length??0)>160||(notes?.length??0)>2000)return null;
-    planned.push({...action,owner,dueDate,status:value?.status??"TODO",notes});
+    const status=value?.status??"TODO";
+    if(status!=="TODO"&&status!=="IN_PROGRESS"&&status!=="BLOCKED"&&status!=="DONE")return null;
+    planned.push({...action,owner,dueDate,status,notes});
   }
   const rank={HIGH:0,MEDIUM:1,LOW:2};
   planned.sort((a,b)=>rank[a.priority]-rank[b.priority] || a.id.localeCompare(b.id));
