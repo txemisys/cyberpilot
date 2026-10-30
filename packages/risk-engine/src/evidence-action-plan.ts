@@ -12,7 +12,7 @@ export function buildActionPlan(organizationId:string, actions:readonly Evidence
   if(!organizationId || !isExactUtcDay(asOf)) return null;
   const seen=new Set<string>();const planned:PlannedAction[]=[];
   for(const action of actions){
-    if(!action.id || seen.has(action.id) || action.state!=="PROPOSED" || action.verifiedRisk!==false) return null;
+    if(!action.id || seen.has(action.id) || action.state!=="PROPOSED" || action.verifiedRisk!==false || (action.priority!=="HIGH"&&action.priority!=="MEDIUM"&&action.priority!=="LOW")) return null;
     seen.add(action.id);
     const value=Object.hasOwn(assignments,action.id)?assignments[action.id]:undefined;
     const dueDate=value?.dueDate??null;
