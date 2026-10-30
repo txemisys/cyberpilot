@@ -26,7 +26,7 @@ export function applyActionProgress(plan: ActionPlan, events: readonly ActionPro
     if(seen.has(fingerprint)){reject("DUPLICATE_EVENT");continue;}
     if((timestamps.get(event.actionId)??-Infinity)>=ts){reject("OUT_OF_ORDER");continue;}
     if(!Object.hasOwn(allowed,action.status) || !allowed[action.status]?.includes(event.status)){reject("INVALID_TRANSITION");continue;}
-    if(event.note!==undefined&&event.note!==null&&(typeof event.note!=="string"||event.note.length>2000)){reject("INVALID_NOTE");continue;}
+    if(event.note!==undefined&&event.note!==null&&(typeof event.note!=="string"||event.note.length>2000||/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(event.note))){reject("INVALID_NOTE");continue;}
     current.set(event.actionId,{...action,status:event.status,notes:event.note?.trim()||action.notes});
     timestamps.set(event.actionId,ts);seen.add(fingerprint);applied++;
   }
