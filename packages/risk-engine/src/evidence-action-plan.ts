@@ -2,6 +2,12 @@ import type { EvidenceAction } from "./evidence-actions";
 /** Pure action planning; no persistence, automatic changes, or verified findings. */
 export type PlannedAction = EvidenceAction & { owner: string | null; dueDate: string | null; status: "TODO" | "IN_PROGRESS" | "BLOCKED" | "DONE"; notes: string | null };
 export type ActionPlan = { organizationId: string; schemaVersion: 1; actions: PlannedAction[]; summary: {total:number;todo:number;inProgress:number;blocked:number;done:number;high:number;medium:number;low:number;overdue:number} };
+/** Reject dates that Date.parse would silently roll over (for example February 30). */
+function isExactUtcDay(value: string): boolean {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const parsed = Date.parse(value + "T00:00:00Z");
+  return Number.isFinite(parsed) && new Date(parsed).toISOString().slice(0, 10) === value;
+}
 export function buildActionPlan(organizationId:string, actions:readonly EvidenceAction[], assignments:Readonly<Record<string,{owner?:string|null;dueDate?:string|null;status?:"TODO"|"IN_PROGRESS"|"BLOCKED"|"DONE";notes?:string|null}>> = {}, asOf:string="2026-10-29"):ActionPlan|null {
   if(!organizationId || !/^\d{4}-\d{2}-\d{2}$/.test(asOf) || !Number.isFinite(Date.parse(asOf+"T00:00:00Z"))) return null;
   const seen=new Set<string>();const planned:PlannedAction[]=[];
