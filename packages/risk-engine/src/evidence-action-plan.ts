@@ -19,9 +19,10 @@ export function buildActionPlan(organizationId:string, actions:readonly Evidence
     if(dueDate!==null && !isExactUtcDay(dueDate)) return null;
     if(value?.owner!=null&&typeof value.owner!=="string")return null;
     if(value?.notes!=null&&typeof value.notes!=="string")return null;
-    const owner=value?.owner?.trim()||null,notes=value?.notes?.trim()||null;
     const forbidden=/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
-    if((owner?.length??0)>160||(notes?.length??0)>2000||(owner!==null&&forbidden.test(owner))||(notes!==null&&forbidden.test(notes)))return null;
+    if((value?.owner!=null&&forbidden.test(value.owner))||(value?.notes!=null&&forbidden.test(value.notes)))return null;
+    const owner=value?.owner?.trim()||null,notes=value?.notes?.trim()||null;
+    if((owner?.length??0)>160||(notes?.length??0)>2000)return null;
     const status=value?.status??"TODO";
     if(status!=="TODO"&&status!=="IN_PROGRESS"&&status!=="BLOCKED"&&status!=="DONE")return null;
     planned.push({...action,owner,dueDate,status,notes});
