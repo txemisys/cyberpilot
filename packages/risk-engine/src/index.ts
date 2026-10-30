@@ -1,3 +1,5 @@
+export { exportActionOwnerWorkloadCsv } from "./evidence-action-owner-workload-export";
+export type { ActionWorkloadCsv } from "./evidence-action-owner-workload-export";
 export { summarizeActionOwnerWorkload } from "./evidence-action-owner-workload";
 export type { ActionOwnerWorkload, ActionOwnerWorkloadSummary } from "./evidence-action-owner-workload";
 export { summarizeActionDeadlines } from "./evidence-action-deadlines";
