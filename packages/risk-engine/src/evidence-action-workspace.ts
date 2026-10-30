@@ -1,3 +1,4 @@
+import { summarizeActionDeadlines } from "./evidence-action-deadlines";
 import { validateActionWorkspacePlan } from "./evidence-action-workspace-guard";
 import type { ActionPlan } from "./evidence-action-plan";
 import type { ActionProgressEvent } from "./evidence-action-progress";
@@ -16,8 +17,9 @@ export function buildActionWorkspace(plan:ActionPlan,events:readonly ActionProgr
  const dashboard=summarizeActionStatus(progressed.plan,timeline,organizationId);
  const alerts=suggestActionAlerts(progressed.plan,organizationId,asOf);
  const filtered=filterActionPlan(progressed.plan,organizationId,options,asOf);
- if(!dashboard||!alerts||!filtered)return null;
+ const deadlines=summarizeActionDeadlines(progressed.plan,organizationId,asOf);
+ if(!dashboard||!alerts||!filtered||!deadlines)return null;
  const digest=summarizeActionAlerts(organizationId,alerts);
  if(!digest)return null;
- return {organizationId,plan:progressed.plan,progress:{applied:progressed.applied,rejected:progressed.rejected},timeline,dashboard,alerts:digest,filtered};
+ return {organizationId,plan:progressed.plan,progress:{applied:progressed.applied,rejected:progressed.rejected},timeline,dashboard,alerts:digest,filtered,deadlines};
 }
