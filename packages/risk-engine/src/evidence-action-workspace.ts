@@ -1,3 +1,4 @@
+import { exportActionOwnerWorkloadJson } from "./evidence-action-owner-workload-json";
 import { exportActionOwnerWorkloadCsv } from "./evidence-action-owner-workload-export";
 import { summarizeActionOwnerWorkload } from "./evidence-action-owner-workload";
 import { summarizeActionDeadlines } from "./evidence-action-deadlines";
@@ -25,7 +26,9 @@ export function buildActionWorkspace(plan:ActionPlan,events:readonly ActionProgr
  if(!ownerWorkload)return null;
  const ownerWorkloadCsv=exportActionOwnerWorkloadCsv(ownerWorkload,organizationId);
  if(!ownerWorkloadCsv)return null;
+ const ownerWorkloadJson=exportActionOwnerWorkloadJson(ownerWorkload,organizationId);
+ if(!ownerWorkloadJson)return null;
  const digest=summarizeActionAlerts(organizationId,alerts);
  if(!digest)return null;
- return {organizationId,plan:progressed.plan,progress:{applied:progressed.applied,rejected:progressed.rejected},timeline,dashboard,alerts:digest,filtered,deadlines,ownerWorkload,ownerWorkloadCsv};
+ return {organizationId,plan:progressed.plan,progress:{applied:progressed.applied,rejected:progressed.rejected},timeline,dashboard,alerts:digest,filtered,deadlines,ownerWorkload,ownerWorkloadCsv,ownerWorkloadJson};
 }
