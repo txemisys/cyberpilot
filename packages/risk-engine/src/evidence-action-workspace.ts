@@ -1,3 +1,4 @@
+import { summarizeActionOwnerWorkload } from "./evidence-action-owner-workload";
 import { summarizeActionDeadlines } from "./evidence-action-deadlines";
 import { validateActionWorkspacePlan } from "./evidence-action-workspace-guard";
 import type { ActionPlan } from "./evidence-action-plan";
@@ -19,7 +20,9 @@ export function buildActionWorkspace(plan:ActionPlan,events:readonly ActionProgr
  const filtered=filterActionPlan(progressed.plan,organizationId,options,asOf);
  const deadlines=summarizeActionDeadlines(progressed.plan,organizationId,asOf);
  if(!dashboard||!alerts||!filtered||!deadlines)return null;
+ const ownerWorkload=summarizeActionOwnerWorkload(deadlines,organizationId);
+ if(!ownerWorkload)return null;
  const digest=summarizeActionAlerts(organizationId,alerts);
  if(!digest)return null;
- return {organizationId,plan:progressed.plan,progress:{applied:progressed.applied,rejected:progressed.rejected},timeline,dashboard,alerts:digest,filtered,deadlines};
+ return {organizationId,plan:progressed.plan,progress:{applied:progressed.applied,rejected:progressed.rejected},timeline,dashboard,alerts:digest,filtered,deadlines,ownerWorkload};
 }
