@@ -1,3 +1,5 @@
+export { summarizeActionDeadlines } from "./evidence-action-deadlines";
+export type { ActionDeadline, ActionDeadlineSummary } from "./evidence-action-deadlines";
 export { createValidatedActionTrendBundle } from "./evidence-action-trend-bundle";
 export { auditActionTrendManifest } from "./evidence-action-trend-manifest-audit";
 export type { ActionTrendManifestAudit } from "./evidence-action-trend-manifest-audit";
