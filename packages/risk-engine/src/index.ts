@@ -1,3 +1,5 @@
+export { summarizeActionOwnerWorkload } from "./evidence-action-owner-workload";
+export type { ActionOwnerWorkload, ActionOwnerWorkloadSummary } from "./evidence-action-owner-workload";
 export { summarizeActionDeadlines } from "./evidence-action-deadlines";
 export type { ActionDeadline, ActionDeadlineSummary } from "./evidence-action-deadlines";
 export { createValidatedActionTrendBundle } from "./evidence-action-trend-bundle";
