@@ -5,7 +5,7 @@ import type { EvidenceAction } from "./evidence-actions";
 const action=(id:string):EvidenceAction=>({id,domain:"WEB",controlId:id,source:"DOMAIN",scope:"scope",priority:"HIGH",reason:"ERROR",state:"PROPOSED",verifiedRisk:false});
 describe("action workspace CSV handoff",()=>{
  it("includes aggregated owner workload and matching CSV",()=>{
-  const plan=buildActionPlan("org",[action("a"),action("b")],{a:{owner:"Ops",dueDate:"2026-10-29"},b:{dueDate:"2026-11-01"}})!;
+  const plan=buildActionPlan("org",[action("a"),action("b")],{a:{owner:"Ops",dueDate:"2026-10-29"},b:{dueDate:"2026-11-01"}},"2026-10-30")!;
   const ws=buildActionWorkspace(plan,[],"org","2026-10-30");
   expect(ws?.ownerWorkload.totalOverdue).toBe(1);
   expect(ws?.ownerWorkload.totalUpcoming).toBe(1);
