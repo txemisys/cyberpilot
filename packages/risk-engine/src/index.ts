@@ -1,3 +1,5 @@
+export { exportActionOwnerWorkloadJson } from "./evidence-action-owner-workload-json";
+export type { ActionWorkloadJsonExport } from "./evidence-action-owner-workload-json";
 export { exportActionOwnerWorkloadCsv } from "./evidence-action-owner-workload-export";
 export type { ActionWorkloadCsv } from "./evidence-action-owner-workload-export";
 export { summarizeActionOwnerWorkload } from "./evidence-action-owner-workload";
