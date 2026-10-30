@@ -9,10 +9,10 @@ function isExactUtcDay(value: string): boolean {
   return Number.isFinite(parsed) && new Date(parsed).toISOString().slice(0, 10) === value;
 }
 export function buildActionPlan(organizationId:string, actions:readonly EvidenceAction[], assignments:Readonly<Record<string,{owner?:string|null;dueDate?:string|null;status?:"TODO"|"IN_PROGRESS"|"BLOCKED"|"DONE";notes?:string|null}>> = {}, asOf:string="2026-10-29"):ActionPlan|null {
-  if(!organizationId || !isExactUtcDay(asOf)) return null;
+  if(typeof organizationId!=="string" || !organizationId.trim() || !isExactUtcDay(asOf)) return null;
   const seen=new Set<string>();const planned:PlannedAction[]=[];
   for(const action of actions){
-    if(!action.id || seen.has(action.id) || action.state!=="PROPOSED" || action.verifiedRisk!==false || (action.priority!=="HIGH"&&action.priority!=="MEDIUM"&&action.priority!=="LOW")) return null;
+    if(typeof action.id!=="string" || !action.id.trim() || seen.has(action.id) || action.state!=="PROPOSED" || action.verifiedRisk!==false || (action.priority!=="HIGH"&&action.priority!=="MEDIUM"&&action.priority!=="LOW")) return null;
     seen.add(action.id);
     const value=Object.hasOwn(assignments,action.id)?assignments[action.id]:undefined;
     const dueDate=value?.dueDate??null;
