@@ -152,6 +152,8 @@ model User {
   assignedWorkItems         RemediationWorkItem[] @relation("WorkItemAssignee")
   workItemEvents            RemediationWorkEvent[] @relation("WorkEventActor")
   completedChecklistEntries WorkChecklistEntry[] @relation("ChecklistCompleter")
+  linkedWorkEvidence WorkEvidenceLink[] @relation("WorkEvidenceLinker")
+  unlinkedWorkEvidence WorkEvidenceLink[] @relation("WorkEvidenceUnlinker")
 }
 
 model Session {
@@ -219,6 +221,7 @@ model Organization {
   remediationWorkItems      RemediationWorkItem[]
   remediationWorkEvents     RemediationWorkEvent[]
   workChecklistEntries      WorkChecklistEntry[]
+  workEvidenceLinks         WorkEvidenceLink[]
 }
 
 model Membership {
@@ -390,6 +393,7 @@ model SecurityEvidence {
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workLinks WorkEvidenceLink[]
 
   @@unique([organizationId, source, domain, controlId, scope])
   @@index([organizationId, domain, state])
@@ -479,11 +483,34 @@ model RemediationWorkItem {
   assignee User? @relation("WorkItemAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   events RemediationWorkEvent[]
   checklist WorkChecklistEntry[]
+  evidenceLinks WorkEvidenceLink[]
 
   @@unique([organizationId, remediationId])
   @@index([organizationId, status, dueAt])
   @@index([organizationId, assigneeUserId, status])
   @@index([organizationId, priority, createdAt])
+}
+
+model WorkEvidenceLink {
+  id String @id @default(cuid())
+  organizationId String
+  workItemId String
+  evidenceId String
+  reason String
+  linkedByUserId String?
+  linkedAt DateTime @default(now())
+  unlinkedAt DateTime?
+  unlinkedByUserId String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  evidence SecurityEvidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  linkedBy User? @relation("WorkEvidenceLinker", fields: [linkedByUserId], references: [id], onDelete: SetNull)
+  unlinkedBy User? @relation("WorkEvidenceUnlinker", fields: [unlinkedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([workItemId, evidenceId])
+  @@index([organizationId, workItemId, unlinkedAt])
+  @@index([organizationId, evidenceId])
 }
 
 model WorkChecklistEntry {
