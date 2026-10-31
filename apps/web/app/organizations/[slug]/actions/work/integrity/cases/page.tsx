@@ -86,6 +86,21 @@ export default async function IntegrityCasesPage({ params, searchParams }: Props
           <button type="submit" className="secondary-button">Apply case filters</button>
           <Link href={base}>Clear all filters</Link>
         </form>
+        <section aria-label="Export bounded case review">
+          <h2>Export current case page</h2>
+          <p>Exports include the current filters and diagnostic coverage limitations.
+            Human review states are not security verification.</p>
+          <p className="action-link">
+            <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/cases/export?${new URLSearchParams({
+              ...query, format: "csv",
+            }).toString()}`}>Download CSV</a>
+          </p>
+          <p className="action-link">
+            <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/cases/export?${new URLSearchParams({
+              ...query, format: "json",
+            }).toString()}`}>Download JSON</a>
+          </p>
+        </section>
         {error ? (
           <p role="alert" className="auth-error">{error}</p>
         ) : null}
