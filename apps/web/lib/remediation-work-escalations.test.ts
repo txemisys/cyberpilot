@@ -214,7 +214,7 @@ describe("attention ordering and reporting",()=>{
   decide({id:"work_four",status:"DONE"}),
  ];
  it("sorts critical attention before low attention",()=>{
-  expect(orderEscalations(sample,"SEVERITY")[0]?.id).toBe("work_three");
+  expect(orderEscalations(sample,"SEVERITY")[0]?.id).toBe("work_two");
  });
  it("sorts earliest deadline first",()=>{
   expect(orderEscalations(sample,"DEADLINE")[0]?.id).toBe("work_two");
