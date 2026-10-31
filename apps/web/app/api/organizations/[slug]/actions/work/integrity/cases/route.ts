@@ -12,16 +12,16 @@ export async function GET(request: NextRequest, { params }: Context) {
   try {
     const { slug } = await params;
     const { session, membership } = await requireOrganizationAccess(slug);
-    const params = request.nextUrl.searchParams;
+    const search = request.nextUrl.searchParams;
     for (const key of ["state", "severity", "search", "limit", "cursor", "includeInfo", "includeHistorical"]) {
-      if (params.getAll(key).length > 1)
+      if (search.getAll(key).length > 1)
         throw new WorkInputError("INVALID", `Repeated case filter: ${key}.`);
     }
     const cases = await loadIntegrityCases({
       organizationId: membership.organization.id,
       userId: session.user.id,
       role: membership.role,
-    }, Object.fromEntries(params.entries()));
+    }, Object.fromEntries(search.entries()));
     return NextResponse.json(cases, { headers });
   } catch (error) {
     if (error instanceof WorkInputError) {
