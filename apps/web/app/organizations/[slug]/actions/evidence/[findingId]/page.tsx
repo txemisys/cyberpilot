@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireOrganizationAccess } from "../../../../../lib/organizations";
-import { loadSingleFindingReview } from "../../../../../lib/finding-review-data";
-import { buildFindingEvidenceReview } from "../../../../../lib/finding-evidence-review";
+import { requireOrganizationAccess } from "../../../../../../lib/organizations";
+import { loadSingleFindingReview } from "../../../../../../lib/finding-review-data";
+import { buildFindingEvidenceReview } from "../../../../../../lib/finding-evidence-review";
 
 type Props = { params: Promise<{ slug: string; findingId: string }> };
 
