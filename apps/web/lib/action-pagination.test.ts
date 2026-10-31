@@ -31,5 +31,20 @@ describe("SME action pagination",()=>{
   expect(parsed.searchParams.get("search")).toBe("domain names");
   expect(parsed.searchParams.get("severity")).toBe("CRITICAL");
   expect(parsed.searchParams.get("status")).toBe("active");
+  expect(parsed.searchParams.get("sort")).toBe("newest");
  });
+});
+
+describe("Action ordering pagination",()=>{
+  it("accepts supported ordering and refuses arbitrary sort keys",()=>{
+    expect(parseActionPageInput({sort:"severity"}).sort).toBe("severity");
+    expect(parseActionPageInput({sort:"oldest"}).sort).toBe("oldest");
+    expect(parseActionPageInput({sort:"arbitrary"}).sort).toBe("newest");
+  });
+  it("retains ordering across page links",()=>{
+    const settings=parseActionPageInput({sort:"severity",pageSize:"50",status:"all"});
+    const url=new URL(actionPageUrl("/actions",settings,{page:3}),"https://example.invalid");
+    expect(url.searchParams.get("sort")).toBe("severity");
+    expect(url.searchParams.get("page")).toBe("3");
+  });
 });
