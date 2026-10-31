@@ -357,12 +357,22 @@ export default async function OrganizationPage({
               <p>No evidence-backed priority actions are currently available. Review your report for assessment coverage.</p>
             ) : (
               <ol>
-                {cyberScore.topActions.slice(0, 3).map((action) => (
-                  <li key={action.id}>
-                    <strong>{action.title}</strong>
-                    <p>{action.severity} priority · Review the recommended action before making changes.</p>
-                  </li>
-                ))}
+                {cyberScore.topActions.slice(0, 3).map((action) => {
+                  const { href, playbook } = getPriorityNavigation(
+                    action.id,
+                    findings,
+                    priorityRemediations,
+                  );
+                  return (
+                    <li key={action.id}>
+                      <strong>{action.title}</strong>
+                      <p>{action.severity} priority · Review the recommended action before making changes.</p>
+                      <a href={href}>
+                        {playbook ? "View action and verification steps" : "View finding and evidence"}
+                      </a>
+                    </li>
+                  );
+                })}
               </ol>
             )}
             <p className="action-link">
