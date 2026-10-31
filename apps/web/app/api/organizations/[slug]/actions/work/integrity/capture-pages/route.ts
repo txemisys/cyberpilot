@@ -31,7 +31,17 @@ export async function GET(request: NextRequest, { params }: Context) {
       userId: session.user.id,
       role: membership.role,
     }, options);
-    return NextResponse.json(result, {
+    return NextResponse.json({ ...result.snapshot, traversal: {
+      pagesRead: result.pagesRead,
+      workItemsExamined: result.workItemsExamined,
+      casesCollected: result.casesCollected,
+      hasMore: result.hasMore,
+      nextCursor: result.nextCursor,
+      historyComplete: result.historyComplete,
+      linkedCoverageComplete: result.linkedCoverageComplete,
+      duplicateCases: result.duplicateCases,
+      warnings: result.warnings,
+    } }, {
       headers: {
         ...common,
         "Content-Disposition": 'attachment; filename="integrity-multi-page-capture.json"',
