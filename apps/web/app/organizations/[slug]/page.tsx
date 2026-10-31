@@ -352,7 +352,7 @@ export default async function OrganizationPage({
           <div>
             <h2>Your next security steps</h2>
             {!hasCompletedScan ? (
-              <p>Security recommendations are not available until the first assessment is complete.</p>
+              <><p>Security recommendations are not available until the first assessment is complete.</p><p className="action-link"><a href="#microsoft-365-setup">Go to first assessment setup</a></p></>
             ) : cyberScore.topActions.length === 0 ? (
               <p>No evidence-backed priority actions are currently available. Review your report for assessment coverage.</p>
             ) : (
@@ -394,7 +394,7 @@ export default async function OrganizationPage({
           </div>
         ) : null}
 
-        <div className="empty-state">
+        <div className="empty-state" id="microsoft-365-setup">
           <h2>Microsoft 365</h2>
 
           {integration?.status === "CONNECTED" ? (
