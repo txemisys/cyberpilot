@@ -55,6 +55,24 @@ export async function listHandoffs(
   disclaimer:"Acceptance assigns work only; it does not certify a control or close findings."
  };
 }
+export async function handoffInboxAttention(scope:HandoffContext,now=new Date()){
+ const rows=await db.workHandoff.findMany({
+  where:{organizationId:scope.organizationId,recipientUserId:scope.userId},
+  select:{
+   id:true,recipientUserId:true,requesterUserId:true,status:true,
+   requestedAt:true,expiresAt:true,
+   workItem:{select:{status:true,priority:true,dueAt:true}}
+  },orderBy:{requestedAt:"desc"},take:100
+ });
+ const {prioritizeHandoffAttention,groupHandoffInbox}=await import("./work-handoff-export");
+ const prioritized=prioritizeHandoffAttention(rows,now);
+ return {
+  total:prioritized.length,
+  attention:prioritized,
+  recipients:groupHandoffInbox(rows,now),
+  disclaimer:"These are operational handoff deadlines, not verified security outcomes."
+ };
+}
 export async function createHandoff(scope:HandoffContext,input:unknown){
  const command=parseHandoffCommand({kind:"request",...(input as object)});
  if(command.kind!=="request")throw new HandoffError("INVALID","Invalid request.");
