@@ -21,6 +21,7 @@ export default async function AssuranceDetailPage({params}:Props){
    <p className="action-link"><Link href={base+"/assurance"}>Control assurance overview</Link></p>
    <p className="action-link"><Link href={base+"/evidence/"+finding.id}>Evidence provenance</Link></p>
    <p className="action-link"><Link href={base+"/verification-plan/"+finding.id}>Verification checklist</Link></p>
+   <p className="action-link"><Link href={base+"/chronology/"+finding.id}>Compare evidence and remediation chronology</Link></p>
    <PrintReportButton/>
   </div>
   <section className="remediation-section">
