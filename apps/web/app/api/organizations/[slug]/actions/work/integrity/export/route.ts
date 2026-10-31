@@ -23,6 +23,17 @@ function parseExportOptions(url: URL) {
   const severity = url.searchParams.get("severity") ?? "all";
   if (!["all", "critical", "attention", "info"].includes(severity))
     throw new WorkInputError("INVALID", "Severity filter not supported.");
+  // Reject conflicting repeated parameters rather than silently selecting one.
+  // This makes an archived export's exact page and filtering reproducible.
+  for (const key of ["format", "severity", "includeEmpty", "limit", "cursor", "includeInfo"]) {
+    if (url.searchParams.getAll(key).length > 1)
+      throw new WorkInputError("INVALID", `Repeated query parameter: ${key}.`);
+  }
+  const supported = new Set(["format", "severity", "includeEmpty", "limit", "cursor", "includeInfo"]);
+  for (const key of url.searchParams.keys()) {
+    if (!supported.has(key))
+      throw new WorkInputError("INVALID", `Unsupported export parameter: ${key}.`);
+  }
   const includeEmpty = url.searchParams.get("includeEmpty") ?? "false";
   if (!["true", "false"].includes(includeEmpty))
     throw new WorkInputError("INVALID", "includeEmpty must be true or false.");
