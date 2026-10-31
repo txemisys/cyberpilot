@@ -348,6 +348,31 @@ export default async function OrganizationPage({
           </div>
         </div>
 
+        <section className="panel" aria-label="Your next security steps">
+          <div>
+            <h2>Your next security steps</h2>
+            {!hasCompletedScan ? (
+              <p>Security recommendations are not available until the first assessment is complete.</p>
+            ) : cyberScore.topActions.length === 0 ? (
+              <p>No evidence-backed priority actions are currently available. Review your report for assessment coverage.</p>
+            ) : (
+              <ol>
+                {cyberScore.topActions.slice(0, 3).map((action) => (
+                  <li key={action.id}>
+                    <strong>{action.title}</strong>
+                    <p>{action.severity} priority · Review the recommended action before making changes.</p>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <p className="action-link">
+              <Link href={`/organizations/${membership.organization.slug}/report`}>
+                View the full report
+              </Link>
+            </p>
+          </div>
+        </section>
+
         {integration?.mode === "LAB" ? (
           <div className="lab-banner">
             <strong>Microsoft 365 Lab Mode</strong>
