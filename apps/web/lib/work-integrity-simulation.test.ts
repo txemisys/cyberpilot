@@ -161,7 +161,7 @@ describe("budgeted intervention simulation", () => {
   });
   it("allows incomplete snapshot when explicit", () => {
     expect(simulateInterventions(snapshot([urgent], false), {
-      ...policy, allowIncompleteCoverage: true, interventions: [interventions[0]!],
+      ...policy, allowIncompleteCoverage: true, interventions: [interventions.find(item => item.caseKeys.includes(urgent.key))!],
     }).accepted).toHaveLength(1);
   });
   it("records warnings about simulated benefit", () => {
