@@ -2,15 +2,14 @@ import { db } from "@cyberpilot/database";
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../lib/organizations";
 import { buildSmeRemediationOverview } from "../../../../lib/sme-remediation-overview";
+import { ACTION_CENTER_VIEWS, filterActionCenterRecords, parseActionCenterView, summarizeActionCenterRecords } from "../../../../lib/action-center";
 
 type Params = { params: Promise<{slug:string}>; searchParams: Promise<{view?:string}> };
-const VIEWS = ["attention","active","verified","all"] as const;
-type View = typeof VIEWS[number];
 
 export default async function RemediationActionCenter({params,searchParams}:Params) {
   const {slug} = await params;
   const {view:requestedView} = await searchParams;
-  const view:View = VIEWS.find(value=>value===requestedView) ?? "attention";
+  const view = parseActionCenterView(requestedView);
   const {membership} = await requireOrganizationAccess(slug);
   const organizationId = membership.organization.id;
 
@@ -39,15 +38,12 @@ export default async function RemediationActionCenter({params,searchParams}:Para
   }
   const overview=buildSmeRemediationOverview(remediations,progress);
   const byId=new Map(overview.items.map(item=>[item.id,item]));
-  const attention=(status:string,needsVerification:boolean)=>
-    needsVerification||status==="FAILED"||status==="PROPOSED"||status==="APPROVED";
-  const filtered=remediations.filter(action=>{
-    const summary=byId.get(action.id);
-    if(view==="all")return true;
-    if(view==="verified")return action.status==="VERIFIED";
-    if(view==="active")return action.status==="EXECUTING";
-    return attention(action.status,summary?.needsVerification??false);
-  });
+  const rows=remediations.map(action=>({
+    ...action,needsVerification:byId.get(action.id)?.needsVerification??false,
+    findingStatus:action.finding.status,severity:action.finding.severity,
+  }));
+  const filtered=filterActionCenterRecords(rows,view);
+  const totals=summarizeActionCenterRecords(rows);
   const base=`/organizations/${slug}/actions`;
   return (
     <main className="shell">
@@ -58,12 +54,12 @@ export default async function RemediationActionCenter({params,searchParams}:Para
         <p className="action-link"><Link href={`/organizations/${slug}`}>Back to workspace</Link></p>
         <div className="panel">
           <div><p className="panel-label">Recent actions loaded</p><p className="panel-value">{remediations.length}</p></div>
-          <div><p className="panel-label">In progress</p><p className="panel-value">{overview.inProgress}</p></div>
-          <div><p className="panel-label">Needs verification</p><p className="panel-value">{overview.items.filter(x=>x.needsVerification).length}</p></div>
-          <div><p className="panel-label">Verified</p><p className="panel-value">{overview.verified}</p></div>
+          <div><p className="panel-label">In progress</p><p className="panel-value">{totals.inProgress}</p></div>
+          <div><p className="panel-label">Needs verification</p><p className="panel-value">{totals.needsVerification}</p></div>
+          <div><p className="panel-label">Verified</p><p className="panel-value">{totals.verified}</p></div>
         </div>
         <nav aria-label="Filter security actions" className="workspace-links no-print">
-          {VIEWS.map(option=>(
+          {ACTION_CENTER_VIEWS.map(option=>(
             <p key={option} className="action-link">
               <Link aria-current={view===option?"page":undefined} href={`${base}?view=${option}`}>
                 {option==="attention"?"Needs attention":option==="active"?"In progress":option==="verified"?"Verified":"All actions"}
@@ -71,6 +67,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
             </p>
           ))}
         </nav>
+        <p className="action-link no-print"><a href={`/api/organizations/${slug}/actions/export`}>Export action overview (CSV)</a></p>
         {total>remediations.length?<p className="score-caption">Showing the {remediations.length} most recently created of {total} actions. Older actions are not included in these totals or filters.</p>:null}
         {filtered.length===0?(
           <div className="empty-state"><p>No actions match this view.</p></div>
