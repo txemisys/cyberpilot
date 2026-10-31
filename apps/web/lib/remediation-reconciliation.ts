@@ -88,7 +88,7 @@ function reconcileAction(finding:ReviewFinding,action:ReviewAction|null):Reconci
  if(outcome==="aligned-verified")warnings.push(
   "Recorded agreement of status and timestamps does not independently certify the control.",
  );
- const needsReviewer=outcome!=="aligned-verified"&&outcome!=="aligned-open";
+ const needsReviewer=outcome!=="aligned-verified";
  return {
   id:finding.id+":"+(action?.id??"no-action"),findingId:finding.id,
   findingTitle:finding.title,severity:finding.severity,
