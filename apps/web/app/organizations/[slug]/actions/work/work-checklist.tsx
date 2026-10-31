@@ -109,6 +109,7 @@ export default function WorkChecklist({slug,workId}:{slug:string;workId:string})
  }
  return <section className="panel" aria-label="Operational work checklist">
   <h2>Coordination checklist</h2>
+  <p><a href={`${endpoint}/export`}>Export coordination checklist (CSV)</a></p>
   <p>Use this list to split a remediation into attributable human steps, without marking security controls verified.</p>
   {loading?<p role="status">Loading checklist…</p>:null}
   {error?<p role="alert" className="auth-error">{error}</p>:null}
