@@ -197,3 +197,33 @@ export function exportExceptionRegister(items:readonly ReviewException[]):string
  ]);
  return "\uFEFF"+[header,...values].map(row=>row.map(cell).join(",")).join("\r\n")+"\r\n";
 }
+
+export type ExceptionCategoryCount = {
+  kind: ReviewExceptionKind;
+  count: number;
+  critical: number;
+  high: number;
+  affectedFindings: number;
+};
+/** Give managers an actionable breakdown without hiding duplicate flags per finding. */
+export function summarizeReviewExceptionKinds(
+  exceptions: readonly ReviewException[],
+): ExceptionCategoryCount[] {
+  const kinds = new Map<ReviewExceptionKind, ReviewException[]>();
+  for (const item of exceptions) {
+    const group = kinds.get(item.kind) ?? [];
+    group.push(item);
+    kinds.set(item.kind, group);
+  }
+  return [...kinds.entries()].map(([kind, group]) => ({
+    kind,
+    count: group.length,
+    critical: group.filter(item => item.severity === "CRITICAL").length,
+    high: group.filter(item => item.severity === "HIGH").length,
+    affectedFindings: new Set(group.map(item => item.findingId)).size,
+  })).sort((a, b) =>
+    b.critical - a.critical ||
+    b.high - a.high ||
+    b.count - a.count ||
+    a.kind.localeCompare(b.kind));
+}
