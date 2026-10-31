@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../lib/organizations";
 import { loadWorkIntegrity } from "../../../../../../lib/work-integrity";
 import { WorkInputError } from "../../../../../../lib/remediation-work-input";
+import { buildIntegrityTriage, selectIntegrityRows, summarizeIntegrityReview } from "../../../../../../lib/work-integrity-export";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -38,6 +39,14 @@ export default async function WorkIntegrityPage({ params, searchParams }: Props)
   const counts = { critical: 0, attention: 0, info: 0 };
   for (const item of result?.findings ?? []) counts[item.severity]++;
   const incomplete = result?.items.filter(item => !item.complete).length ?? 0;
+  const selectedRows = result ? selectIntegrityRows(result) : [];
+  const triage = buildIntegrityTriage(selectedRows);
+  const statistics = result ? summarizeIntegrityReview(result) : null;
+  const exportQuery = new URLSearchParams();
+  exportQuery.set("limit", query.limit ?? "25");
+  if (query.cursor) exportQuery.set("cursor", query.cursor);
+  exportQuery.set("includeInfo", "true");
+
   return (
     <main className="shell">
       <section className="dashboard">
@@ -99,14 +108,54 @@ export default async function WorkIntegrityPage({ params, searchParams }: Props)
               Review generated {result.generatedAt}. Counts describe only this page.
               {counts.info ? ` ${counts.info} additional informational signals.` : ""}
             </p>
-            <p className="action-link">
-              <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity?${new URLSearchParams({
-                ...query,
-                limit: query.limit ?? "25",
-              }).toString()}`}>
-                Retrieve this page as structured JSON for independent review
-              </a>
-            </p>
+            <section aria-label="Download operational integrity review">
+              <h2>Portable diagnostic package</h2>
+              <p>Both exports are limited to the current cursor page. CSV is escaped for
+                spreadsheet safety; JSON includes follow-up groups and coverage statistics.
+                Neither format is a certification or evidence of a resolved finding.</p>
+              <p className="action-link">
+                <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/export?${exportQuery.toString()}&format=csv`}>
+                  Download integrity findings as CSV
+                </a>
+              </p>
+              <p className="action-link">
+                <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/export?${exportQuery.toString()}&format=json`}>
+                  Download integrity review with triage as JSON
+                </a>
+              </p>
+              <p className="score-caption">
+                This page contains {statistics?.withFindings ?? 0} tasks with at least one
+                diagnostic signal and {statistics?.withoutFindings ?? 0} without a returned
+                signal. There are {statistics?.partialCoverage ?? 0} tasks with truncated
+                linked records.
+              </p>
+            </section>
+            <section aria-label="Suggested diagnostic follow-up">
+              <h2>Suggested review sequence</h2>
+              {triage.length === 0 ? (
+                <p>No priority groups were produced from this page of diagnostic results.
+                  This does not establish security verification.</p>
+              ) : (
+                <ol>
+                  {triage.map(group => (
+                    <li key={group.title}>
+                      <h3>{group.title}</h3>
+                      <p>{group.findingCount} signals across {group.affectedWorkItems.length}
+                        distinct work records.</p>
+                      <p>{group.nextAction}</p>
+                      <details>
+                        <summary>Related work records and diagnostic codes</summary>
+                        <ul>{group.affectedWorkItems.map(id => (
+                          <li key={id}>{id}</li>
+                        ))}</ul>
+                        <p>Codes: {group.codes.join(", ")}</p>
+                        <p>{group.verificationCaveat}</p>
+                      </details>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
             {result.items.length === 0 ? (
               <p>No work items were found for this page.</p>
             ) : (
