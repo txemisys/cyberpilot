@@ -8,7 +8,7 @@ type Priority="LOW"|"NORMAL"|"HIGH"|"URGENT";
 type Assignee={role:string;user:{id:string;name:string;email:string}};
 type Candidate={id:string;title:string;status:string;finding:{title:string;severity:string}};
 type Item={
-  id:string;title:string;description:string;status:Status;priority:Priority;
+  id:string;remediationId:string;title:string;description:string;status:Status;priority:Priority;
   assigneeUserId:string|null;dueAt:string|null;revision:number;
   updatedAt:string;createdAt:string;completedAt:string|null;dueState:string;
   remediation:{title:string;status:string;mode:string};
@@ -269,7 +269,7 @@ export default function WorkBoard({slug,canManage,canComment,currentUserId}:Prop
       <p>Revision {selected.revision} · Updated {formatDate(selected.updatedAt)}</p>
       <p>Finding: {selected.finding.title} · {selected.finding.status}</p>
       <p>Remediation state: {selected.remediation.status}</p>
-      <p><Link href={`/organizations/${slug}/actions/${selected.remediationId??""}`}>Go to verification and action details</Link></p>
+      <p><Link href={`/organizations/${slug}/actions/${selected.remediationId}`}>Go to verification and action details</Link></p>
       {canManage?<form className="remediation-actions" onSubmit={event=>void save(event)}>
         <label htmlFor="edit-work-title">Title</label>
         <input id="edit-work-title" value={editTitle} minLength={3} maxLength={160} onChange={event=>setEditTitle(event.target.value)}/>
