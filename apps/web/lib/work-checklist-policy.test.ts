@@ -197,7 +197,7 @@ describe("human work progress semantics",()=>{
    {kind:"toggle",workItemId:work,entryId:entry,completed:false},
    {kind:"remove",workItemId:work,entryId:entry},
    {kind:"reorder",workItemId:work,entryIds:[entry]}
-  ] as const;
+  ] as Array<Parameters<typeof describeChecklistAction>[0]>;
   expect(operations.map(x=>describeChecklistAction(x))).toEqual([
    "Added a coordination checklist entry","Updated checklist instructions",
    "Acknowledged checklist work","Reopened checklist work",
