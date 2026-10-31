@@ -43,6 +43,7 @@ export default async function RemediationRunbookPage({params}:Props){
    <p className="action-link"><Link href={`/organizations/${slug}/actions/${action.id}`}>Back to action details</Link></p>
    <p className="action-link"><Link href={`/organizations/${slug}/actions`}>All actions</Link></p>
    <PrintReportButton/>
+   <p className="action-link"><a href={`/api/organizations/${slug}/actions/${action.id}/runbook`}>Download text runbook</a></p>
   </div>
   <div className="panel">
    <div><p className="panel-label">Finding severity</p><strong>{action.finding.severity}</strong></div>
