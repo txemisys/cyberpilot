@@ -47,7 +47,7 @@ function snapshot(work:{
     completedAt:work.completedAt?.toISOString()??null,revision:work.revision
   };
 }
-function workWhere(organizationId:string,filter:WorkFilter,now:Date):Prisma.RemediationWorkItemWhereInput{
+export function workWhere(organizationId:string,filter:WorkFilter,now:Date):Prisma.RemediationWorkItemWhereInput{
   const where:Prisma.RemediationWorkItemWhereInput={organizationId};
   if(filter.status!=="ALL")where.status=filter.status;
   if(filter.priority!=="ALL")where.priority=filter.priority;
