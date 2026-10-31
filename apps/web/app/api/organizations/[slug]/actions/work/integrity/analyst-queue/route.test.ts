@@ -1,3 +1,4 @@
+import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const access = vi.hoisted(() => ({
@@ -127,12 +128,10 @@ describe("authenticated live analyst queue endpoint", () => {
     );
   });
   it("maps access errors to forbidden", async () => {
-    const { WorkInputError } = await import("../../../../../../../../lib/remediation-work-input");
     access.loadIntegrityCases.mockRejectedValue(new WorkInputError("FORBIDDEN", "No access"));
     expect((await GET(url(), context)).status).toBe(403);
   });
   it("maps invalid case filters to bad request", async () => {
-    const { WorkInputError } = await import("../../../../../../../../lib/remediation-work-input");
     access.loadIntegrityCases.mockRejectedValue(new WorkInputError("INVALID", "Invalid filter"));
     expect((await GET(url(), context)).status).toBe(400);
   });
