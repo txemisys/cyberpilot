@@ -176,3 +176,70 @@ export function workstreamPlanCsv(plan:WorkstreamPlan):string{
  ];
  return "\uFEFF"+rows.map(x=>x.map(cell).join(",")).join("\r\n")+"\r\n";
 }
+
+export type WorkstreamHandoff = {
+  workstream: Workstream;
+  role: string;
+  totalTasks: number;
+  urgentFindings: number;
+  nextFindingId: string | null;
+  nextTask: string | null;
+  prerequisites: string[];
+  verificationRequirements: string[];
+  unresolvedLimitations: string[];
+};
+/**
+ * Generate a shareable responsibility handoff without persisting staff
+ * assignments or implying that any approval has been recorded.
+ */
+export function buildWorkstreamHandoffs(plan: WorkstreamPlan): WorkstreamHandoff[] {
+  return plan.streams.map(section => {
+    const first = section.items[0];
+    const prerequisites = [...new Set(
+      section.items.flatMap(item => item.criteria),
+    )];
+    const limitations = [...new Set(
+      section.items.flatMap(item => item.limitations),
+    )];
+    return {
+      workstream: section.stream,
+      role: descriptions[section.stream].role,
+      totalTasks: section.total,
+      urgentFindings: new Set(section.items
+        .filter(item => item.severity === "CRITICAL")
+        .map(item => item.findingId)).size,
+      nextFindingId: first?.findingId ?? null,
+      nextTask: first?.instructions ?? null,
+      prerequisites,
+      verificationRequirements: [
+        ...descriptions[section.stream].criteria,
+      ],
+      unresolvedLimitations: limitations,
+    };
+  });
+}
+export function renderWorkstreamHandoffs(handoffs: readonly WorkstreamHandoff[]): string {
+  const lines = [
+    "CYBERPILOT — SUGGESTED RESPONSIBILITY HANDOFF",
+    "Review agenda only: no assignment, approval or security change is recorded.",
+    "",
+  ];
+  for (const handoff of handoffs) {
+    lines.push(
+      handoff.workstream.toUpperCase(),
+      "Suggested role: " + handoff.role,
+      "Outstanding tasks: " + handoff.totalTasks,
+      "Critical findings: " + handoff.urgentFindings,
+      "Next proposed action: " + (handoff.nextTask ?? "No current task"),
+      "Review criteria:",
+      ...handoff.verificationRequirements.map(text => " - " + text),
+      "Source limitations:",
+      ...(handoff.unresolvedLimitations.length
+        ? handoff.unresolvedLimitations.map(text => " - " + text)
+        : [" - No additional limitations derived"]),
+      "",
+    );
+  }
+  lines.push("Use existing CyberPilot approval workflows for authorized action.");
+  return lines.join("\n") + "\n";
+}
