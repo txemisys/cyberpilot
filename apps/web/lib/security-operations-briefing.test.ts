@@ -74,7 +74,7 @@ describe("Security operations leadership briefing",()=>{
    finding({actions:[remediation("PROPOSED")]}),
   ],"Example");
   const text=formatWeeklySecurityBriefing(report);
-  expect(text).toContain("Approvals and pending operational work");
+  expect(text).toContain("APPROVALS AND PENDING OPERATIONAL WORK");
   expect(text).toContain("Next step:");
   expect(text).toContain("CyberScore");
  });
