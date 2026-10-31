@@ -31,7 +31,7 @@ const caseRow = {
 const report = {
   generatedAt: "2026-10-31T10:00:00.000Z",
   filters: { state: "ALL", severity: "ALL", search: "",
-    limit: 25, cursor: null, includeInfo: true, includeHistorical: false },
+    limit: 25, cursor: null, includeInfo: true, includeHistorical: true },
   totalWorkItemsExamined: 1, cases: [caseRow],
   summary: { totalOnPage: 1, unreviewed: 1, investigating: 0,
     acknowledged: 0, dismissed: 0, reopened: 0, stale: 0,
