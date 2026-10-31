@@ -24,6 +24,7 @@ export default async function OperationalRemediationWork({params}:Props){
       <p className="action-link"><Link href={`/organizations/${slug}/actions/work/trends`}>Analyze historical work event trends and exports</Link></p>
       <p className="action-link"><Link href={`/organizations/${slug}/actions/work/digest`}>Review current operational work digest</Link></p>
       <p className="action-link"><Link href={`/organizations/${slug}/actions/work/capacity`}>Review team work distribution and attention signals</Link></p>
+      <p className="action-link"><Link href={`/organizations/${slug}/actions/work/integrity`}>Inspect recorded work integrity and incomplete histories</Link></p>
       <WorkBoard slug={slug} canManage={canManageWork(membership.role)}
         canComment={canCommentWork(membership.role)} currentUserId={session.user.id}/>
     </section>
