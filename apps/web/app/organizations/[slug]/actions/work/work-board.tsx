@@ -3,6 +3,7 @@
 import { useCallback,useEffect,useState,type FormEvent } from "react";
 import Link from "next/link";
 import WorkChecklist from "./work-checklist";
+import WorkEvidence from "./work-evidence";
 
 type Status="TODO"|"IN_PROGRESS"|"BLOCKED"|"DONE"|"CANCELLED";
 type Priority="LOW"|"NORMAL"|"HIGH"|"URGENT";
@@ -301,6 +302,7 @@ export default function WorkBoard({slug,canManage,canComment,currentUserId}:Prop
         <button type="submit" disabled={saving||!comment.trim()}>Record note</button>
       </form>:null}
       <WorkChecklist slug={slug} workId={selected.id}/>
+      <WorkEvidence slug={slug} workId={selected.id}/>
       <h3>Work history</h3>
       <p>{selected.totalEvents} recorded events. {selected.historyTruncated?"Only the latest 100 are displayed.":""}</p>
       <ol>{selected.events.map(event=><li key={event.id}>
