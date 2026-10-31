@@ -120,6 +120,34 @@ export default async function AnalystQueuePage({ params, searchParams }: Props) 
                 <a href={`${api}?${buildQuery({ format: "json" })}`}>Download JSON</a>
               </p>
             </section>
+            <section aria-label="Download operational case snapshot">
+              <h2>Capture the current operational case page</h2>
+              <p>
+                Save the current bounded case page as a JSON snapshot. This is
+                the native input format for the comparison workflow below.
+                The capture is read-only, uses your authenticated organization,
+                and does not create an audit decision.
+              </p>
+              <p className="permission-warning">
+                A capture from one cursor page is not an organization-wide
+                inventory. Save each cursor page separately and do not
+                interpret missing cases on different pages as resolved.
+              </p>
+              <p className="action-link">
+                <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/snapshot?${buildQuery({
+                  priority: null, reviewed: null, offset: null,
+                  pageSize: null, format: null,
+                  includeInfo: "true", includeHistorical: "true",
+                })}`}>
+                  Download this work-page capture (JSON)
+                </a>
+              </p>
+              <p>
+                For a meaningful comparison, capture the same work-item scope
+                and filters at two different times. The comparison explicitly
+                marks incomplete or mismatched coverage as uncertain.
+              </p>
+            </section>
             <section aria-label="Diagnostic groups">
               <h2>Diagnostic distribution on this page</h2>
               {report.groups.length ? (
