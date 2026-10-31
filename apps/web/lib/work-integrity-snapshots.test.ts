@@ -11,7 +11,7 @@ const row: CaseRow = {
   reviewedRevision: null, reviewerUserId: null, reviewRationale: null,
   reviewReference: null, completeCoverage: true, historicalOnly: false,
 };
-const capture = (cases: CaseRow[], complete = true, organizationId = "org-a") => ({
+const capture = (cases: readonly unknown[], complete = true, organizationId = "org-a") => ({
   organizationId, source: "integrity-case-queue", capturedAt: "2026-10-31T12:00:00.000Z",
   complete, cases,
 });
