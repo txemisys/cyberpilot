@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 
 const mocks = vi.hoisted(() => ({ requireOrganizationAccess: vi.fn() }));
 vi.mock("../../../../../../../../lib/organizations", () => ({
@@ -183,5 +182,70 @@ describe("authenticated offline capture comparison API", () => {
     const response = await POST(request(), context);
     expect(JSON.stringify(await response.json())).not.toContain("secret backend detail");
     spy.mockRestore();
+  });
+});
+
+describe("capture comparison endpoint privacy and deterministic results", () => {
+  it("preserves stable JSON output for equivalent requests", async () => {
+    const a = await POST(request(), context);
+    const b = await POST(request(), context);
+    expect(await a.json()).toEqual(await b.json());
+  });
+  it("does not include private audit credentials", async () => {
+    const response = await POST(request(), context);
+    const body = JSON.stringify(await response.json());
+    expect(body).not.toContain("sessionToken");
+    expect(body).not.toContain("password");
+  });
+  it("rejects snapshot with missing organization", async () => {
+    const input = structuredClone(data);
+    input.before.organizationId = "";
+    expect((await POST(request(input), context)).status).toBe(400);
+  });
+  it("rejects malformed capture source", async () => {
+    const input = structuredClone(data);
+    input.after.source = "";
+    expect((await POST(request(input), context)).status).toBe(400);
+  });
+  it("rejects malformed case key", async () => {
+    const input = structuredClone(data);
+    input.after.cases[0].key = "forged-key";
+    expect((await POST(request(input), context)).status).toBe(400);
+  });
+  it("rejects invalid case severity", async () => {
+    const input = structuredClone(data);
+    input.after.cases[0].severity = "untrusted" as "attention";
+    expect((await POST(request(input), context)).status).toBe(400);
+  });
+  it("rejects duplicate case identities", async () => {
+    const input = structuredClone(data);
+    input.after.cases.push(structuredClone(row));
+    expect((await POST(request(input), context)).status).toBe(400);
+  });
+  it("does not create an audit decision when comparing", async () => {
+    const response = await POST(request(), context);
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.changes[0]?.kind).toBe("NEW");
+    expect(result.warnings.some((line: string) =>
+      line.includes("user") || line.includes("caller"))).toBe(true);
+  });
+  it("does not allow comparison of foreign tenant despite valid format", async () => {
+    const foreign = structuredClone(data);
+    foreign.before.organizationId = "org-foreign";
+    foreign.after.organizationId = "org-foreign";
+    const response = await POST(request(foreign, "?format=csv"), context);
+    expect(response.status).toBe(400);
+    expect(response.headers.get("content-disposition")).toBeNull();
+  });
+  it("returns JSON when format is explicitly selected", async () => {
+    const response = await POST(request(data, "?format=json"), context);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/json");
+  });
+  it("rejects case data with invalid revision", async () => {
+    const input = structuredClone(data);
+    input.after.cases[0].taskRevision = 0;
+    expect((await POST(request(input), context)).status).toBe(400);
   });
 });
