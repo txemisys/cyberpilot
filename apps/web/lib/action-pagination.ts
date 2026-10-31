@@ -10,6 +10,7 @@ export type ActionPageInput = {
   search:string;
   severity:"ALL"|"CRITICAL"|"HIGH"|"MEDIUM"|"LOW"|"INFO";
   status:"attention"|"active"|"verified"|"all";
+  sort:"newest"|"oldest"|"severity";
 };
 export type ActionPageResult<T> = {
   items:T[];
@@ -35,7 +36,8 @@ export function parseActionPageInput(values:Record<string,unknown>):ActionPageIn
   const search=rawSearch.slice(0,120);
   const severity=severities.find(x=>x===values.severity)??"ALL";
   const status=statuses.find(x=>x===values.status)??"attention";
-  return {page,pageSize,search,severity,status};
+  const sort=["newest","oldest","severity"].find(x=>x===values.sort) as ActionPageInput["sort"]|undefined;
+  return {page,pageSize,search,severity,status,sort:sort??"newest"};
 }
 export function actionPageResult<T>(items:readonly T[],total:number,settings:ActionPageInput):ActionPageResult<T> {
   const count=Number.isSafeInteger(total)&&total>=0?total:0;
@@ -56,6 +58,7 @@ export function actionPageUrl(base:string,settings:ActionPageInput,overrides:Par
   query.set("page",String(next.page));
   query.set("pageSize",String(next.pageSize));
   query.set("status",next.status);
+  query.set("sort",next.sort);
   if(next.search)query.set("search",next.search);
   if(next.severity!=="ALL")query.set("severity",next.severity);
   return base+"?"+query.toString();
