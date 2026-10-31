@@ -23,12 +23,12 @@ export async function GET(request: NextRequest, { params }: Context) {
   try {
     const { slug } = await params;
     const { session, membership } = await requireOrganizationAccess(slug);
-    const params = request.nextUrl.searchParams;
-    for (const key of params.keys()) {
-      if (!permitted.has(key) || params.getAll(key).length !== 1)
+    const queryParams = request.nextUrl.searchParams;
+    for (const key of queryParams.keys()) {
+      if (!permitted.has(key) || queryParams.getAll(key).length !== 1)
         throw new WorkInputError("INVALID", "Unknown or repeated capture filter.");
     }
-    const input = Object.fromEntries(params.entries());
+    const input = Object.fromEntries(queryParams.entries());
     const cases = await loadIntegrityCases({
       organizationId: membership.organization.id,
       userId: session.user.id,
