@@ -287,3 +287,15 @@ export function auditPortfolioText(portfolio:AuditPortfolio):string{
  );
  return lines.join("\n");
 }
+
+/** Review coverage ratios refer to documentation questions, not security controls. */
+export function auditDocumentationRates(portfolio:AuditPortfolio):{
+ supportedPercent:number|null;incompletePercent:number|null;reviewPercent:number|null;
+}{
+ const total=portfolio.questions;
+ return {
+  supportedPercent:total?Math.round(portfolio.supported/total*100):null,
+  incompletePercent:total?Math.round(portfolio.incomplete/total*100):null,
+  reviewPercent:total?Math.round(portfolio.reviewRequired/total*100):null,
+ };
+}
