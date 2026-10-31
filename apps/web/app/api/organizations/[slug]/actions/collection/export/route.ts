@@ -1,7 +1,7 @@
 import {db} from "@cyberpilot/database";
 import {requireOrganizationAccess} from "../../../../../../../lib/organizations";
 import {loadReviewData,parseReviewListOptions} from "../../../../../../../lib/finding-review-data";
-import {buildEvidenceCollectionPlan,evidenceCollectionPlanCsv,evidenceCollectionPlanText} from "../../../../../../../lib/evidence-collection-planner";
+import {buildEvidenceCollectionPlan,evidenceCollectionPlanCsv,evidenceCollectionPlanText,buildEvidenceCollectionHandoffs,renderEvidenceCollectionHandoffs} from "../../../../../../../lib/evidence-collection-planner";
 export async function GET(request:Request,{params}:{params:Promise<{slug:string}>}){
  const {slug}=await params;
  const {membership}=await requireOrganizationAccess(slug);
@@ -34,11 +34,16 @@ export async function GET(request:Request,{params}:{params:Promise<{slug:string}
  );
  const plan=buildEvidenceCollectionPlan(findings);
  const csv=url.searchParams.get("format")==="csv";
- return new Response(csv?evidenceCollectionPlanCsv(plan):evidenceCollectionPlanText(plan),{
+ const handoff=url.searchParams.get("format")==="handoff";
+ const content=csv?evidenceCollectionPlanCsv(plan):handoff?
+  renderEvidenceCollectionHandoffs(buildEvidenceCollectionHandoffs(plan)):
+  evidenceCollectionPlanText(plan);
+ return new Response(content,{
   headers:{
    "Content-Type":csv?"text/csv; charset=utf-8":"text/plain; charset=utf-8",
    "Content-Disposition":csv?
     'attachment; filename="cyberpilot-evidence-collection.csv"':
+    handoff?'attachment; filename="cyberpilot-evidence-collection-handoff.txt"':
     'attachment; filename="cyberpilot-evidence-collection.txt"',
    "Cache-Control":"private, no-store",
    "X-Content-Type-Options":"nosniff",
