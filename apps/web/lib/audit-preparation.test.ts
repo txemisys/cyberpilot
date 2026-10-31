@@ -79,7 +79,7 @@ describe("Security audit preparation packets",()=>{
   const output=auditPortfolioText(report);
   expect(output).toContain("AUDIT DOCUMENTATION PREPARATION REPORT");
   expect(output).toContain("INDIVIDUAL EVIDENCE PACKETS");
-  expect(output).toContain("INCOMPLETE".toLowerCase().slice(0,5).toUpperCase());
+  expect(output).toContain("Incomplete documentation:");
  });
  it("renders auditor handoff without raw evidence provider payloads",()=>{
   const packet=buildAuditPacket(finding());
