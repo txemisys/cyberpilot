@@ -219,3 +219,46 @@ export function serializePortfolioDossier(portfolio: PortfolioDossier): string {
   return header.join("\n") + portfolio.findings
     .map(serializeFindingDossier).join("\n" + "-".repeat(48) + "\n");
 }
+
+/**
+ * Compact management handoff for spreadsheet analysis.
+ * Unlike the detailed text dossier, this contains one row per finding and
+ * no raw provider payloads, credentials, or unbounded evidence descriptions.
+ */
+export function serializePortfolioDossierCsv(portfolio: PortfolioDossier): string {
+  const header = [
+    "Finding ID", "Finding", "Severity", "Finding state",
+    "Review state", "Assurance classification", "Evidence gap",
+    "Observed records", "Declared records", "Unknown records", "Error records",
+    "Remediations", "Verified remediations", "Latest observation UTC",
+    "Latest remediation work UTC", "Latest verification UTC",
+    "Open review limitations", "Next action",
+  ];
+  const safeCell = (value: string): string => {
+    const neutral = /^[\s]*[=+@\-\t\r\n]/.test(value) ? "'" + value : value;
+    return '"' + neutral.replaceAll('"', '""') + '"';
+  };
+  const rows = portfolio.findings.map(finding => [
+    finding.findingId,
+    finding.title,
+    finding.severity,
+    finding.findingStatus,
+    finding.assessment,
+    finding.assurance,
+    finding.gap,
+    String(finding.observed),
+    String(finding.declared),
+    String(finding.unknown),
+    String(finding.errors),
+    String(finding.remediations),
+    String(finding.verifiedRemediations),
+    finding.latestEvidenceAt?.toISOString() ?? "",
+    finding.latestWorkAt?.toISOString() ?? "",
+    finding.latestVerificationAt?.toISOString() ?? "",
+    String(finding.warnings.length),
+    finding.nextAction,
+  ]);
+  return "\uFEFF" + [header, ...rows]
+    .map(row => row.map(safeCell).join(","))
+    .join("\r\n") + "\r\n";
+}
