@@ -4,6 +4,7 @@ import { requireOrganizationAccess } from "../../../../lib/organizations";
 import { buildSmeRemediationOverview } from "../../../../lib/sme-remediation-overview";
 import { ACTION_CENTER_VIEWS, summarizeActionCenterRecords, ACTION_CENTER_SEVERITIES } from "../../../../lib/action-center";
 import { actionPageResult, actionPageUrl, parseActionPageInput } from "../../../../lib/action-pagination";
+import { buildScopedActionQuery } from "../../../../lib/action-database-query";
 
 type Params = { params: Promise<{slug:string}>; searchParams: Promise<{view?:string;status?:string;search?:string;severity?:string;page?:string;pageSize?:string;sort?:string}> };
 
@@ -14,25 +15,12 @@ export default async function RemediationActionCenter({params,searchParams}:Para
   const view = settings.status;
   const {membership} = await requireOrganizationAccess(slug);
   const organizationId = membership.organization.id;
-  const statusFilter = view === "active" ? ["EXECUTING"] :
-    view === "verified" ? ["VERIFIED"] :
-    view === "attention" ? ["PROPOSED","APPROVED","FAILED","SUCCEEDED"] : undefined;
-  const where = {
-    organizationId,
-    ...(statusFilter ? {status:{in:statusFilter as ("PROPOSED"|"APPROVED"|"FAILED"|"SUCCEEDED"|"EXECUTING"|"VERIFIED")[]}} : {}),
-    ...(settings.severity !== "ALL" ? {finding:{severity:settings.severity as "INFO"|"LOW"|"MEDIUM"|"HIGH"|"CRITICAL"}} : {}),
-    ...(settings.search ? {OR:[
-      {title:{contains:settings.search,mode:"insensitive" as const}},
-      {summary:{contains:settings.search,mode:"insensitive" as const}},
-      {finding:{title:{contains:settings.search,mode:"insensitive" as const}}},
-    ]} : {}),
-  };
+  const {where,orderBy}=buildScopedActionQuery(organizationId,settings);
   const total = await db.remediation.count({where});
   const totalPages=Math.max(1,Math.ceil(total/settings.pageSize));
   const currentPage=Math.min(settings.page,totalPages);
   const remediations = await db.remediation.findMany({
-    where,orderBy: settings.sort==="severity" ? [{finding:{severity:"desc"}},{createdAt:"desc"},{id:"asc"}] :
-      settings.sort==="oldest" ? [{createdAt:"asc"},{id:"asc"}] : [{createdAt:"desc"},{id:"asc"}],
+    where,orderBy,
     skip:(currentPage-1)*settings.pageSize,take:settings.pageSize,
     select:{
       id:true,title:true,summary:true,status:true,mode:true,steps:true,verification:true,
