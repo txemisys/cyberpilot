@@ -243,3 +243,62 @@ describe("integrated case delta comparison", () => {
     expect(JSON.stringify(data)).toBe(before);
   });
 });
+
+describe("longitudinal comparison capture-scope protections", () => {
+  it("rejects captures from different source kinds", () => {
+    const data = payload([row("a")], [row("a")]);
+    data.after.source = "different-source";
+    expect(() => compareIntegrityCaptures(data, "org-a")).toThrow(
+      "Capture source or bounded page scope differs",
+    );
+  });
+  it("rejects different cursor scopes encoded in source", () => {
+    const data = payload([row("a")], [row("a")]);
+    data.before.source = JSON.stringify({ kind: "live", cursor: null });
+    data.after.source = JSON.stringify({ kind: "live", cursor: "next" });
+    expect(() => compareIntegrityCaptures(data, "org-a")).toThrow();
+  });
+  it("rejects different case-page limit scopes", () => {
+    const data = payload([], []);
+    data.before.source = JSON.stringify({ kind: "live", limit: 25 });
+    data.after.source = JSON.stringify({ kind: "live", limit: 50 });
+    expect(() => compareIntegrityCaptures(data, "org-a")).toThrow();
+  });
+  it("rejects differing severity filters in capture metadata", () => {
+    const data = payload([], []);
+    data.before.source = JSON.stringify({ kind: "live", severity: "ALL" });
+    data.after.source = JSON.stringify({ kind: "live", severity: "critical" });
+    expect(() => compareIntegrityCaptures(data, "org-a")).toThrow();
+  });
+  it("allows same bounded source across capture times", () => {
+    const data = payload([row("a")], [row("a")]);
+    data.before.source = JSON.stringify({ kind: "live", cursor: null, limit: 25 });
+    data.after.source = data.before.source;
+    expect(compareIntegrityCaptures(data, "org-a").counts.UNCHANGED).toBe(1);
+  });
+  it("never calls a readiness improvement confirmed for incomplete captures", () => {
+    const ready = row("a", {
+      state: "ACKNOWLEDGED", reviewEventId: "event",
+      reviewedAt: afterTime, reviewedRevision: 2, reviewRationale: "Checked",
+    });
+    for (const [oldComplete, newComplete] of [
+      [false, true], [true, false], [false, false],
+    ]) {
+      const report = compareIntegrityCaptures(payload(
+        [row("a")], [ready], oldComplete, newComplete,
+      ), "org-a");
+      expect(report.evidence.newlyReady).toBe(0);
+      expect(report.evidence.uncertain).toBeGreaterThan(0);
+    }
+  });
+  it("never calls evidence loss confirmed for incomplete captures", () => {
+    const ready = row("a", {
+      state: "ACKNOWLEDGED", reviewEventId: "event",
+      reviewedAt: beforeTime, reviewedRevision: 2, reviewRationale: "Checked",
+    });
+    const report = compareIntegrityCaptures(payload(
+      [ready], [row("a")], false,
+    ), "org-a");
+    expect(report.evidence.newlyBlocked).toBe(0);
+  });
+});
