@@ -59,7 +59,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
         <div className="panel">
           <div><p className="panel-label">Recent actions loaded</p><p className="panel-value">{remediations.length}</p></div>
           <div><p className="panel-label">In progress</p><p className="panel-value">{overview.inProgress}</p></div>
-          <div><p className="panel-label">Needs verification</p><p className="panel-value">{overview.awaitingVerification + overview.items.filter(x=>x.needsVerification&&x.label!=="Review status").length - overview.items.filter(x=>x.needsVerification&&remediations.find(r=>r.id===x.id)?.status==="SUCCEEDED").length}</p></div>
+          <div><p className="panel-label">Needs verification</p><p className="panel-value">{overview.items.filter(x=>x.needsVerification).length}</p></div>
           <div><p className="panel-label">Verified</p><p className="panel-value">{overview.verified}</p></div>
         </div>
         <nav aria-label="Filter security actions" className="workspace-links no-print">
