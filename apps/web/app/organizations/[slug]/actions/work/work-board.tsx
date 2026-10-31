@@ -4,6 +4,7 @@ import { useCallback,useEffect,useState,type FormEvent } from "react";
 import Link from "next/link";
 import WorkChecklist from "./work-checklist";
 import WorkEvidence from "./work-evidence";
+import WorkHandoffs from "./work-handoffs";
 
 type Status="TODO"|"IN_PROGRESS"|"BLOCKED"|"DONE"|"CANCELLED";
 type Priority="LOW"|"NORMAL"|"HIGH"|"URGENT";
@@ -181,6 +182,7 @@ export default function WorkBoard({slug,canManage,canComment,currentUserId}:Prop
     </section>
     {error?<p role="alert" className="auth-error">{error}</p>:null}
     {notice?<p role="status">{notice}</p>:null}
+    <WorkHandoffs slug={slug} canManage={canManage} userId={currentUserId}/>
     {showCreate&&canManage?<form className="panel remediation-actions" onSubmit={event=>void create(event)}>
       <h2>New work item</h2>
       <label htmlFor="work-remediation">Remediation to coordinate</label>
