@@ -2,7 +2,7 @@ import {describe,expect,it} from "vitest";
 import {
  buildWeeklySecurityBriefing,formatWeeklySecurityBriefing,weeklyBriefingActionsCsv,
 } from "./security-operations-briefing";
-import {createWorkstreamPlan,workstreamPlanCsv,workstreamPlanText} from "./security-workstreams";
+import {createWorkstreamPlan,workstreamPlanCsv,workstreamPlanText,buildWorkstreamHandoffs,renderWorkstreamHandoffs} from "./security-workstreams";
 import type {ReviewFinding,ReviewAction,ReviewEvidence} from "./finding-evidence-review";
 const date=(day:string)=>new Date(day+"T12:00:00Z");
 const remediation=(status:string):ReviewAction=>({
@@ -113,6 +113,15 @@ describe("Security responsibility workstream plan",()=>{
   const csv=workstreamPlanCsv(report);
   expect(csv).toContain("'=HYPERLINK");
   expect(csv.startsWith("\uFEFF")).toBe(true);
+ });
+ it("creates responsibility handoffs without persisted user assignments",()=>{
+  const plan=createWorkstreamPlan([finding()]);
+  const handoffs=buildWorkstreamHandoffs(plan);
+  expect(handoffs).toHaveLength(5);
+  expect(handoffs.find(x=>x.workstream==="investigation")?.nextFindingId).toBe("finding1");
+  const text=renderWorkstreamHandoffs(handoffs);
+  expect(text).toContain("Security investigator");
+  expect(text).toContain("no assignment");
  });
  it("produces a valid empty workstream report",()=>{
   const report=createWorkstreamPlan([]);
