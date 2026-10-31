@@ -20,6 +20,7 @@ export default async function OperationalRemediationWork({params}:Props){
       <p className="action-link"><Link href={`/organizations/${slug}/actions/work/inbox`}>Open my operational work inbox and handoffs</Link></p>
       <p className="action-link"><Link href={`/organizations/${slug}/actions/work/schedule`}>View deadlines, calendar and coordinated rescheduling</Link></p>
       <p className="action-link"><Link href={`/organizations/${slug}/actions/work/escalations`}>Review stalled work and escalation signals</Link></p>
+      <p className="action-link"><Link href={`/organizations/${slug}/actions/work/readiness`}>Review checklist and evidence readiness before closing work</Link></p>
       <WorkBoard slug={slug} canManage={canManageWork(membership.role)}
         canComment={canCommentWork(membership.role)} currentUserId={session.user.id}/>
     </section>
