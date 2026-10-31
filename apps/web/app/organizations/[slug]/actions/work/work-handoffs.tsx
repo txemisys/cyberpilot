@@ -134,6 +134,7 @@ export default function WorkHandoffs({slug,canManage,userId}:{
     Send assignment request
    </button>
   </form>:null}
+  <p><a href={`${url}/export?view=${view}`}>Export the selected handoff history (CSV)</a></p>
   <nav className="remediation-actions" aria-label="Handoff views">
    <label htmlFor="handoff-view">Show requests</label>
    <select id="handoff-view" value={view} onChange={event=>setView(event.target.value as typeof view)}>
