@@ -209,7 +209,7 @@ export function buildIntegrityTimeline(
     new Map(capture.cases.map(row => [row.key, row])));
   const keys = [...new Set(parsed.flatMap(capture =>
     capture.cases.map(row => row.key)))].sort();
-  const quality = parsed.map(inspectCaptureQuality);
+  const quality = parsed.map(capture => inspectCaptureQuality(capture));
   const cases = keys.map(key => buildCase(key, parsed, maps));
   const counts = Object.fromEntries(TRENDS.map(trend => [trend, 0])) as
     Record<TimelineTrend, number>;
