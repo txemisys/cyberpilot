@@ -142,6 +142,29 @@ export default async function AnalystQueuePage({ params, searchParams }: Props) 
                   Download this work-page capture (JSON)
                 </a>
               </p>
+              <h3>Capture multiple work-item pages</h3>
+              <p>
+                Download up to five consecutive work-item pages in one
+                authenticated, read-only capture. The export includes its
+                coverage status and can be uploaded directly into the
+                comparison form. If more pages exist, the capture is marked
+                incomplete rather than claiming organization-wide coverage.
+              </p>
+              <p className="action-link">
+                <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/capture-pages?maxPages=5&pageSize=50`}>
+                  Download multi-page capture (up to 250 work items)
+                </a>
+              </p>
+              <p className="action-link">
+                <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/capture-pages?maxPages=10&pageSize=100`}>
+                  Download extended capture (up to 1,000 work items)
+                </a>
+              </p>
+              <p>
+                Captures are sequential and can be affected by concurrent
+                changes. Do not treat the resulting evidence as a verified
+                security audit.
+              </p>
               <p>
                 For a meaningful comparison, capture the same work-item scope
                 and filters at two different times. The comparison explicitly
