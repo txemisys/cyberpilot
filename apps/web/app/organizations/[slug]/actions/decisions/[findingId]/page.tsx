@@ -46,6 +46,14 @@ export default async function ManagementFindingDecisionPage({params}:Props){
    </dl>
   </section>
   <section className="remediation-section">
+   <h2>Meeting outcomes to record</h2>
+   <p>For every proposed decision, document the authorized reviewer, the
+    chosen action, the impacted control scope and the evidence expected
+    after work. This page does not persist offline meeting notes.</p>
+   <p className="score-caption">Security approvals must use the existing
+    authenticated workflow; a printed agenda cannot authorize changes.</p>
+  </section>
+  <section className="remediation-section">
    <h2>Proposed management decisions</h2>
    {decisions.length===0?<p>No specific decisions could be derived from these records.</p>:(
     <ol className="remediation-list">{decisions.map((item,index)=>(
