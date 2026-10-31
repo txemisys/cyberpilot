@@ -5,6 +5,7 @@ import Link from "next/link";
 import WorkChecklist from "./work-checklist";
 import WorkEvidence from "./work-evidence";
 import WorkHandoffs from "./work-handoffs";
+import WorkAuditHistory from "./work-audit-history";
 
 type Status="TODO"|"IN_PROGRESS"|"BLOCKED"|"DONE"|"CANCELLED";
 type Priority="LOW"|"NORMAL"|"HIGH"|"URGENT";
@@ -305,6 +306,7 @@ export default function WorkBoard({slug,canManage,canComment,currentUserId}:Prop
       </form>:null}
       <WorkChecklist slug={slug} workId={selected.id}/>
       <WorkEvidence slug={slug} workId={selected.id}/>
+      <WorkAuditHistory slug={slug} workId={selected.id}/>
       <h3>Work history</h3>
       <p>{selected.totalEvents} recorded events. {selected.historyTruncated?"Only the latest 100 are displayed.":""}</p>
       <ol>{selected.events.map(event=><li key={event.id}>
