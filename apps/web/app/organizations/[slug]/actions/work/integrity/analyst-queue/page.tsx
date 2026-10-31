@@ -26,7 +26,7 @@ export default async function AnalystQueuePage({ params, searchParams }: Props) 
       organizationId: membership.organization.id,
       userId: session.user.id,
       role: membership.role,
-    }, query);
+    }, { includeInfo: "true", includeHistorical: "true", ...query });
     report = buildLiveIntegrityPage(membership.organization.id, page, query);
   } catch (caught) {
     if (caught instanceof WorkInputError || caught instanceof Error)
