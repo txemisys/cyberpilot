@@ -51,6 +51,7 @@ export type IntegrityTimeline = {
   incompleteCaptures: number;
   counts: Record<TimelineTrend, number>;
   cases: TimelineCase[];
+  followups: TimelineFollowup[];
   warnings: string[];
 };
 export type TimelineInput = {
@@ -215,6 +216,7 @@ export function buildIntegrityTimeline(
   for (const row of cases) counts[row.trend]++;
   const completeCaptures = quality.filter(q =>
     q.safeToTreatAsComplete).length;
+  const followups = planTimelineFollowups({ cases } as IntegrityTimeline);
   return {
     organizationId,
     source: parsed[0]!.source,
@@ -224,7 +226,7 @@ export function buildIntegrityTimeline(
     comparable: completeCaptures === parsed.length,
     completeCaptures,
     incompleteCaptures: parsed.length - completeCaptures,
-    counts, cases,
+    counts, cases, followups,
     warnings: [
       "Timeline inputs are submitted captures; their provenance is not authenticated.",
       "The analysis is read-only and does not change reviews or remediation records.",
