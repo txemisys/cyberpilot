@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {requireOrganizationAccess} from "../../../../../lib/organizations";
 import {loadReviewData,parseReviewListOptions} from "../../../../../lib/finding-review-data";
-import {buildReviewExceptionRegister} from "../../../../../lib/review-exceptions";
+import {buildReviewExceptionRegister,summarizeReviewExceptionKinds} from "../../../../../lib/review-exceptions";
 type Props={params:Promise<{slug:string}>;searchParams:Promise<Record<string,string|undefined>>};
 export default async function ReviewExceptionsPage({params,searchParams}:Props){
  const {slug}=await params;
@@ -14,6 +14,7 @@ export default async function ReviewExceptionsPage({params,searchParams}:Props){
  const options=parseReviewListOptions(query);
  const page=await loadReviewData(membership.organization.id,{...options,limit:50,offset:0});
  const register=buildReviewExceptionRegister(page.findings);
+ const categories=summarizeReviewExceptionKinds(register.items);
  const base=`/organizations/${slug}/actions`;
  const exportFilter=new URLSearchParams();
  if(options.search)exportFilter.set("search",options.search);
@@ -72,6 +73,29 @@ export default async function ReviewExceptionsPage({params,searchParams}:Props){
     Export complete matching exception register (CSV)
    </a>
   </p>
+  <section className="remediation-section">
+   <h2>Exception types</h2>
+   {categories.length===0?<p>No exception categories were detected.</p>:(
+    <table>
+     <thead><tr><th scope="col">Type</th><th scope="col">Flags</th>
+      <th scope="col">Affected findings</th><th scope="col">Critical</th>
+      <th scope="col">High</th></tr></thead>
+     <tbody>{categories.map(category=>(
+      <tr key={category.kind}>
+       <th scope="row">{category.kind}</th>
+       <td>{category.count}</td>
+       <td>{category.affectedFindings}</td>
+       <td>{category.critical}</td>
+       <td>{category.high}</td>
+      </tr>
+     ))}</tbody>
+    </table>
+   )}
+   <p className="score-caption">
+    Multiple review flags can apply to the same finding. Counts are not
+    additional vulnerabilities or independent proof of security failure.
+   </p>
+  </section>
   <section className="remediation-section">
    <h2>Items requiring review</h2>
    {register.items.length===0?(
