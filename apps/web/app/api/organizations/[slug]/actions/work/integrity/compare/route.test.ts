@@ -209,12 +209,12 @@ describe("capture comparison endpoint privacy and deterministic results", () => 
   });
   it("rejects malformed case key", async () => {
     const input = structuredClone(data);
-    input.after.cases[0].key = "forged-key";
+    input.after.cases[0]!.key = "forged-key";
     expect((await POST(request(input), context)).status).toBe(400);
   });
   it("rejects invalid case severity", async () => {
     const input = structuredClone(data);
-    input.after.cases[0].severity = "untrusted" as "attention";
+    input.after.cases[0]!.severity = "untrusted" as "attention";
     expect((await POST(request(input), context)).status).toBe(400);
   });
   it("rejects duplicate case identities", async () => {
@@ -245,7 +245,7 @@ describe("capture comparison endpoint privacy and deterministic results", () => 
   });
   it("rejects case data with invalid revision", async () => {
     const input = structuredClone(data);
-    input.after.cases[0].taskRevision = 0;
+    input.after.cases[0]!.taskRevision = 0;
     expect((await POST(request(input), context)).status).toBe(400);
   });
 });
