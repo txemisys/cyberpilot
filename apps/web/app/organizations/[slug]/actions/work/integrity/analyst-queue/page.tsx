@@ -1,3 +1,4 @@
+import IntegrityComparisonClient from "./integrity-comparison-client";
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
 import { loadIntegrityCases } from "../../../../../../../lib/work-integrity-cases";
@@ -282,6 +283,7 @@ export default async function AnalystQueuePage({ params, searchParams }: Props) 
                 </p>
               ) : null}
             </section>
+            <IntegrityComparisonClient slug={slug} />
             <details>
               <summary>Coverage and interpretation limitations</summary>
               <ul>{report.limitations.map((line, index) =>
