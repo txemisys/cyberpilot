@@ -67,6 +67,8 @@ export default async function RemediationActionCenter({params,searchParams}:Para
         <p className="action-link"><Link href={`/organizations/${slug}/actions/exceptions`}>Investigate inconsistent security records</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/decisions`}>Open management security decision board</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/closure-readiness`}>Review finding closure readiness gates</Link></p>
+        <p className="action-link"><Link href={`/organizations/${slug}/actions/briefing`}>Review consolidated security management briefing</Link></p>
+        <p className="action-link"><Link href={`/organizations/${slug}/actions/workstreams`}>Plan security workstreams by responsible role</Link></p>
         <div className="panel">
           <div><p className="panel-label">Actions on this page</p><p className="panel-value">{remediations.length}</p></div>
           <div><p className="panel-label">In progress</p><p className="panel-value">{totals.inProgress}</p></div>
