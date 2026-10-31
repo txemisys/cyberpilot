@@ -133,11 +133,11 @@ export function parsePlanningOptions(raw: unknown): PlanningOptions {
   const horizonDays = numeric(raw.horizonDays,7,90,30);
   if (!horizonValues.some(day => day === horizonDays))
     throw new WorkInputError("INVALID", "Unsupported planning horizon.");
-  const scope = raw.scope ?? "UNASSIGNED";
+  const scope = raw.scope === undefined ? "UNASSIGNED" : raw.scope;
   if (scope !== "UNASSIGNED" && scope !== "ALL_OPEN")
     throw new WorkInputError("INVALID", "Unknown planning scope.");
-  const includeBlocked = raw.includeBlocked ?? false;
-  const preserveOwners = raw.preserveOwners ?? true;
+  const includeBlocked = raw.includeBlocked === undefined ? false : raw.includeBlocked;
+  const preserveOwners = raw.preserveOwners === undefined ? true : raw.preserveOwners;
   if (typeof includeBlocked !== "boolean" || typeof preserveOwners !== "boolean")
     throw new WorkInputError("INVALID", "Planning toggles must be boolean.");
   const capacityPoints = numeric(raw.capacityPoints,0,MAX_CAPACITY,DEFAULT_CAPACITY);
