@@ -1,5 +1,5 @@
 import { db } from "@cyberpilot/database";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@cyberpilot/database";
 import {
   canCommentWork,canManageWork,deriveWorkDue,parseWorkFilter,parseWorkMutation,
   transitionWorkStatus,WorkInputError,type WorkFilter,type WorkRole
