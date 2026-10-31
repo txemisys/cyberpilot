@@ -71,7 +71,7 @@ describe("organization-wide operational concerns",()=>{
  });
  it("counts comments and updates separately",()=>{
   const result=countFeedConcerns([
-   row("clevent001","" as never),
+   row("clevent001"),
    row("clevent002",{kind:"COMMENTED"}),
    row("clevent003",{kind:"REOPENED"})
   ]);
