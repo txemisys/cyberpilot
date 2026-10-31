@@ -108,12 +108,12 @@ export function caseKey(workItemId: string, code: IntegrityCode, resourceId: str
   return JSON.stringify([workItemId, code, resourceId]);
 }
 export function parseCaseFilters(input: Record<string, unknown>): CaseFilters {
-  const state = input.state ?? "ALL";
+  const state = input.state === undefined ? "ALL" : input.state;
   if (typeof state !== "string" ||
       (state !== "ALL" && !CASE_STATES.includes(state as CaseState)))
     throw new WorkInputError("INVALID", "Invalid case state.");
-  const severity = input.severity ?? "ALL";
-  if (!["ALL", "critical", "attention", "info"].includes(String(severity)))
+  const severity = input.severity === undefined ? "ALL" : input.severity;
+  if (typeof severity !== "string" || !["ALL", "critical", "attention", "info"].includes(severity))
     throw new WorkInputError("INVALID", "Invalid diagnostic severity.");
   const limit = input.limit === undefined ? 25 : Number(input.limit);
   if (![10, 25, 50, 100].includes(limit))
@@ -129,7 +129,7 @@ export function parseCaseFilters(input: Record<string, unknown>): CaseFilters {
   const includeHistorical = input.includeHistorical === undefined ? false :
     input.includeHistorical === "true";
   for (const key of ["includeInfo", "includeHistorical"]) {
-    if (input[key] !== undefined && !["true", "false"].includes(String(input[key])))
+    if (input[key] !== undefined && (typeof input[key] !== "string" || !["true", "false"].includes(input[key] as string)))
       throw new WorkInputError("INVALID", `Invalid ${key} filter.`);
   }
   return {
