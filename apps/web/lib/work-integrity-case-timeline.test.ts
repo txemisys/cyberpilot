@@ -200,6 +200,34 @@ describe("longitudinal case state and coverage", () => {
     expect(csv).toContain("caseKey");
     expect(csv.endsWith("\r\n")).toBe(true);
   });
+  it("measures sustained presence without filling missing captures", () => {
+    const result = timeline(
+      capture(1, [work]), capture(2, [work]), capture(3),
+      capture(4, [work]), capture(5, [work]), capture(6, [work]),
+    );
+    expect(result.cases[0]?.longestObservedStreak).toBe(3);
+    expect(result.cases[0]?.latestObservedStreak).toBe(3);
+    expect(result.cases[0]?.transitions).toBe(2);
+  });
+  it("counts contiguous severity escalations only when the case exists", () => {
+    const informational = { ...work, severity: "info" as const };
+    const critical = { ...work, severity: "critical" as const };
+    const result = timeline(
+      capture(1, [informational]), capture(2, [work]),
+      capture(3), capture(4, [critical]),
+    );
+    expect(result.cases[0]?.severityEscalations).toBe(1);
+    expect(result.cases[0]?.longestObservedStreak).toBe(2);
+  });
+  it("tracks distinct task revisions separately from review activity", () => {
+    const result = timeline(
+      capture(1, [work]), capture(2, [{ ...work, taskRevision: 2 }]),
+      capture(3, [{ ...work, taskRevision: 2 }]),
+    );
+    expect(result.cases[0]?.revisionsObserved).toBe(2);
+    expect(result.cases[0]?.reviewRevisions).toBe(0);
+    expect(integrityTimelineCsv(result)).toContain("severityEscalations");
+  });
   it("handles empty snapshots without inventing hidden cases", () => {
     const result = timeline(capture(1), capture(2));
     expect(result.cases).toEqual([]);
