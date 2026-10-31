@@ -138,7 +138,7 @@ function serialized(value: unknown): string | null {
 function oldValue(item: MinimalWork, field: BatchField) {
   return item[field];
 }
-function effectiveValue(item: MinimalWork, change: BatchChange) {
+function effectiveValue(change: BatchChange) {
   const candidate = change.value;
   if (change.field === "dueAt") return serialized(candidate);
   return serialized(candidate);
@@ -171,7 +171,7 @@ export function decideBatch(
           message: error instanceof Error ? error.message : "Invalid status transition." };
       }
     }
-    if (serialized(oldValue(item, change.field)) === effectiveValue(item, change))
+    if (serialized(oldValue(item, change.field)) === effectiveValue(change))
       return { ...base, outcome: "UNCHANGED" as const, message: "Value is already set." };
     return { ...base, outcome: "READY" as const, message: "Change can be applied." };
   });
