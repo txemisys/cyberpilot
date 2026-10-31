@@ -33,6 +33,10 @@ export type TimelineCase = {
   lastSeenAt: string | null;
   observations: number;
   transitions: number;
+  longestObservedStreak: number;
+  latestObservedStreak: number;
+  revisionsObserved: number;
+  severityEscalations: number;
   reviewRevisions: number;
   lastKnownState: string | null;
   lastKnownSeverity: string | null;
@@ -121,6 +125,38 @@ function stateTransitions(points: TimelinePoint[]): number {
   }
   return transitions;
 }
+/** Count consecutive presence at the end and maximum sustained observations. */
+function presenceStreaks(points: readonly TimelinePoint[]): {
+  longest: number; latest: number;
+} {
+  let longest = 0;
+  let current = 0;
+  for (const point of points) {
+    current = point.present ? current + 1 : 0;
+    if (current > longest) longest = current;
+  }
+  return { longest, latest: current };
+}
+/**
+ * Observe severity shifts within cases that remain present. Changes between
+ * missing captures are not classified as verified escalations.
+ */
+function countSeverityEscalations(points: readonly TimelinePoint[]): number {
+  const weight: Record<string, number> = {
+    info: 0, attention: 1, critical: 2,
+  };
+  let count = 0;
+  for (let index = 1; index < points.length; index++) {
+    const current = points[index]!;
+    const previous = points[index - 1]!;
+    if (!current.present || !previous.present ||
+        current.severity === null || previous.severity === null) continue;
+    if (weight[current.severity] !== undefined &&
+        weight[previous.severity] !== undefined &&
+        weight[current.severity]! > weight[previous.severity]!) count++;
+  }
+  return count;
+}
 function rankTrend(
   points: TimelinePoint[],
   captures: readonly CaseSnapshot[],
@@ -159,6 +195,7 @@ function buildCase(
     completeCoverage: row?.completeCoverage ?? null,
   }));
   const trend = rankTrend(points, captures);
+  const streaks = presenceStreaks(points);
   const gaps: string[] = [];
   if (captures.some(capture => !capture.complete))
     gaps.push("One or more captures were not declared complete.");
@@ -185,6 +222,10 @@ function buildCase(
     lastSeenAt: [...points].reverse().find(point => point.present)?.capturedAt ?? null,
     observations: present.length,
     transitions: stateTransitions(points),
+    longestObservedStreak: streaks.longest,
+    latestObservedStreak: streaks.latest,
+    revisionsObserved: revisionChanges.size,
+    severityEscalations: countSeverityEscalations(points),
     reviewRevisions: reviewRevisions.size,
     lastKnownState: newest.state,
     lastKnownSeverity: newest.severity,
@@ -247,14 +288,18 @@ export function integrityTimelineCsv(report: IntegrityTimeline): string {
     return '"' + safe.replace(/"/g, '""') + '"';
   };
   const names = ["caseKey", "workItemId", "code", "resourceId", "trend",
-    "observations", "transitions", "reviewRevisions", "firstSeenAt",
+    "observations", "transitions", "longestObservedStreak",
+    "latestObservedStreak", "revisionsObserved", "severityEscalations",
+    "reviewRevisions", "firstSeenAt",
     "lastSeenAt", "lastKnownState", "lastKnownSeverity", "reviewIsCurrent",
     "gaps"];
   const lines = [names.map(quote).join(",")];
   for (const row of report.cases) {
     lines.push([
       row.key, row.workItemId, row.code, row.resourceId, row.trend,
-      row.observations, row.transitions, row.reviewRevisions,
+      row.observations, row.transitions, row.longestObservedStreak,
+      row.latestObservedStreak, row.revisionsObserved, row.severityEscalations,
+      row.reviewRevisions,
       row.firstSeenAt, row.lastSeenAt, row.lastKnownState,
       row.lastKnownSeverity, row.reviewIsCurrent, row.gaps.join("; "),
     ].map(quote).join(","));
