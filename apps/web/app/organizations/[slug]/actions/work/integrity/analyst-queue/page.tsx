@@ -134,6 +134,99 @@ export default async function AnalystQueuePage({ params, searchParams }: Props) 
                 </ul>
               ) : <p>No diagnostic groups were found.</p>}
             </section>
+            <section aria-label="Evidence readiness summary">
+              <h2>Evidence preparation</h2>
+              <p>
+                {report.evidence.ready} cases have the configured review metadata
+                present, and {report.evidence.blocked} need further evidence work.
+                These are metadata checks, not independent authenticity checks.
+              </p>
+              <ul>
+                <li>{report.evidence.missingReview} cases have no linked human review.</li>
+                <li>{report.evidence.staleReview} cases refer to an outdated reviewed revision.</li>
+                <li>{report.evidence.incompleteCoverage} cases have incomplete linked data.</li>
+              </ul>
+              <p className="action-link">
+                <Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity/triage`}>
+                  Open human decision history and audit trail
+                </Link>
+              </p>
+            </section>
+            <section aria-label="Review workload batches">
+              <h2>Suggested review batches</h2>
+              <p>
+                Batches are computed from the current bounded case page, grouped
+                by deterministic operational priority. They are not assigned to
+                any analyst and do not create remediation work.
+              </p>
+              {report.batches.length === 0 ? (
+                <p>No review batches are present on this page.</p>
+              ) : (
+                <ul>
+                  {report.batches.map(batch => (
+                    <li key={batch.id}>
+                      <strong>{batch.priority}</strong> · {batch.count} cases
+                      {" · "}{batch.completeCoverage
+                        ? "Linked coverage available"
+                        : "Partial coverage"}
+                      {batch.requiresReassessment
+                        ? " · Contains stale reviews requiring reassessment"
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section aria-label="Review reason breakdown">
+              <h2>Why cases appear in the review queue</h2>
+              <p>
+                A case can have multiple reasons. The following figures overlap
+                and must not be added together as distinct case counts.
+              </p>
+              <ul>
+                {Object.entries(report.reviewReasons)
+                  .filter(([, count]) => count > 0)
+                  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                  .map(([reason, count]) => (
+                    <li key={reason}>
+                      <strong>{reason.replaceAll("_", " ")}</strong>: {count} cases
+                    </li>
+                  ))}
+              </ul>
+            </section>
+            <section aria-label="Priority navigation">
+              <h2>Jump to a review priority</h2>
+              <p>
+                These filters operate within the selected work-item cursor page.
+                Select a priority to see the corresponding cases and their
+                evidence gaps.
+              </p>
+              <ul>
+                {(["P0", "P1", "P2", "P3", "P4"] as const).map(priority => (
+                  <li key={priority}>
+                    <Link href={`${base}?${buildQuery({
+                      priority, offset: null,
+                    })}`}>
+                      {priority}: {report.priorities[priority]} cases
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <p className="action-link">
+                <Link href={`${base}?${buildQuery({
+                  priority: "ALL", reviewed: "NO", offset: null,
+                })}`}>
+                  Show cases without recorded human review
+                </Link>
+              </p>
+              <p className="action-link">
+                <Link href={`${base}?${buildQuery({
+                  priority: "ALL", reviewed: "YES", offset: null,
+                })}`}>
+                  Show cases with recorded human review
+                </Link>
+              </p>
+            </section>
             <section aria-label="Prioritized investigation cases">
               <h2>Cases requiring analyst attention</h2>
               <p>{report.totalMatching} cases match the selected filters on this work page.</p>
