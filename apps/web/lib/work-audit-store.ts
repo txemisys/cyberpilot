@@ -26,7 +26,7 @@ export function auditHistoryWhere(scope:AuditContext,workId:string,filter:Histor
  const where:Prisma.RemediationWorkEventWhereInput={
   organizationId:scope.organizationId,workItemId:workId
  };
- if(filter.kind)where.kind=filter.kind as Prisma.EnumWorkItemEventKindFilter["equals"];
+ if(filter.kind)where.kind=filter.kind as "CREATED"|"UPDATED"|"COMMENTED"|"REOPENED";
  if(filter.actorUserId)where.actorUserId=filter.actorUserId;
  if(filter.search)where.comment={contains:filter.search,mode:"insensitive"};
  if(filter.cursor)where.AND=[historyOrderWhere(filter.cursor)];
