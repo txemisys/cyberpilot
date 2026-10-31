@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
-import { loadWorkIntegrity } from "../../../../../../../lib/work-integrity";
-import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
+import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
+import { loadWorkIntegrity } from "../../../../../../../../lib/work-integrity";
+import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import {
   buildIntegrityTriage,
   selectIntegrityRows,
   summarizeIntegrityReview,
   workIntegrityCsv,
   workIntegrityJson,
-} from "../../../../../../../lib/work-integrity-export";
+} from "../../../../../../../../lib/work-integrity-export";
 
 type Context = { params: Promise<{ slug: string }> };
 const common = {
