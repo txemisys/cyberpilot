@@ -59,6 +59,11 @@ export default async function WorkIntegrityPage({ params, searchParams }: Props)
         <p className="action-link">
           <Link href={`/organizations/${slug}/actions/work`}>Return to work coordination</Link>
         </p>
+        <p className="action-link">
+          <Link href={`/organizations/${slug}/actions/work/integrity/triage`}>
+            Review recorded diagnostic decisions and investigation history
+          </Link>
+        </p>
         <p className="permission-warning">
           An inconsistency does not prove a control is unsafe. An absence of listed
           inconsistencies does not establish compliance, evidence freshness or remediation closure.
