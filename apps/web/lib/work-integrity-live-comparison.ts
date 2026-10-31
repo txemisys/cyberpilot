@@ -103,8 +103,8 @@ export function compareIntegrityCaptures(
     .map(delta => {
       const priority = priorityByKey.get(delta.key);
       const evidence = evidenceByKey.get(delta.key);
-      const uncertain = delta.kind === "INDETERMINATE" ||
-        Boolean(evidence?.uncertain);
+      const uncertain = !comparison.complete ||
+        delta.kind === "INDETERMINATE" || Boolean(evidence?.uncertain);
       return {
         key: delta.key, kind: delta.kind, fields: delta.changes,
         priorityBefore: priority?.beforePriority ?? null,
