@@ -103,7 +103,16 @@ export function casePageSnapshot(
     page.cases.every(row => row.completeCoverage);
   return parseCaseSnapshot({
     organizationId, capturedAt: page.generatedAt,
-    source: "tenant-scoped-live-case-page",
+    source: JSON.stringify({
+      kind: "tenant-scoped-live-case-page",
+      cursor: page.filters.cursor,
+      limit: page.filters.limit,
+      state: page.filters.state,
+      severity: page.filters.severity,
+      search: page.filters.search,
+      includeInfo: page.filters.includeInfo,
+      includeHistorical: page.filters.includeHistorical,
+    }),
     complete, cases: page.cases,
   });
 }
