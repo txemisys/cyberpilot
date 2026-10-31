@@ -97,6 +97,28 @@ enum ScoreCoverage {
   PARTIAL
 }
 
+enum WorkItemStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+enum WorkItemPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum WorkItemEventKind {
+  CREATED
+  UPDATED
+  COMMENTED
+  REOPENED
+}
+
 enum RemediationMode {
   GUIDED
   AUTOMATED
@@ -127,6 +149,8 @@ model User {
   auditEvents              AuditEvent[]             @relation("AuditUser")
   integrationConsentStates IntegrationConsentState[]
   approvedRemediations      Remediation[] @relation("RemediationApprover")
+  assignedWorkItems         RemediationWorkItem[] @relation("WorkItemAssignee")
+  workItemEvents            RemediationWorkEvent[] @relation("WorkEventActor")
 }
 
 model Session {
@@ -191,6 +215,8 @@ model Organization {
   securityScores           SecurityScore[]
   remediations             Remediation[]
   securityEvidence         SecurityEvidence[]
+  remediationWorkItems      RemediationWorkItem[]
+  remediationWorkEvents     RemediationWorkEvent[]
 }
 
 model Membership {
@@ -387,6 +413,7 @@ model SecurityFinding {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   integration  Integration? @relation(fields: [integrationId], references: [id], onDelete: Cascade)
   remediations Remediation[]
+  workItems RemediationWorkItem[]
 
   @@unique([organizationId, key])
   @@index([organizationId, status, severity])
@@ -419,12 +446,60 @@ model Remediation {
   updatedAt         DateTime          @updatedAt
 
   guidedProgress GuidedRemediationStep[]
+  workItems RemediationWorkItem[]
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   finding        SecurityFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
   approvedByUser User?           @relation("RemediationApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status, createdAt])
   @@index([findingId])
+}
+
+model RemediationWorkItem {
+  id String @id @default(cuid())
+  organizationId String
+  remediationId String
+  findingId String
+  title String
+  description String @default("")
+  status WorkItemStatus @default(TODO)
+  priority WorkItemPriority @default(NORMAL)
+  assigneeUserId String?
+  dueAt DateTime?
+  completedAt DateTime?
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  remediation Remediation @relation(fields: [remediationId], references: [id], onDelete: Cascade)
+  finding SecurityFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  assignee User? @relation("WorkItemAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  events RemediationWorkEvent[]
+
+  @@unique([organizationId, remediationId])
+  @@index([organizationId, status, dueAt])
+  @@index([organizationId, assigneeUserId, status])
+  @@index([organizationId, priority, createdAt])
+}
+
+model RemediationWorkEvent {
+  id String @id @default(cuid())
+  organizationId String
+  workItemId String
+  actorUserId String?
+  kind WorkItemEventKind
+  before Json?
+  after Json?
+  comment String?
+  occurredAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  actor User? @relation("WorkEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, workItemId, occurredAt])
+  @@index([organizationId, actorUserId, occurredAt])
 }
 
 model GuidedRemediationStep {
