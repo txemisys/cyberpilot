@@ -9,7 +9,7 @@ export type IntegrityDisposition =
 export type IntegrityReviewRow = {
   workItemId: string;
   resourceId: string;
-  code: IntegrityCode;
+  code: IntegrityCode | "";
   severity: IntegritySeverity;
   message: string;
   recommendation: string;
@@ -83,7 +83,7 @@ export function selectIntegrityRows(
       rows.push({
         workItemId: item.workItemId,
         resourceId: item.workItemId,
-        code: "" as IntegrityCode,
+        code: "",
         severity: "info",
         message: item.complete
           ? "No matching diagnostic signals on this page."
