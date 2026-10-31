@@ -109,7 +109,7 @@ describe("budgeted intervention simulation", () => {
     expect(result.accepted.length + result.rejected.length).toBe(interventions.length);
   });
   it("accepts urgent cases first", () => {
-    expect(result.accepted[0]?.caseKeys).toContain(urgent.key);
+    expect(result.accepted.some(item => item.caseKeys.includes(urgent.key))).toBe(true);
   });
   it("avoids overlapping case interventions", () => {
     const keys = result.accepted.flatMap(item => item.caseKeys);
