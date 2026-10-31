@@ -97,7 +97,10 @@ export function casePageSnapshot(
   // A single cursor page is not an organization-wide capture. Even when the
   // page has no next cursor, preceding pages may not have been inspected.
   const complete = page.nextCursor === null && !page.filters.cursor &&
-    page.historyComplete && page.cases.every(row => row.completeCoverage);
+    page.historyComplete && page.filters.state === "ALL" &&
+    page.filters.severity === "ALL" && !page.filters.search &&
+    page.filters.includeInfo && page.filters.includeHistorical &&
+    page.cases.every(row => row.completeCoverage);
   return parseCaseSnapshot({
     organizationId, capturedAt: page.generatedAt,
     source: "tenant-scoped-live-case-page",
