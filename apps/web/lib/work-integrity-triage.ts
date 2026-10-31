@@ -127,7 +127,7 @@ export function parseTriageQuery(values: Record<string, unknown>) {
     throw new WorkInputError("INVALID", "Page must be a positive integer.");
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PAGE)
     throw new WorkInputError("INVALID", "Limit must be 1–100.");
-  const workItemId = values.workItemId === undefined ? null :
+  const workItemId = values.workItemId === undefined || values.workItemId === "" ? null :
     parseWorkId(values.workItemId, "work item ID");
   const code = values.code === undefined ? null : codeField(values.code);
   return { page, limit, workItemId, code };
