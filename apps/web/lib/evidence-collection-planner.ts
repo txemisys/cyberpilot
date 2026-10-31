@@ -154,3 +154,96 @@ export function evidenceCollectionPlanCsv(plan:EvidenceCollectionPlan):string{
  ];
  return "\uFEFF"+rows.map(row=>row.map(csv).join(",")).join("\r\n")+"\r\n";
 }
+
+export type EvidenceCollectionHandoff = {
+  findingId:string;
+  title:string;
+  severity:string;
+  readiness:EvidenceCollectionState;
+  ownerRole:string;
+  evidenceSourcePrompt:string;
+  scopeQuestions:string[];
+  collectionQuestions:string[];
+  outcomeQuestions:string[];
+  completionRequirements:string[];
+  risks:string[];
+  matchingEvidenceCount:number;
+  latestObservationAt:Date|null;
+  latestWorkAt:Date|null;
+};
+export function buildEvidenceCollectionHandoffs(
+  plan:EvidenceCollectionPlan,
+):EvidenceCollectionHandoff[]{
+  return plan.items.map(item=>{
+    const risks=[...item.cautions];
+    if(item.observedRecordIds.length===0)risks.push(
+      "No observed control evidence is attributed under the exact matching identifiers.",
+    );
+    if(item.needsNewObservation)risks.push(
+      "Do not communicate successful remediation until an authorized source has been reviewed.",
+    );
+    return {
+      findingId:item.findingId,title:item.findingTitle,severity:item.severity,
+      readiness:item.state,ownerRole:"Authorized evidence reviewer",
+      evidenceSourcePrompt:"Identify a trustworthy authorized source that can directly observe this control.",
+      scopeQuestions:[
+        "Which identity, tenant, resource or security setting is affected?",
+        "Does the observation use the same control identifier and scope as the finding?",
+        "Does the collecting account have access only to authorized organizational data?",
+        "Can a second reviewer reproduce or understand how the evidence was collected?",
+      ],
+      collectionQuestions:[
+        "Is the source an observation, a manual declaration, an error or an unknown state?",
+        "What was the actual observed security configuration?",
+        "When was the observation collected relative to remediation work?",
+        "Does a collection error require a permissions or integration review?",
+      ],
+      outcomeQuestions:[
+        "Does the result show that the originally reported issue is resolved?",
+        "Are there any contradictory finding or action states?",
+        "Do all recorded verification criteria apply to the affected control?",
+        "Should the current finding remain open pending further evidence?",
+      ],
+      completionRequirements:[...item.reviewCriteria],
+      risks,
+      matchingEvidenceCount:item.observedRecordIds.length+
+        item.declaredRecordIds.length+item.inconclusiveRecordIds.length,
+      latestObservationAt:item.observationAt,latestWorkAt:item.latestWorkAt,
+    };
+  });
+}
+export function renderEvidenceCollectionHandoffs(
+  items:readonly EvidenceCollectionHandoff[],
+):string{
+  const lines=[
+    "CYBERPILOT — EVIDENCE COLLECTION REVIEW HANDOFFS",
+    "Authorized preparation only. No LIVE collection is started by this document.",
+    "Review items: "+items.length,
+    "",
+  ];
+  for(const [index,item] of items.entries()){
+    lines.push(
+      String(index+1)+". "+item.title,
+      "Severity: "+item.severity,
+      "Evidence readiness: "+item.readiness,
+      "Suggested responsibility: "+item.ownerRole,
+      item.evidenceSourcePrompt,
+      "Confirm scope:",
+      ...item.scopeQuestions.map(question=>"  - "+question),
+      "Confirm collection:",
+      ...item.collectionQuestions.map(question=>"  - "+question),
+      "Confirm outcome:",
+      ...item.outcomeQuestions.map(question=>"  - "+question),
+      "Completion requirements:",
+      ...item.completionRequirements.map(requirement=>"  - "+requirement),
+      "Current limitations:",
+      ...(item.risks.length?item.risks.map(warning=>"  - "+warning):
+        ["  - Review affected scope and the actual evidence result."]),
+      "Last observed: "+(item.latestObservationAt?.toISOString()??"Not recorded"),
+      "Last work: "+(item.latestWorkAt?.toISOString()??"Not recorded"),
+      "",
+    );
+  }
+  lines.push("This handoff is not a verified finding resolution or security certification.");
+  return lines.join("\n")+"\n";
+}
