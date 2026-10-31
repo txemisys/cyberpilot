@@ -165,7 +165,8 @@ export function filterReviewWorklist(
     if (reasonsSet && !entry.reasons.some(reason => reasonsSet.has(reason))) return false;
     if (ids && !ids.has(entry.workItemId)) return false;
     if (codes && !codes.has(entry.code)) return false;
-    if (options.includeReviewed === false && entry.reviewEventId) return false;
+    if (options.includeReviewed !== undefined &&
+        Boolean(entry.reviewEventId) !== options.includeReviewed) return false;
     return true;
   });
   return {
