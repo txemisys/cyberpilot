@@ -25,7 +25,7 @@ const reviewed = row("reviewed", { state: "ACKNOWLEDGED",
   reviewRationale: "Investigated", reviewReference: "case-1",
   reviewedAt: "2026-10-31T10:00:00.000Z" });
 const stale = row("stale", { state: "STALE", reviewEventId: "event-2",
-  reviewedRevision: 0 });
+  reviewedRevision: 1, taskRevision: 2 });
 const urgent = row("urgent", { severity: "critical" });
 const partial = row("partial", { completeCoverage: false });
 const source = snapshot([reviewed, stale, urgent, partial]);
