@@ -71,7 +71,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
             </p>
           ))}
         </nav>
-        <p className="action-link no-print"><a href={`/api/organizations/${slug}/actions/export`}>Export action overview (CSV)</a></p>
+        <p className="action-link no-print"><a href={actionPageUrl(`/api/organizations/${slug}/actions/export`,settings)}>Export action overview (CSV)</a></p>
         <form method="get" action={base} className="remediation-actions">
           <input type="hidden" name="status" value={view} />
           <label htmlFor="action-search">Find an action</label>
