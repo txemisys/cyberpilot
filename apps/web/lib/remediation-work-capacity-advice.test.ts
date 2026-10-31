@@ -102,7 +102,8 @@ describe("capacity follow-up guidance based on recorded work",()=>{
   ]);
   const result=buildCapacityAdvice(model);
   const levels=result.recommendations.map(item=>item.severity);
-  expect(levels.indexOf("NORMAL")).toBe(-1);
+  expect(levels[0]).toBe("HIGH");
+  expect(levels.indexOf("NORMAL")).toBeGreaterThan(0);
  });
  it("keeps the exact snapshot timestamp",()=>{
   expect(buildCapacityAdvice(report()).generatedAt).toBe(NOW.toISOString());
