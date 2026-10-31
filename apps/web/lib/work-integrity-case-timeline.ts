@@ -216,7 +216,7 @@ export function buildIntegrityTimeline(
   for (const row of cases) counts[row.trend]++;
   const completeCaptures = quality.filter(q =>
     q.safeToTreatAsComplete).length;
-  const followups = planTimelineFollowups({ cases } as IntegrityTimeline);
+  const followups = planTimelineFollowups({ cases });
   return {
     organizationId,
     source: parsed[0]!.source,
@@ -274,7 +274,7 @@ export type TimelineFollowup = {
   requiresReverification: boolean;
 };
 export function planTimelineFollowups(
-  timeline: IntegrityTimeline,
+  timeline: Pick<IntegrityTimeline, "cases">,
   limit = 100,
 ): TimelineFollowup[] {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000)
