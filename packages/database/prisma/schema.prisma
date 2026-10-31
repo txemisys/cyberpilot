@@ -97,6 +97,35 @@ enum ScoreCoverage {
   PARTIAL
 }
 
+enum WorkHandoffStatus {
+  REQUESTED
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum WorkItemStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+enum WorkItemPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum WorkItemEventKind {
+  CREATED
+  UPDATED
+  COMMENTED
+  REOPENED
+}
+
 enum RemediationMode {
   GUIDED
   AUTOMATED
@@ -127,6 +156,14 @@ model User {
   auditEvents              AuditEvent[]             @relation("AuditUser")
   integrationConsentStates IntegrationConsentState[]
   approvedRemediations      Remediation[] @relation("RemediationApprover")
+  assignedWorkItems         RemediationWorkItem[] @relation("WorkItemAssignee")
+  workItemEvents            RemediationWorkEvent[] @relation("WorkEventActor")
+  completedChecklistEntries WorkChecklistEntry[] @relation("ChecklistCompleter")
+  linkedWorkEvidence WorkEvidenceLink[] @relation("WorkEvidenceLinker")
+  unlinkedWorkEvidence WorkEvidenceLink[] @relation("WorkEvidenceUnlinker")
+  requestedHandoffs WorkHandoff[] @relation("HandoffRequester")
+  assignedHandoffs WorkHandoff[] @relation("HandoffRecipient")
+  decidedHandoffs WorkHandoff[] @relation("HandoffDecider")
 }
 
 model Session {
@@ -191,6 +228,11 @@ model Organization {
   securityScores           SecurityScore[]
   remediations             Remediation[]
   securityEvidence         SecurityEvidence[]
+  remediationWorkItems      RemediationWorkItem[]
+  remediationWorkEvents     RemediationWorkEvent[]
+  workChecklistEntries      WorkChecklistEntry[]
+  workEvidenceLinks         WorkEvidenceLink[]
+  workHandoffs              WorkHandoff[]
 }
 
 model Membership {
@@ -362,6 +404,7 @@ model SecurityEvidence {
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workLinks WorkEvidenceLink[]
 
   @@unique([organizationId, source, domain, controlId, scope])
   @@index([organizationId, domain, state])
@@ -387,6 +430,7 @@ model SecurityFinding {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   integration  Integration? @relation(fields: [integrationId], references: [id], onDelete: Cascade)
   remediations Remediation[]
+  workItems RemediationWorkItem[]
 
   @@unique([organizationId, key])
   @@index([organizationId, status, severity])
@@ -419,12 +463,131 @@ model Remediation {
   updatedAt         DateTime          @updatedAt
 
   guidedProgress GuidedRemediationStep[]
+  workItems RemediationWorkItem[]
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   finding        SecurityFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
   approvedByUser User?           @relation("RemediationApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, status, createdAt])
   @@index([findingId])
+}
+
+model RemediationWorkItem {
+  id String @id @default(cuid())
+  organizationId String
+  remediationId String
+  findingId String
+  title String
+  description String @default("")
+  status WorkItemStatus @default(TODO)
+  priority WorkItemPriority @default(NORMAL)
+  assigneeUserId String?
+  dueAt DateTime?
+  completedAt DateTime?
+  revision Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  remediation Remediation @relation(fields: [remediationId], references: [id], onDelete: Cascade)
+  finding SecurityFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  assignee User? @relation("WorkItemAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  events RemediationWorkEvent[]
+  checklist WorkChecklistEntry[]
+  evidenceLinks WorkEvidenceLink[]
+  handoffs WorkHandoff[]
+
+  @@unique([organizationId, remediationId])
+  @@index([organizationId, status, dueAt])
+  @@index([organizationId, assigneeUserId, status])
+  @@index([organizationId, priority, createdAt])
+}
+
+model WorkHandoff {
+  id String @id @default(cuid())
+  organizationId String
+  workItemId String
+  requesterUserId String?
+  recipientUserId String
+  decidedByUserId String?
+  status WorkHandoffStatus @default(REQUESTED)
+  reason String
+  response String?
+  requestedAt DateTime @default(now())
+  decidedAt DateTime?
+  expiresAt DateTime?
+  revision Int @default(1)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  requester User? @relation("HandoffRequester", fields: [requesterUserId], references: [id], onDelete: SetNull)
+  recipient User @relation("HandoffRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  decider User? @relation("HandoffDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, workItemId, requestedAt])
+  @@index([organizationId, recipientUserId, status])
+  @@index([organizationId, status, expiresAt])
+}
+
+model WorkEvidenceLink {
+  id String @id @default(cuid())
+  organizationId String
+  workItemId String
+  evidenceId String
+  reason String
+  linkedByUserId String?
+  linkedAt DateTime @default(now())
+  unlinkedAt DateTime?
+  unlinkedByUserId String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  evidence SecurityEvidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  linkedBy User? @relation("WorkEvidenceLinker", fields: [linkedByUserId], references: [id], onDelete: SetNull)
+  unlinkedBy User? @relation("WorkEvidenceUnlinker", fields: [unlinkedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([workItemId, evidenceId])
+  @@index([organizationId, workItemId, unlinkedAt])
+  @@index([organizationId, evidenceId])
+}
+
+model WorkChecklistEntry {
+  id String @id @default(cuid())
+  organizationId String
+  workItemId String
+  position Int
+  title String
+  description String @default("")
+  completedAt DateTime?
+  completedByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  completedBy User? @relation("ChecklistCompleter", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([workItemId, position])
+  @@index([organizationId, workItemId, completedAt])
+}
+
+model RemediationWorkEvent {
+  id String @id @default(cuid())
+  organizationId String
+  workItemId String
+  actorUserId String?
+  kind WorkItemEventKind
+  before Json?
+  after Json?
+  comment String?
+  occurredAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  actor User? @relation("WorkEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, workItemId, occurredAt])
+  @@index([organizationId, actorUserId, occurredAt])
 }
 
 model GuidedRemediationStep {
