@@ -22,6 +22,6 @@ describe("SME guided priorities",()=>{
  it("does not display unsupported or resolved evidence as active priorities",()=>{
   const result=buildSmeActionPriorities(true,[action("absent"),action("a")],[source("a")],[{...remediation("a","APPROVED"),finding:{id:"a",status:"RESOLVED"}}]);
   expect(result).toHaveLength(1);
-  expect(result[0].status).toBe("NEEDS_REVIEW");
+  expect(result[0]?.status).toBe("NEEDS_REVIEW");
  });
 });
