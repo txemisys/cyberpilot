@@ -1,6 +1,6 @@
 import type { CaseSnapshot } from "./work-integrity-snapshots";
 import { compareCaseSnapshots, parseCaseSnapshot } from "./work-integrity-snapshots";
-import { buildReviewWorklist, compareReviewWorklists } from "./work-integrity-worklist";
+import { compareReviewWorklists } from "./work-integrity-worklist";
 import { caseDimensions, trendCases, caseCohorts } from "./work-integrity-analytics";
 import { buildEvidenceReadiness, compareEvidenceReadiness } from "./work-integrity-evidence-readiness";
 import { LIVE_EVIDENCE_REQUIREMENTS } from "./work-integrity-live-queue";
