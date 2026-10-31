@@ -81,6 +81,11 @@ export default async function SecurityDossierPage({params,searchParams}:Props){
     </a>
    </p>
   </div>
+  <p className="action-link no-print">
+   <a href={`/api/organizations/${slug}/actions/dossiers/export?format=csv&${query}`}>
+    Export filtered dossier summary (CSV)
+   </a>
+  </p>
   <section className="remediation-section">
    <h2>Findings and review summaries</h2>
    {portfolio.findings.length===0?(
