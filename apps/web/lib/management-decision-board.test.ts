@@ -40,7 +40,7 @@ describe("SME management decisions",()=>{
   });
   const [item]=buildManagementDecisions(source);
   expect(item?.category).toBe("verification");
-  expect(item?.recommendedAction).toContain("evidence");
+  expect(item?.recommendedAction).toContain("observation");
   expect(item?.verificationAt).toBeNull();
  });
  it("uses real finding urgency and aggregates decision categories",()=>{
