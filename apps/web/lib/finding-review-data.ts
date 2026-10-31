@@ -4,8 +4,8 @@ import type { ReviewAction, ReviewEvidence, ReviewFinding } from "./finding-evid
 
 export type ReviewListOptions = {
   includeResolved: boolean;
-  severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO";
-  search?: string;
+  severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO" | undefined;
+  search?: string | undefined;
   limit: number;
   offset: number;
 };
