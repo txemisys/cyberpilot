@@ -170,6 +170,35 @@ export default function IntegrityTimelineClient({ slug }: Props) {
               </div>
             ))}
           </div>
+          <section aria-label="Suggested human review follow-ups">
+            <h4>Prioritized human follow-ups</h4>
+            <p>
+              These entries are advisory; they do not create assignments, alter
+              work-item status or validate a security finding. Investigate them
+              through the existing audited triage workflow.
+            </p>
+            {result.followups.length === 0 ? (
+              <p>No follow-ups were identified from these captures.</p>
+            ) : (
+              <div className="remediation-list">
+                {result.followups.map(item => (
+                  <article className="remediation-card" key={item.caseKey}>
+                    <div className="remediation-heading">
+                      <h5>{item.caseKey}</h5>
+                      <span className="role-badge">{item.priority}</span>
+                    </div>
+                    <p>{item.reason}</p>
+                    <p><strong>Suggested next step:</strong> {item.recommendedAction}</p>
+                    {item.requiresReverification ? (
+                      <p className="permission-warning">
+                        Reverify the underlying source before accepting a change in outcome.
+                      </p>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
           <label htmlFor="timeline-attention-only">
             <input id="timeline-attention-only" type="checkbox"
               checked={onlyAttention}
