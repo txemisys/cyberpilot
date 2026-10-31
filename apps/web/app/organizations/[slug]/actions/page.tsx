@@ -56,6 +56,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
         <p className="lede">{membership.organization.name} · Follow progress without confusing completed work with verified security.</p>
         <p className="action-link"><Link href={`/organizations/${slug}`}>Back to workspace</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/history`}>View recorded action history</Link></p>
+        <p className="action-link"><Link href={`/organizations/${slug}/actions/workload`}>View remediation workload report</Link></p>
         <div className="panel">
           <div><p className="panel-label">Actions on this page</p><p className="panel-value">{remediations.length}</p></div>
           <div><p className="panel-label">In progress</p><p className="panel-value">{totals.inProgress}</p></div>
