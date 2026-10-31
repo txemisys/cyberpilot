@@ -91,7 +91,7 @@ describe("Verification plan derivation",()=>{
  it("serializes all tasks and checklist criteria for offline handoff",()=>{
   const plan=buildVerificationPlan([finding([action("SUCCEEDED")])]);
   const output=renderVerificationPlanText(plan);
-  expect(output).toContain("Evidence verification");
+  expect(output).toContain("EVIDENCE VERIFICATION PLAN");
   expect(output).toContain("Review fresh identity evidence");
   expect(output).toContain("not step acknowledgements");
  });
