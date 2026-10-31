@@ -6,6 +6,7 @@ import WorkChecklist from "./work-checklist";
 import WorkEvidence from "./work-evidence";
 import WorkHandoffs from "./work-handoffs";
 import WorkAuditHistory from "./work-audit-history";
+import WorkOrganizationActivity from "./work-organization-activity";
 
 type Status="TODO"|"IN_PROGRESS"|"BLOCKED"|"DONE"|"CANCELLED";
 type Priority="LOW"|"NORMAL"|"HIGH"|"URGENT";
@@ -184,6 +185,7 @@ export default function WorkBoard({slug,canManage,canComment,currentUserId}:Prop
     {error?<p role="alert" className="auth-error">{error}</p>:null}
     {notice?<p role="status">{notice}</p>:null}
     <WorkHandoffs slug={slug} canManage={canManage} userId={currentUserId}/>
+    <WorkOrganizationActivity slug={slug}/>
     {showCreate&&canManage?<form className="panel remediation-actions" onSubmit={event=>void create(event)}>
       <h2>New work item</h2>
       <label htmlFor="work-remediation">Remediation to coordinate</label>
