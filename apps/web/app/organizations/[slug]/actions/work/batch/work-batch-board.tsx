@@ -63,10 +63,6 @@ function dateValue(value: string | null) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
 }
-function originalValue(item: WorkRow, field: BatchField) {
-  if (field === "dueAt") return dateValue(item.dueAt);
-  return item[field] ?? "";
-}
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
