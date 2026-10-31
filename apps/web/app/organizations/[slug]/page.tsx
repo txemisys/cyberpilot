@@ -9,6 +9,7 @@ import Link from "next/link";
 import { requireOrganizationAccess } from "../../../lib/organizations";
 import { getMicrosoft365SyncStatusMessage } from "../../../lib/microsoft-365-sync-status";
 import { getPriorityNavigation } from "../../../lib/priority-navigation";
+import { buildSmeActionPriorities } from "../../../lib/sme-action-priorities";
 import { getGuidedVerificationReadiness } from "../../../lib/guided-verification";
 
 type OrganizationPageProps = {
@@ -275,6 +276,8 @@ export default async function OrganizationPage({
     domainCoverageIsPartial ||
     cyberScore.unsupportedFindingCount > 0;
 
+  const smePriorities = buildSmeActionPriorities(hasCompletedScan, cyberScore.topActions, findings, priorityRemediations);
+
   const latestScoreSnapshot = scoreHistory[0];
   const previousScoreSnapshot = scoreHistory[1];
   const scoreDelta =
@@ -353,26 +356,20 @@ export default async function OrganizationPage({
             <h2>Your next security steps</h2>
             {!hasCompletedScan ? (
               <><p>Security recommendations are not available until the first assessment is complete.</p><p className="action-link"><a href="#microsoft-365-setup">Go to first assessment setup</a></p></>
-            ) : cyberScore.topActions.length === 0 ? (
+            ) : smePriorities.length === 0 ? (
               <p>No evidence-backed priority actions are currently available. Review your report for assessment coverage.</p>
             ) : (
               <ol>
-                {cyberScore.topActions.slice(0, 3).map((action) => {
-                  const { href, playbook } = getPriorityNavigation(
-                    action.id,
-                    findings,
-                    priorityRemediations,
-                  );
-                  return (
-                    <li key={action.id}>
-                      <strong>{action.title}</strong>
-                      <p>{action.severity} priority · Review the recommended action before making changes.</p>
-                      <a href={href}>
-                        {playbook ? "View action and verification steps" : "View finding and evidence"}
-                      </a>
-                    </li>
-                  );
-                })}
+                {smePriorities.map((action) => (
+                  <li key={action.id}>
+                    <strong>{action.title}</strong>
+                    <p>{action.severity} priority · {action.statusLabel}</p>
+                    <p>{action.nextStep}</p>
+                    <a href={action.href}>
+                      {action.status === "NEEDS_REVIEW" ? "View finding and evidence" : "View remediation and verification"}
+                    </a>
+                  </li>
+                ))}
               </ol>
             )}
             <p className="action-link">
