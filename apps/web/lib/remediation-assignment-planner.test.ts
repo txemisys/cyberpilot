@@ -88,7 +88,7 @@ describe("planning input boundary",()=>{
 });
 describe("work priority and horizon ranking",()=>{
  it("adds finding severity to human work priority",()=>{
-  expect(workPoints(item({priority:"URGENT",findingSeverity:"CRITICAL"})).toBe(9);
+  expect(workPoints(item({priority:"URGENT",findingSeverity:"CRITICAL"}))).toBe(9);
  });
  it("does not equate high severity with completed work",()=>{
   expect(workPoints(item({priority:"LOW",findingSeverity:"HIGH"}))).toBe(3);
