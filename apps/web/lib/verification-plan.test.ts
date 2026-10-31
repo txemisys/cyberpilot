@@ -21,7 +21,7 @@ describe("Verification plan derivation",()=>{
    status:"needs-investigation",actionId:null,severity:"CRITICAL",
    actionable:true,
   });
-  expect(task?.successCriteria).toHaveLength(3);
+  expect(task?.successCriteria).toHaveLength(4);
  });
  it("requires approval for proposed work",()=>{
   const [task]=createFindingVerificationTasks(finding([action("PROPOSED")]));
