@@ -1,7 +1,7 @@
 import { NextRequest,NextResponse } from "next/server";
-import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
-import { checklistId,ChecklistError } from "../../../../../../../lib/work-checklist-policy";
-import { readChecklist,mutateChecklist } from "../../../../../../../lib/work-checklist-store";
+import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
+import { checklistId,ChecklistError } from "../../../../../../../../lib/work-checklist-policy";
+import { readChecklist,mutateChecklist } from "../../../../../../../../lib/work-checklist-store";
 
 type Route={params:Promise<{slug:string;workId:string}>};
 const safeHeaders={"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"};
