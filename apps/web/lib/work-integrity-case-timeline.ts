@@ -76,18 +76,6 @@ function bounded(value: number | undefined, fallback: number, max: number): numb
     throw new Error("Timeline limit is outside permitted bounds.");
   return result;
 }
-function sourceDefinition(value: string): { kind: string | null; parameters: string } {
-  try {
-    const parsed: unknown = JSON.parse(value);
-    const data = object(parsed);
-    return {
-      kind: typeof data.kind === "string" ? data.kind : null,
-      parameters: JSON.stringify(data),
-    };
-  } catch {
-    return { kind: null, parameters: value };
-  }
-}
 export function parseTimelineInput(
   value: unknown,
   organizationId: string,
@@ -270,4 +258,70 @@ export function integrityTimelineCsv(report: IntegrityTimeline): string {
     ].map(quote).join(","));
   }
   return lines.join("\r\n") + "\r\n";
+}
+
+/**
+ * Build a bounded follow-up queue from observed timeline behavior.
+ * Priority is advisory and cannot be used to approve or close remediation.
+ */
+export type TimelineFollowup = {
+  caseKey: string;
+  priority: "URGENT" | "HIGH" | "NORMAL";
+  reason: string;
+  recommendedAction: string;
+  requiresReverification: boolean;
+};
+export function planTimelineFollowups(
+  timeline: IntegrityTimeline,
+  limit = 100,
+): TimelineFollowup[] {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000)
+    throw new Error("Invalid timeline follow-up limit.");
+  const entries: TimelineFollowup[] = [];
+  for (const row of timeline.cases) {
+    if (row.trend === "UNCERTAIN") {
+      entries.push({
+        caseKey: row.key,
+        priority: "URGENT",
+        reason: "One or more captures have incomplete or inconsistent coverage.",
+        recommendedAction: "Recollect a consistent bounded scope and review the source audit history.",
+        requiresReverification: true,
+      });
+    } else if (row.trend === "FLAPPING") {
+      entries.push({
+        caseKey: row.key,
+        priority: row.lastKnownSeverity === "critical" ? "URGENT" : "HIGH",
+        reason: "The diagnostic repeatedly appeared and disappeared across captures.",
+        recommendedAction: "Investigate source volatility and compare work-item revisions with evidence timestamps.",
+        requiresReverification: true,
+      });
+    } else if (row.trend === "NEW_IN_LAST_CAPTURE") {
+      entries.push({
+        caseKey: row.key,
+        priority: row.lastKnownSeverity === "critical" ? "URGENT" : "HIGH",
+        reason: "The diagnostic is newly present in the latest complete capture.",
+        recommendedAction: "Assign a human review of the latest diagnostic and its linked records.",
+        requiresReverification: false,
+      });
+    } else if (row.trend === "PERSISTENT" && row.reviewIsCurrent === false) {
+      entries.push({
+        caseKey: row.key,
+        priority: row.lastKnownSeverity === "critical" ? "HIGH" : "NORMAL",
+        reason: "The diagnostic persists without a review on the current work revision.",
+        recommendedAction: "Revisit the case through the audited triage workflow.",
+        requiresReverification: false,
+      });
+    } else if (row.trend === "DISAPPEARED") {
+      entries.push({
+        caseKey: row.key,
+        priority: "NORMAL",
+        reason: "The diagnostic was absent from the latest complete capture.",
+        recommendedAction: "Check authoritative evidence before concluding that any remediation succeeded.",
+        requiresReverification: true,
+      });
+    }
+  }
+  const rank = { URGENT: 0, HIGH: 1, NORMAL: 2 };
+  return entries.sort((a, b) =>
+    rank[a.priority] - rank[b.priority] || a.caseKey.localeCompare(b.caseKey)).slice(0, limit);
 }
