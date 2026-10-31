@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { requireOrganizationAccess } from "../../../../lib/organizations";
+import { requireOrganizationAccess } from "../../../../../lib/organizations";
 import {
   buildFindingEvidenceReview, rankEvidenceReviews, summarizeEvidenceReviews,
-} from "../../../../lib/finding-evidence-review";
+} from "../../../../../lib/finding-evidence-review";
 import {
   loadReviewData, parseReviewListOptions, reviewListUrl,
-} from "../../../../lib/finding-review-data";
+} from "../../../../../lib/finding-review-data";
 
 type Props = {
   params: Promise<{ slug: string }>;
