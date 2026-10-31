@@ -7,7 +7,7 @@ import {
  summarizeChecklistActivity,validateChecklistReorder
 } from "./work-checklist-policy";
 const work="clwork12345678",entry="clentry12345678";
-const makeAdd=()=>({kind:"add",workItemId:work,entry:{
+const makeAdd=()=>({kind:"add" as const,workItemId:work,entry:{
  title:"Review conditional access settings",description:"Coordinate review with operations"
 }});
 describe("checklist tenant boundary input validation",()=>{
