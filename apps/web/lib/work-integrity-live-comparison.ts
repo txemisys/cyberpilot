@@ -78,6 +78,8 @@ export function validateComparisonInput(
   if (before.organizationId !== trustedOrganizationId ||
       after.organizationId !== trustedOrganizationId)
     throw new Error("Snapshot organization does not match authenticated membership.");
+  if (before.source !== after.source)
+    throw new Error("Capture source or bounded page scope differs; compare matching capture scopes.");
   if (Date.parse(before.capturedAt) > Date.parse(after.capturedAt))
     throw new Error("Before snapshot must not be newer than after snapshot.");
   return { before, after };
