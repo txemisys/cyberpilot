@@ -34,7 +34,7 @@ const page = (cases: CaseRow[] = [urgent, reviewed, stale, incomplete],
   generatedAt: at,
   filters: {
     state: "ALL", severity: "ALL", search: "",
-    limit: 25, cursor, includeInfo: true, includeHistorical: false,
+    limit: 25, cursor, includeInfo: true, includeHistorical: true,
   },
   totalWorkItemsExamined: cases.length,
   cases,
