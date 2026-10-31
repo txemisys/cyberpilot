@@ -1,5 +1,6 @@
 import {db} from "@cyberpilot/database";
 import type {Prisma} from "@cyberpilot/database";
+import {prioritizeHandoffAttention,groupHandoffInbox} from "./work-handoff-export";
 import {
  HandoffError,parseHandoffCommand,assertHandoffPermission,assertPendingHandoff,
  handoffLabel,handoffSummary,orderHandoffs,type HandoffRole
@@ -64,7 +65,7 @@ export async function handoffInboxAttention(scope:HandoffContext,now=new Date())
    workItem:{select:{status:true,priority:true,dueAt:true}}
   },orderBy:{requestedAt:"desc"},take:100
  });
- const {prioritizeHandoffAttention,groupHandoffInbox}=await import("./work-handoff-export");
+
  const prioritized=prioritizeHandoffAttention(rows,now);
  return {
   total:prioritized.length,
