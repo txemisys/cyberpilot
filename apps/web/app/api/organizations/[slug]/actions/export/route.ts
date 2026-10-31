@@ -12,12 +12,12 @@ import { buildScopedActionQuery } from "../../../../../../lib/action-database-qu
 export async function GET(request:Request,{params}:{params:Promise<{slug:string}>}) {
   const {slug}=await params;
   const {membership}=await requireOrganizationAccess(slug);
-  const params=new URL(request.url).searchParams;
+  const queryParams=new URL(request.url).searchParams;
   const settings=parseActionPageInput({
-    status:params.get("status")??params.get("view")??undefined,
-    search:params.get("search")??undefined,
-    severity:params.get("severity")??undefined,
-    sort:params.get("sort")??undefined,
+    status:queryParams.get("status")??queryParams.get("view")??undefined,
+    search:queryParams.get("search")??undefined,
+    severity:queryParams.get("severity")??undefined,
+    sort:queryParams.get("sort")??undefined,
   });
   const {where,orderBy}=buildScopedActionQuery(membership.organization.id,settings);
   const count=await db.remediation.count({where});
