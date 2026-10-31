@@ -80,6 +80,17 @@ export default async function SecurityWorkstreamsPage({params,searchParams}:Prop
    </p>
   </div>
   <section className="remediation-section">
+   <h2>Responsible-person handoff</h2>
+   <p>Export a role-by-role handoff showing the highest-priority work,
+    review criteria and limitations. This does not assign a named user or
+    authorize any change.</p>
+   <p className="action-link no-print">
+    <a href={`/api/organizations/${slug}/actions/workstreams/export?format=handoff&${filters}`}>
+     Download suggested responsibility handoff (text)
+    </a>
+   </p>
+  </section>
+  <section className="remediation-section">
    <h2>Workload by responsibility</h2>
    <table>
     <thead><tr><th scope="col">Workstream</th><th scope="col">Tasks</th>
