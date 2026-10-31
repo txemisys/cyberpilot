@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {exportActionCenterCsv,filterActionCenterRecords,parseActionCenterView,summarizeActionCenterRecords} from "./action-center";
+import {exportActionCenterCsv,filterActionCenterRecords,parseActionCenterView,summarizeActionCenterRecords,parseActionCenterQuery,searchActionCenterRecords} from "./action-center";
 const action=(id:string,status:string,needsVerification=false)=>({
  id,title:"Action "+id,status,severity:"HIGH",findingStatus:"OPEN",needsVerification,
 });
@@ -40,5 +40,20 @@ describe("SME action center",()=>{
   expect(exportActionCenterCsv([{...action("","PROPOSED")}],"org")).toBeNull();
   exportActionCenterCsv(items,"org");
   expect(JSON.stringify(items)).toBe(prior);
+ });
+});
+describe("SME action center search and priority",()=>{
+ it("searches titles without mixing in hidden evidence fields",()=>{
+  const records=[action("a","PROPOSED"),{...action("b","APPROVED"),title:"Patch email authentication"}];
+  expect(searchActionCenterRecords(records,parseActionCenterQuery("email","ALL")).map(x=>x.id)).toEqual(["b"]);
+ });
+ it("combines severity and search without changing original data",()=>{
+  const records=[action("a","PROPOSED"),{...action("b","PROPOSED"),severity:"CRITICAL"}];
+  expect(searchActionCenterRecords(records,parseActionCenterQuery("Action","CRITICAL")).map(x=>x.id)).toEqual(["b"]);
+  expect(records).toHaveLength(2);
+ });
+ it("bounds and normalizes untrusted query parameters",()=>{
+  expect(parseActionCenterQuery("x".repeat(1000),"unknown")).toEqual({search:"x".repeat(120),severity:"ALL"});
+  expect(parseActionCenterQuery(["bad"],null)).toEqual({search:"",severity:"ALL"});
  });
 });
