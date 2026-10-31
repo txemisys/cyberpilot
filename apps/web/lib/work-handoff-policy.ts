@@ -107,10 +107,10 @@ export type HandoffRecord={
  id:string;workItemId:string;recipientUserId:string;requesterUserId:string|null;
  status:HandoffState;revision:number;expiresAt:Date|null;requestedAt:Date;
 };
-export function assertPendingHandoff(record:HandoffRecord,revision:number,now=new Date()):void{
+export function assertPendingHandoff(record:HandoffRecord,revision:number,now=new Date(),allowExpired=false):void{
  if(record.revision!==revision)throw new HandoffError("CONFLICT","Handoff changed; reload.");
  if(record.status!=="REQUESTED")throw new HandoffError("CONFLICT","Handoff already decided.");
- if(record.expiresAt&&record.expiresAt.getTime()<now.getTime())
+ if(!allowExpired&&record.expiresAt&&record.expiresAt.getTime()<now.getTime())
   throw new HandoffError("CONFLICT","Handoff has expired.");
 }
 export function handoffLabel(record:HandoffRecord,now=new Date()):string{
