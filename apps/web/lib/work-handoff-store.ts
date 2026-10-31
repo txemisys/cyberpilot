@@ -117,7 +117,7 @@ export async function decideHandoff(scope:HandoffContext,input:unknown){
   if(!existing)throw new HandoffError("NOT_FOUND","Handoff not found.");
   assertHandoffPermission(scope.role,command.kind,scope.userId,
    existing.requesterUserId,existing.recipientUserId);
-  assertPendingHandoff(existing,command.revision);
+  assertPendingHandoff(existing,command.revision,new Date(),command.kind==="cancel");
   const work=await tx.remediationWorkItem.findFirst({
    where:{id:existing.workItemId,organizationId:scope.organizationId}
   });
