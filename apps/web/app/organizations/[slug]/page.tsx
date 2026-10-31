@@ -376,6 +376,11 @@ export default async function OrganizationPage({
               </ol>
             )}
             <p className="action-link">
+              <Link href={`/organizations/${membership.organization.slug}/actions`}>
+                View and manage all security actions
+              </Link>
+            </p>
+            <p className="action-link">
               <Link href={`/organizations/${membership.organization.slug}/report`}>
                 View the full report
               </Link>
