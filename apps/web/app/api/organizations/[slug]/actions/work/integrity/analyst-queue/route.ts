@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: Context) {
     const page = await loadIntegrityCases({
       organizationId: membership.organization.id,
       userId: session.user.id, role: membership.role,
-    }, values);
+    }, { includeInfo: "true", includeHistorical: "true", ...values });
     let report: ReturnType<typeof buildLiveIntegrityPage>;
     try {
       report = buildLiveIntegrityPage(membership.organization.id, page, values);
