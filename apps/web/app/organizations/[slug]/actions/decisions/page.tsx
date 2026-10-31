@@ -113,6 +113,7 @@ export default async function ManagementDecisionBoardPage({params,searchParams}:
         </>
        ):null}
       </details>
+      <p className="action-link"><Link href={base+"/decisions/"+item.findingId}>Open management decision agenda</Link></p>
       <p className="action-link"><Link href={base+"/dossiers/"+item.findingId}>
        Read evidence dossier
       </Link></p>
