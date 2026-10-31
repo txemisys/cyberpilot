@@ -246,6 +246,7 @@ export default function WorkBoard({slug,canManage,canComment,currentUserId}:Prop
     </form>
     <section className="panel" aria-live="polite">
       <h2>Matching work</h2>
+      <p><a href={`${base}/export?${new URLSearchParams({status,priority,due,search,assignee})}`}>Download matching work (CSV, up to 1,000 records)</a></p>
       <p>{loading?"Loading…":`${items?.total??0} work items`}</p>
       {items?.rows.length===0?<p>No work items match these filters.</p>:null}
       <div className="remediation-list">{items?.rows.map(item=>
