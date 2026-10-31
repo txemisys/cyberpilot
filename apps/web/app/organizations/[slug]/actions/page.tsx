@@ -134,7 +134,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
                   <h3>How to verify</h3>
                   {checks.length?<ol>{checks.map((step,i)=><li key={i}>{step}</li>)}</ol>:<p>No verification checklist supplied.</p>}
                 </details>
-                <p className="action-link"><Link href={`/organizations/${slug}#remediation-${action.id}`}>Open action in workspace</Link></p>
+                <p className="action-link"><Link href={`/organizations/${slug}/actions/${action.id}`}>Open action details</Link></p>
               </article>;
             })}
           </div>
