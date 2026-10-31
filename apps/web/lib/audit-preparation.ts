@@ -232,3 +232,58 @@ export function auditPacketText(packet:AuditPacket):string{
  lines.push("LIMITATIONS",...packet.limitations.map(x=>"- "+x),"");
  return lines.join("\n");
 }
+
+export type AuditSectionSummary={
+ category:string;questions:number;supported:number;incomplete:number;
+ needsReview:number;notApplicable:number;affectedFindings:number;
+};
+export function auditSectionSummaries(portfolio:AuditPortfolio):AuditSectionSummary[]{
+ const categories=["Finding","Evidence","Remediation","Verification","Closure"];
+ return categories.map(category=>{
+  const entries=portfolio.packets.flatMap(packet=>
+   packet.questions.filter(question=>question.category===category)
+    .map(question=>({findingId:packet.findingId,question})));
+  return {
+   category,questions:entries.length,
+   supported:entries.filter(x=>x.question.status==="supported").length,
+   incomplete:entries.filter(x=>x.question.status==="incomplete").length,
+   needsReview:entries.filter(x=>x.question.status==="needs-review").length,
+   notApplicable:entries.filter(x=>x.question.status==="not-applicable").length,
+   affectedFindings:new Set(entries.filter(x=>x.question.status==="incomplete")
+    .map(x=>x.findingId)).size,
+  };
+ });
+}
+export function auditPortfolioText(portfolio:AuditPortfolio):string{
+ const lines=[
+  "CYBERPILOT — AUDIT DOCUMENTATION PREPARATION REPORT",
+  "This is an inventory of stored documentation, not a compliance attestation.",
+  "Findings assessed: "+portfolio.findings,
+  "Questions assessed: "+portfolio.questions,
+  "Supported recorded facts: "+portfolio.supported,
+  "Incomplete documentation: "+portfolio.incomplete,
+  "Requires independent human review: "+portfolio.reviewRequired,
+  "",
+  "REVIEW CATEGORY SUMMARY",
+ ];
+ for(const section of auditSectionSummaries(portfolio)){
+  lines.push(
+   section.category+": "+section.questions+" questions",
+   "  Supported: "+section.supported,
+   "  Incomplete: "+section.incomplete,
+   "  Needs review: "+section.needsReview,
+   "  Not applicable: "+section.notApplicable,
+   "  Findings with missing documents: "+section.affectedFindings,
+  );
+ }
+ lines.push("", "INDIVIDUAL EVIDENCE PACKETS");
+ for(const packet of portfolio.packets){
+  lines.push(auditPacketText(packet),"");
+ }
+ lines.push(
+  "Incomplete records do not by themselves prove that the security control is absent.",
+  "Only an authorized independent reviewer can assess whether evidence satisfies applicable requirements.",
+  "",
+ );
+ return lines.join("\n");
+}
