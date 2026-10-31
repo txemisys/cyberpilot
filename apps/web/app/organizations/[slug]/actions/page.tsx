@@ -2,13 +2,14 @@ import { db } from "@cyberpilot/database";
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../lib/organizations";
 import { buildSmeRemediationOverview } from "../../../../lib/sme-remediation-overview";
-import { ACTION_CENTER_VIEWS, filterActionCenterRecords, parseActionCenterView, summarizeActionCenterRecords } from "../../../../lib/action-center";
+import { ACTION_CENTER_VIEWS, filterActionCenterRecords, parseActionCenterView, summarizeActionCenterRecords, parseActionCenterQuery, searchActionCenterRecords, ACTION_CENTER_SEVERITIES } from "../../../../lib/action-center";
 
-type Params = { params: Promise<{slug:string}>; searchParams: Promise<{view?:string}> };
+type Params = { params: Promise<{slug:string}>; searchParams: Promise<{view?:string;search?:string;severity?:string}> };
 
 export default async function RemediationActionCenter({params,searchParams}:Params) {
   const {slug} = await params;
-  const {view:requestedView} = await searchParams;
+  const {view:requestedView,search,severity} = await searchParams;
+  const query = parseActionCenterQuery(search,severity);
   const view = parseActionCenterView(requestedView);
   const {membership} = await requireOrganizationAccess(slug);
   const organizationId = membership.organization.id;
@@ -42,7 +43,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
     ...action,needsVerification:byId.get(action.id)?.needsVerification??false,
     findingStatus:action.finding.status,severity:action.finding.severity,
   }));
-  const filtered=filterActionCenterRecords(rows,view);
+  const filtered=searchActionCenterRecords(filterActionCenterRecords(rows,view),query);
   const totals=summarizeActionCenterRecords(rows);
   const base=`/organizations/${slug}/actions`;
   return (
@@ -68,6 +69,18 @@ export default async function RemediationActionCenter({params,searchParams}:Para
           ))}
         </nav>
         <p className="action-link no-print"><a href={`/api/organizations/${slug}/actions/export`}>Export action overview (CSV)</a></p>
+        <form method="get" action={base} className="remediation-actions">
+          <input type="hidden" name="view" value={view} />
+          <label htmlFor="action-search">Find an action</label>
+          <input id="action-search" type="search" name="search" maxLength={120} defaultValue={query.search} placeholder="Action title or status" />
+          <label htmlFor="action-severity">Priority</label>
+          <select id="action-severity" name="severity" defaultValue={query.severity}>
+            {ACTION_CENTER_SEVERITIES.map(value=><option value={value} key={value}>{value==="ALL"?"All priorities":value}</option>)}
+          </select>
+          <button type="submit" className="secondary-button">Filter actions</button>
+          <Link href={`${base}?view=${view}`}>Clear filters</Link>
+        </form>
+        <p className="score-caption">Showing {filtered.length} matching actions from {remediations.length} recently loaded records.</p>
         {total>remediations.length?<p className="score-caption">Showing the {remediations.length} most recently created of {total} actions. Older actions are not included in these totals or filters.</p>:null}
         {filtered.length===0?(
           <div className="empty-state"><p>No actions match this view.</p></div>
