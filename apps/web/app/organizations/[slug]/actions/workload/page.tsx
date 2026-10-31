@@ -1,6 +1,7 @@
 import {db} from "@cyberpilot/database";
 import Link from "next/link";
 import {requireOrganizationAccess} from "../../../../../lib/organizations";
+import {summarizeWorkload,buildMonthlyWorkload,workloadClosureRate} from "../../../../../lib/remediation-workload";
 
 type Props={params:Promise<{slug:string}>};
 /**
@@ -26,26 +27,14 @@ export default async function ActionWorkloadPage({params}:Props){
    select:{id:true,action:true,occurredAt:true,resourceId:true},
   }),
  ]);
- const total=statuses.reduce((sum,row)=>sum+row._count._all,0);
- const counts=new Map(statuses.map(row=>[row.status,row._count._all]));
- const verified=counts.get("VERIFIED")??0;
- const pending=(counts.get("PROPOSED")??0)+(counts.get("APPROVED")??0);
- const failed=counts.get("FAILED")??0;
- const executing=counts.get("EXECUTING")??0;
- const grouped=new Map<string,{created:number;verified:number}>();
- for(const action of months){
-  const createdKey=action.createdAt.toISOString().slice(0,7);
-  const item=grouped.get(createdKey)??{created:0,verified:0};
-  item.created++;
-  grouped.set(createdKey,item);
-  if(action.status==="VERIFIED"&&action.verifiedAt){
-   const verifiedKey=action.verifiedAt.toISOString().slice(0,7);
-   const verifiedItem=grouped.get(verifiedKey)??{created:0,verified:0};
-   verifiedItem.verified++;
-   grouped.set(verifiedKey,verifiedItem);
-  }
- }
- const monthly=[...grouped].sort(([a],[b])=>b.localeCompare(a)).slice(0,12);
+ const summary=summarizeWorkload(statuses.map(row=>({status:row.status,count:row._count._all})));
+ const total=summary.total;
+ const verified=summary.verified;
+ const pending=summary.pending;
+ const failed=summary.failed;
+ const executing=summary.inProgress;
+ const monthly=buildMonthlyWorkload(months);
+ const closureRate=workloadClosureRate(summary);
  return <main className="shell"><section className="dashboard">
   <p className="eyebrow">CyberPilot · Management overview</p>
   <h1 className="dashboard-title">Remediation workload</h1>
@@ -57,6 +46,7 @@ export default async function ActionWorkloadPage({params}:Props){
    <div><p className="panel-label">Executing</p><strong>{executing}</strong></div>
    <div><p className="panel-label">Failed actions</p><strong>{failed}</strong></div>
    <div><p className="panel-label">Verified actions</p><strong>{verified}</strong></div>
+   <div><p className="panel-label">Verified share of recorded actions</p><strong>{closureRate===null?"Not available":`${closureRate}%`}</strong></div>
   </div>
   <section className="remediation-section">
    <h2>Recorded workflow states</h2>
@@ -73,10 +63,11 @@ export default async function ActionWorkloadPage({params}:Props){
    <h2>Recent monthly activity</h2>
    {monthly.length===0?<p>No monthly activity is available.</p>:(
     <table><thead><tr><th scope="col">Month (UTC)</th><th scope="col">Created actions</th><th scope="col">Verified actions</th></tr></thead>
-    <tbody>{monthly.map(([month,counts])=>(
-     <tr key={month}><th scope="row">{month}</th><td>{counts.created}</td><td>{counts.verified}</td></tr>
+    <tbody>{monthly.map(({month,created,verified})=>(
+     <tr key={month}><th scope="row">{month}</th><td>{created}</td><td>{verified}</td></tr>
     ))}</tbody></table>
    )}
+   <p className="action-link"><a href={`/api/organizations/${slug}/actions/workload/export`}>Export monthly summary (CSV)</a></p>
    {total>months.length?<p className="permission-warning">Monthly history uses only the latest {months.length} actions out of {total}; earlier actions are excluded. Do not treat these totals as complete.</p>:null}
   </section>
   <section className="remediation-section">
