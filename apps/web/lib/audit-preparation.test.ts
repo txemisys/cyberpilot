@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {buildAuditPacket,buildAuditPortfolio,auditPortfolioCsv,auditPacketText} from "./audit-preparation";
+import {buildAuditPacket,buildAuditPortfolio,auditPortfolioCsv,auditPacketText,auditSectionSummaries,auditPortfolioText} from "./audit-preparation";
 import {buildDocumentationGapPlan,deriveDocumentationGaps,documentationGapCsv,documentationGapText} from "./documentation-gap-plan";
 import type {ReviewFinding,ReviewAction,ReviewEvidence} from "./finding-evidence-review";
 const at=(day:string)=>new Date(day+"T12:00:00.000Z");
@@ -61,6 +61,25 @@ describe("Security audit preparation packets",()=>{
   expect(portfolio.questions).toBe(30);
   expect(portfolio.criticalWithGaps).toBe(1);
   expect(portfolio.packets[0]?.findingId).toBe("critical");
+ });
+ it("groups audit categories without double counting across finding records",()=>{
+  const report=buildAuditPortfolio([
+   finding({id:"first"}),
+   finding({id:"second",evidence:[signal("OBSERVED")]}),
+  ]);
+  const sections=auditSectionSummaries(report);
+  expect(sections).toHaveLength(5);
+  expect(sections.reduce((sum,section)=>sum+section.questions,0)).toBe(30);
+  expect(sections.every(section=>section.questions===
+   section.supported+section.incomplete+section.needsReview+section.notApplicable))
+   .toBe(true);
+ });
+ it("includes category details and evidence packets in full audit report",()=>{
+  const report=buildAuditPortfolio([finding()]);
+  const output=auditPortfolioText(report);
+  expect(output).toContain("AUDIT DOCUMENTATION PREPARATION REPORT");
+  expect(output).toContain("INDIVIDUAL EVIDENCE PACKETS");
+  expect(output).toContain("INCOMPLETE".toLowerCase().slice(0,5).toUpperCase());
  });
  it("renders auditor handoff without raw evidence provider payloads",()=>{
   const packet=buildAuditPacket(finding());
