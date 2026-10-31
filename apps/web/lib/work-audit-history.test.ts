@@ -154,7 +154,8 @@ describe("CSV preservation and spreadsheet safety",()=>{
   const csv=serializeAuditHistory([{
    ...item("clhistory001"),actorUserId:null,actor:null,before:null,after:null
   }]);
-  expect(csv).toContain('"COMMENTED"')===false;
+  expect(csv).not.toContain('"COMMENTED"');
+  expect(csv).toContain('"UPDATED"');
   expect(csv).toContain('"clhistory001"');
  });
 });
