@@ -268,3 +268,126 @@ describe("bounded planning behavior",()=>{
   expect(result.notes.join(" ")).toMatch(/not measured working hours/);
  });
 });
+
+describe("allocation determinism and safety invariants",()=>{
+ it("keeps assignment output deterministic for identical snapshots",()=>{
+  const data=dataset([
+   item({id:"work_101",priority:"HIGH"}),
+   item({id:"work_102",priority:"HIGH"}),
+   item({id:"work_103",priority:"HIGH"}),
+  ],[alice,bob,carol]);
+  const first=planAssignments(data,options(),NOW);
+  const second=planAssignments(data,options(),NOW);
+  expect(first.allocations).toEqual(second.allocations);
+  expect(first.members).toEqual(second.members);
+ });
+ it("does not mutate source work items",()=>{
+  const source=item({id:"work_source",assigneeUserId:alice.userId});
+  const before={...source};
+  planAssignments(dataset([source]),options({
+   scope:"ALL_OPEN",preserveOwners:false,
+  }),NOW);
+  expect(source).toEqual(before);
+ });
+ it("does not mutate source membership objects",()=>{
+  const first={...alice};
+  planAssignments(dataset([item()],[alice,bob]),options(),NOW);
+  expect(alice).toEqual(first);
+ });
+ it("rejects a non-member capacity override even for empty workloads",()=>{
+  expect(()=>planAssignments(dataset([],[]),options({
+   settings:[{userId:alice.userId,available:true,capacityPoints:20}],
+  }),NOW)).toThrow();
+ });
+ it("does not choose an unavailable member even if they have zero load",()=>{
+  const result=planAssignments(dataset([item()]),options({
+   settings:[
+    {userId:alice.userId,capacityPoints:100,available:false},
+    {userId:bob.userId,capacityPoints:20,available:true},
+   ],
+  }),NOW);
+  expect(result.allocations[0]?.proposedUserId).toBe(bob.userId);
+ });
+ it("does not place work when all members are unavailable",()=>{
+  const result=planAssignments(dataset([item()]),options({
+   settings:[
+    {userId:alice.userId,capacityPoints:100,available:false},
+    {userId:bob.userId,capacityPoints:100,available:false},
+   ],
+  }),NOW);
+  expect(result.unplaced).toBe(1);
+ });
+ it("uses explicit zero capacity even when a positive default exists",()=>{
+  const result=planAssignments(dataset([item()]),options({
+   capacityPoints:100,
+   settings:[
+    {userId:alice.userId,capacityPoints:0,available:true},
+    {userId:bob.userId,capacityPoints:0,available:true},
+   ],
+  }),NOW);
+  expect(result.proposedMoves).toBe(0);
+ });
+ it("prioritizes higher urgency without confusing security severity and work status",()=>{
+  const result=planAssignments(dataset([
+   item({id:"work_low",priority:"LOW",findingSeverity:"LOW"}),
+   item({id:"work_urgent",priority:"URGENT",findingSeverity:"CRITICAL"}),
+  ]),options(),NOW);
+  expect(result.allocations[0]?.workId).toBe("work_urgent");
+ });
+ it("retains all open work in inventory summary regardless of scenario scope",()=>{
+  const result=planAssignments(dataset([
+   item({id:"work_001",status:"TODO"}),
+   item({id:"work_002",status:"BLOCKED"}),
+   item({id:"work_003",status:"DONE"}),
+   item({id:"work_004",status:"IN_PROGRESS",assigneeUserId:alice.userId}),
+  ]),options(),NOW);
+  expect(result.totalOpenWork).toBe(3);
+  expect(result.considered).toBe(1);
+  expect(result.excluded).toBe(2);
+ });
+ it("counts already overdue owned work in current member load",()=>{
+  const result=planAssignments(dataset([
+   item({id:"work_overdue",assigneeUserId:alice.userId,
+    dueAt:new Date("2026-10-20T12:00:00.000Z")}),
+  ]),options(),NOW);
+  expect(result.members.find(person=>person.userId===alice.userId)?.overdueItems).toBe(1);
+ });
+ it("does not flag a future-dated task as overdue",()=>{
+  const result=planAssignments(dataset([
+   item({id:"work_future",assigneeUserId:alice.userId,
+    dueAt:new Date("2026-11-20T12:00:00.000Z")}),
+  ]),options(),NOW);
+  expect(result.members.find(person=>person.userId===alice.userId)?.overdueItems).toBe(0);
+ });
+ it("does not count closed tasks as capacity consumption",()=>{
+  const result=planAssignments(dataset([
+   item({id:"work_closed",status:"DONE",assigneeUserId:alice.userId}),
+  ]),options(),NOW);
+  expect(result.members.find(person=>person.userId===alice.userId)?.existingPoints).toBe(0);
+ });
+ it("never creates more assignment proposals than its configured maximum",()=>{
+  const entries=Array.from({length:30},(_,index)=>
+   item({id:`work_${index.toString().padStart(4,"0")}`}));
+  const result=planAssignments(dataset(entries),options({
+   maxMoves:5,capacityPoints:1000,
+  }),NOW);
+  expect(result.proposedMoves).toBe(5);
+  expect(result.allocations.length).toBe(30);
+ });
+ it("reports exact scenario coverage for bounded snapshots",()=>{
+  const result=planAssignments(dataset([
+   item({id:"work_101"}),item({id:"work_102"}),
+  ]),options(),NOW);
+  expect(result.coverage.totalFetched).toBe(2);
+  expect(result.coverage.truncated).toBe(false);
+ });
+ it("preserves unchanged ownership when its owner has exceeded scenario capacity",()=>{
+  const result=planAssignments(dataset([
+   item({id:"work_existing",assigneeUserId:alice.userId,priority:"URGENT"}),
+  ]),options({
+   scope:"ALL_OPEN",capacityPoints:0,preserveOwners:true,
+  }),NOW);
+  expect(result.allocations[0]?.action).toBe("KEEP");
+  expect(result.proposedMoves).toBe(0);
+ });
+});
