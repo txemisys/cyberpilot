@@ -2,31 +2,44 @@ import { db } from "@cyberpilot/database";
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../lib/organizations";
 import { buildSmeRemediationOverview } from "../../../../lib/sme-remediation-overview";
-import { ACTION_CENTER_VIEWS, filterActionCenterRecords, parseActionCenterView, summarizeActionCenterRecords, parseActionCenterQuery, searchActionCenterRecords, ACTION_CENTER_SEVERITIES } from "../../../../lib/action-center";
+import { ACTION_CENTER_VIEWS, summarizeActionCenterRecords, ACTION_CENTER_SEVERITIES } from "../../../../lib/action-center";
+import { actionPageResult, actionPageUrl, parseActionPageInput } from "../../../../lib/action-pagination";
 
-type Params = { params: Promise<{slug:string}>; searchParams: Promise<{view?:string;search?:string;severity?:string}> };
+type Params = { params: Promise<{slug:string}>; searchParams: Promise<{view?:string;status?:string;search?:string;severity?:string;page?:string;pageSize?:string}> };
 
 export default async function RemediationActionCenter({params,searchParams}:Params) {
   const {slug} = await params;
-  const {view:requestedView,search,severity} = await searchParams;
-  const query = parseActionCenterQuery(search,severity);
-  const view = parseActionCenterView(requestedView);
+  const parameters = await searchParams;
+  const settings = parseActionPageInput({...parameters,status:parameters.status??parameters.view});
+  const view = settings.status;
   const {membership} = await requireOrganizationAccess(slug);
   const organizationId = membership.organization.id;
-
-  const [remediations,total] = await Promise.all([
-    db.remediation.findMany({
-      where:{organizationId},
-      orderBy:[{createdAt:"desc"},{id:"asc"}],
-      take:200,
-      select:{
-        id:true,title:true,summary:true,status:true,mode:true,steps:true,verification:true,
-        failureCode:true,createdAt:true,completedAt:true,
-        finding:{select:{title:true,severity:true,status:true,lastSeenAt:true}},
-      },
-    }),
-    db.remediation.count({where:{organizationId}}),
-  ]);
+  const statusFilter = view === "active" ? ["EXECUTING"] :
+    view === "verified" ? ["VERIFIED"] :
+    view === "attention" ? ["PROPOSED","APPROVED","FAILED","SUCCEEDED"] : undefined;
+  const where = {
+    organizationId,
+    ...(statusFilter ? {status:{in:statusFilter as ("PROPOSED"|"APPROVED"|"FAILED"|"SUCCEEDED"|"EXECUTING"|"VERIFIED")[]}} : {}),
+    ...(settings.severity !== "ALL" ? {finding:{severity:settings.severity as "INFO"|"LOW"|"MEDIUM"|"HIGH"|"CRITICAL"}} : {}),
+    ...(settings.search ? {OR:[
+      {title:{contains:settings.search,mode:"insensitive" as const}},
+      {summary:{contains:settings.search,mode:"insensitive" as const}},
+      {finding:{title:{contains:settings.search,mode:"insensitive" as const}}},
+    ]} : {}),
+  };
+  const total = await db.remediation.count({where});
+  const totalPages=Math.max(1,Math.ceil(total/settings.pageSize));
+  const currentPage=Math.min(settings.page,totalPages);
+  const remediations = await db.remediation.findMany({
+    where,orderBy:[{createdAt:"desc"},{id:"asc"}],
+    skip:(currentPage-1)*settings.pageSize,take:settings.pageSize,
+    select:{
+      id:true,title:true,summary:true,status:true,mode:true,steps:true,verification:true,
+      failureCode:true,createdAt:true,completedAt:true,
+      finding:{select:{title:true,severity:true,status:true,lastSeenAt:true}},
+    },
+  });
+  const pagination=actionPageResult(remediations,total,{...settings,page:currentPage});
   const stepRecords=await db.guidedRemediationStep.findMany({
     where:{organizationId,remediationId:{in:remediations.map(x=>x.id)}},
     select:{remediationId:true,stepIndex:true},
@@ -43,7 +56,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
     ...action,needsVerification:byId.get(action.id)?.needsVerification??false,
     findingStatus:action.finding.status,severity:action.finding.severity,
   }));
-  const filtered=searchActionCenterRecords(filterActionCenterRecords(rows,view),query);
+  const filtered=rows;
   const totals=summarizeActionCenterRecords(rows);
   const base=`/organizations/${slug}/actions`;
   return (
@@ -55,7 +68,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
         <p className="action-link"><Link href={`/organizations/${slug}`}>Back to workspace</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/history`}>View recorded action history</Link></p>
         <div className="panel">
-          <div><p className="panel-label">Recent actions loaded</p><p className="panel-value">{remediations.length}</p></div>
+          <div><p className="panel-label">Actions on this page</p><p className="panel-value">{remediations.length}</p></div>
           <div><p className="panel-label">In progress</p><p className="panel-value">{totals.inProgress}</p></div>
           <div><p className="panel-label">Needs verification</p><p className="panel-value">{totals.needsVerification}</p></div>
           <div><p className="panel-label">Verified</p><p className="panel-value">{totals.verified}</p></div>
@@ -63,7 +76,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
         <nav aria-label="Filter security actions" className="workspace-links no-print">
           {ACTION_CENTER_VIEWS.map(option=>(
             <p key={option} className="action-link">
-              <Link aria-current={view===option?"page":undefined} href={`${base}?view=${option}`}>
+              <Link aria-current={view===option?"page":undefined} href={actionPageUrl(base,settings,{status:option,page:1})}>
                 {option==="attention"?"Needs attention":option==="active"?"In progress":option==="verified"?"Verified":"All actions"}
               </Link>
             </p>
@@ -71,18 +84,26 @@ export default async function RemediationActionCenter({params,searchParams}:Para
         </nav>
         <p className="action-link no-print"><a href={`/api/organizations/${slug}/actions/export`}>Export action overview (CSV)</a></p>
         <form method="get" action={base} className="remediation-actions">
-          <input type="hidden" name="view" value={view} />
+          <input type="hidden" name="status" value={view} />
           <label htmlFor="action-search">Find an action</label>
-          <input id="action-search" type="search" name="search" maxLength={120} defaultValue={query.search} placeholder="Action title or status" />
+          <input id="action-search" type="search" name="search" maxLength={120} defaultValue={settings.search} placeholder="Action title or status" />
           <label htmlFor="action-severity">Priority</label>
-          <select id="action-severity" name="severity" defaultValue={query.severity}>
+          <select id="action-severity" name="severity" defaultValue={settings.severity}>
             {ACTION_CENTER_SEVERITIES.map(value=><option value={value} key={value}>{value==="ALL"?"All priorities":value}</option>)}
           </select>
+          <label htmlFor="page-size">Per page</label>
+          <select id="page-size" name="pageSize" defaultValue={settings.pageSize}>
+            <option value="20">20</option><option value="50">50</option><option value="100">100</option>
+          </select>
           <button type="submit" className="secondary-button">Filter actions</button>
-          <Link href={`${base}?view=${view}`}>Clear filters</Link>
+          <Link href={actionPageUrl(base,settings,{search:"",severity:"ALL",page:1})}>Clear filters</Link>
         </form>
-        <p className="score-caption">Showing {filtered.length} matching actions from {remediations.length} recently loaded records.</p>
-        {total>remediations.length?<p className="score-caption">Showing the {remediations.length} most recently created of {total} actions. Older actions are not included in these totals or filters.</p>:null}
+        <p className="score-caption">Showing {pagination.firstItem}–{pagination.lastItem} of {pagination.total} matching actions.</p>
+        <nav aria-label="Action result pages" className="workspace-links no-print">
+          {pagination.hasPrevious ? <p className="action-link"><Link href={actionPageUrl(base,settings,{page:pagination.page-1})}>Previous page</Link></p> : null}
+          <p>Page {pagination.page} of {pagination.totalPages}</p>
+          {pagination.hasNext ? <p className="action-link"><Link href={actionPageUrl(base,settings,{page:pagination.page+1})}>Next page</Link></p> : null}
+        </nav>
         {filtered.length===0?(
           <div className="empty-state"><p>No actions match this view.</p></div>
         ):(
@@ -118,7 +139,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
             })}
           </div>
         )}
-        <p className="score-caption">This view uses stored remediation and progress records. It does not execute changes, refresh evidence or alter CyberScore.</p>
+        <p className="score-caption">Totals above describe this page of the selected filter, not the entire organization. This view uses stored remediation and progress records. It does not execute changes, refresh evidence or alter CyberScore.</p>
       </section>
     </main>
   );
