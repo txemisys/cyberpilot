@@ -16,6 +16,10 @@ type TimelineCase = {
   trend: string;
   observations: number;
   transitions: number;
+  longestObservedStreak: number;
+  latestObservedStreak: number;
+  revisionsObserved: number;
+  severityEscalations: number;
   reviewIsCurrent: boolean | null;
   lastKnownSeverity: string | null;
   gaps: string[];
@@ -219,6 +223,11 @@ export default function IntegrityTimelineClient({ slug }: Props) {
                   <p>Work: {item.workItemId}</p>
                   <p>{item.observations} appearances across {result.captures} captures;
                     {" "}{item.transitions} presence transitions.</p>
+                  <p>Longest consecutive presence: {item.longestObservedStreak}
+                    {" "}captures. Current consecutive presence:
+                    {" "}{item.latestObservedStreak}.</p>
+                  <p>Distinct work revisions observed: {item.revisionsObserved}.
+                    {" "}Adjacent severity escalations: {item.severityEscalations}.</p>
                   <p>Last severity: {item.lastKnownSeverity ?? "No current severity"}</p>
                   <p>Current revision reviewed:
                     {" "}{item.reviewIsCurrent === null ? "Not known" :
