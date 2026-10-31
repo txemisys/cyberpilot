@@ -103,6 +103,7 @@ export default async function ReconciliationPage({params,searchParams}:Props){
         <ul>{item.warnings.map((warning,i)=><li key={i}>{warning}</li>)}</ul>
        </details>
       ):null}
+      <p className="action-link"><Link href={base+"/reconciliation/"+item.findingId}>Open detailed outcome review</Link></p>
       <p className="action-link"><Link href={base+"/dossiers/"+item.findingId}>
        Inspect supporting evidence dossier
       </Link></p>
