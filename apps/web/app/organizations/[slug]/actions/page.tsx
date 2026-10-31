@@ -57,6 +57,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
         <p className="action-link"><Link href={`/organizations/${slug}`}>Back to workspace</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/history`}>View recorded action history</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/workload`}>View remediation workload report</Link></p>
+        <p className="action-link"><Link href={`/organizations/${slug}/actions/work`}>Manage assigned remediation work and deadlines</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/queue`}>See prioritized next actions</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/evidence`}>Review evidence and verification readiness</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/verification-plan`}>Open verification work plan</Link></p>
