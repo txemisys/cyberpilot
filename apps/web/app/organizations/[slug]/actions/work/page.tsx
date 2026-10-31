@@ -16,6 +16,7 @@ export default async function OperationalRemediationWork({params}:Props){
       <p className="permission-warning">A completed task is not a verified remediation or a resolved finding.
         Verification requires its own evidence and review workflow.</p>
       <p className="action-link"><Link href={`/organizations/${slug}/actions/work/batch`}>Review and apply batch coordination updates</Link></p>
+      <p className="action-link"><Link href={`/organizations/${slug}/actions/work/planning`}>Plan assignments and workload capacity</Link></p>
       <WorkBoard slug={slug} canManage={canManageWork(membership.role)}
         canComment={canCommentWork(membership.role)} currentUserId={session.user.id}/>
     </section>
