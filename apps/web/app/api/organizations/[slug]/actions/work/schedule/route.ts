@@ -18,25 +18,25 @@ export async function GET(request:NextRequest,{params}:Route){
  try{
   const {slug}=await params;
   const {session,membership}=await requireOrganizationAccess(slug);
-  const params=Object.fromEntries(request.nextUrl.searchParams);
+  const query=Object.fromEntries(request.nextUrl.searchParams);
   const scope={organizationId:membership.organization.id,userId:session.user.id,role:membership.role};
-  const referenceDate=typeof params.referenceDate==="string"?params.referenceDate:
+  const referenceDate=typeof query.referenceDate==="string"?query.referenceDate:
    new Date().toISOString().slice(0,10);
   const options={
-   range:params.range??"MONTH",scope:params.scope??"MINE",
-   referenceDate,includeClosed:params.includeClosed==="true",
-   priority:params.priority??"ALL",search:params.search??"",
-   assigneeUserId:params.assigneeUserId??null,
+   range:query.range??"MONTH",scope:query.scope??"MINE",
+   referenceDate,includeClosed:query.includeClosed==="true",
+   priority:query.priority??"ALL",search:query.search??"",
+   assigneeUserId:query.assigneeUserId??null,
   };
   const result=await loadWorkSchedule(scope,options);
-  if(params.format==="ics"){
+  if(query.format==="ics"){
    const body=scheduleCalendar(result,slug);
    return new NextResponse(body,{headers:{
     ...headers,"Content-Type":"text/calendar; charset=utf-8",
     "Content-Disposition":'attachment; filename="cyberpilot-work-targets.ics"',
    }});
   }
-  if(params.format!==undefined&&params.format!=="json")
+  if(query.format!==undefined&&query.format!=="json")
    throw new WorkInputError("INVALID","Unknown schedule output format.");
   return NextResponse.json(result,{headers});
  }catch(error){return failure(error);}
