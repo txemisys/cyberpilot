@@ -151,6 +151,7 @@ model User {
   approvedRemediations      Remediation[] @relation("RemediationApprover")
   assignedWorkItems         RemediationWorkItem[] @relation("WorkItemAssignee")
   workItemEvents            RemediationWorkEvent[] @relation("WorkEventActor")
+  completedChecklistEntries WorkChecklistEntry[] @relation("ChecklistCompleter")
 }
 
 model Session {
@@ -217,6 +218,7 @@ model Organization {
   securityEvidence         SecurityEvidence[]
   remediationWorkItems      RemediationWorkItem[]
   remediationWorkEvents     RemediationWorkEvent[]
+  workChecklistEntries      WorkChecklistEntry[]
 }
 
 model Membership {
@@ -476,11 +478,32 @@ model RemediationWorkItem {
   finding SecurityFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
   assignee User? @relation("WorkItemAssignee", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   events RemediationWorkEvent[]
+  checklist WorkChecklistEntry[]
 
   @@unique([organizationId, remediationId])
   @@index([organizationId, status, dueAt])
   @@index([organizationId, assigneeUserId, status])
   @@index([organizationId, priority, createdAt])
+}
+
+model WorkChecklistEntry {
+  id String @id @default(cuid())
+  organizationId String
+  workItemId String
+  position Int
+  title String
+  description String @default("")
+  completedAt DateTime?
+  completedByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  completedBy User? @relation("ChecklistCompleter", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([workItemId, position])
+  @@index([organizationId, workItemId, completedAt])
 }
 
 model RemediationWorkEvent {
