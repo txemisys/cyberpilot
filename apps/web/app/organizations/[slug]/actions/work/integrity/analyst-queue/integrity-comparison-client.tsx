@@ -7,6 +7,28 @@ type Comparison = {
   beforeCapturedAt: string;
   afterCapturedAt: string;
   complete: boolean;
+  quality: {
+    before: {
+      declaredComplete: boolean; structurallyConsistent: boolean;
+      safeToTreatAsComplete: boolean; blockers: number;
+      warnings: number; affectedCases: number;
+      issues: Array<{
+        code: string; caseKey: string | null;
+        severity: string; explanation: string; nextAction: string;
+      }>;
+      limitations: string[];
+    };
+    after: {
+      declaredComplete: boolean; structurallyConsistent: boolean;
+      safeToTreatAsComplete: boolean; blockers: number;
+      warnings: number; affectedCases: number;
+      issues: Array<{
+        code: string; caseKey: string | null;
+        severity: string; explanation: string; nextAction: string;
+      }>;
+      limitations: string[];
+    };
+  };
   counts: Record<string, number>;
   priority: { escalations: number; deescalations: number; indeterminate: number };
   evidence: {
@@ -139,8 +161,8 @@ export default function IntegrityComparisonClient({ slug }: Props) {
           <p>
             {report.beforeCapturedAt} compared with {report.afterCapturedAt}.
             {report.complete
-              ? " Both supplied snapshots declare complete coverage."
-              : " At least one supplied snapshot is incomplete."}
+              ? " Both captures passed the structural quality gate; provenance remains unauthenticated."
+              : " At least one capture is incomplete or has quality warnings."}
           </p>
           <div className="panel" aria-label="Comparison totals">
             {Object.entries(report.counts).map(([kind, count]) => (
@@ -150,6 +172,51 @@ export default function IntegrityComparisonClient({ slug }: Props) {
               </div>
             ))}
           </div>
+          <section aria-label="Capture consistency review">
+            <h3>Capture quality and review history</h3>
+            <p>
+              Quality checks inspect the supplied file structure and review
+              metadata. They do not independently authenticate the original
+              records or prove that a security control is effective.
+            </p>
+            {(["before", "after"] as const).map(stage => {
+              const quality = report.quality[stage];
+              return (
+                <article className="remediation-card" key={stage}>
+                  <h4>{stage === "before" ? "Previous capture" : "Current capture"}</h4>
+                  <p>
+                    {quality.blockers} contradictory metadata conditions,
+                    {" "}{quality.warnings} quality warnings and
+                    {" "}{quality.affectedCases} affected case identities.
+                  </p>
+                  <p className={quality.safeToTreatAsComplete
+                    ? "score-caption" : "permission-warning"}>
+                    {quality.safeToTreatAsComplete
+                      ? "Declared complete and structurally consistent."
+                      : "Do not infer complete capture coverage from this file."}
+                  </p>
+                  {quality.issues.length ? (
+                    <details>
+                      <summary>Inspect {quality.issues.length} consistency findings</summary>
+                      <ul>
+                        {quality.issues.slice(0, 100).map((issue, index) => (
+                          <li key={index}>
+                            <strong>{issue.severity} · {issue.code}</strong>
+                            {issue.caseKey ? ` · ${issue.caseKey}` : ""}
+                            <p>{issue.explanation}</p>
+                            <p>Next step: {issue.nextAction}</p>
+                          </li>
+                        ))}
+                      </ul>
+                      {quality.issues.length > 100 ? (
+                        <p>The first 100 findings are displayed in this view.</p>
+                      ) : null}
+                    </details>
+                  ) : <p>No structural inconsistencies detected.</p>}
+                </article>
+              );
+            })}
+          </section>
           <section aria-label="Priority changes">
             <h3>Operational priority drift</h3>
             <p>{report.priority.escalations} escalations and
