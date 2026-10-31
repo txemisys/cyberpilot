@@ -50,3 +50,22 @@ export function exportActionCenterCsv(actions:readonly ActionCenterRecord[],orga
     action.needsVerification?"YES":"NO",
   ].map(csvCell).join(","))].join("\r\n")+"\r\n";
 }
+
+export type ActionCenterQuery = { search:string; severity:string };
+export const ACTION_CENTER_SEVERITIES = ["ALL","CRITICAL","HIGH","MEDIUM","LOW","INFO"] as const;
+/** Normalize untrusted URL inputs before using them in filters or export requests. */
+export function parseActionCenterQuery(search:unknown,severity:unknown):ActionCenterQuery {
+  const raw=typeof search==="string"?search.trim().slice(0,120):"";
+  const selected=typeof severity==="string"?severity.toUpperCase():"ALL";
+  return {search:raw,severity:ACTION_CENTER_SEVERITIES.includes(selected as typeof ACTION_CENTER_SEVERITIES[number])?selected:"ALL"};
+}
+export function searchActionCenterRecords<T extends ActionCenterRecord>(
+ actions:readonly T[],query:ActionCenterQuery,
+):T[] {
+ const search=query.search.toLocaleLowerCase();
+ return actions.filter(item=>
+   (query.severity==="ALL"||item.severity===query.severity) &&
+   (!search||[item.title,item.id,item.status,item.severity,item.findingStatus]
+     .some(value=>value.toLocaleLowerCase().includes(search)))
+ );
+}
