@@ -4,6 +4,7 @@ import { compareReviewWorklists } from "./work-integrity-worklist";
 import { caseDimensions, trendCases, caseCohorts } from "./work-integrity-analytics";
 import { buildEvidenceReadiness, compareEvidenceReadiness } from "./work-integrity-evidence-readiness";
 import { LIVE_EVIDENCE_REQUIREMENTS } from "./work-integrity-live-queue";
+import { inspectCaptureQuality, type CaptureQualityReport } from "./work-integrity-capture-quality";
 
 /**
  * Explicitly offline comparison of two user-provided operational case captures.
@@ -19,6 +20,7 @@ export type IntegrityComparisonSummary = {
   beforeCapturedAt: string;
   afterCapturedAt: string;
   complete: boolean;
+  quality: { before: CaptureQualityReport; after: CaptureQualityReport };
   counts: ReturnType<typeof compareCaseSnapshots>["counts"];
   priority: {
     escalations: number;
@@ -90,6 +92,10 @@ export function compareIntegrityCaptures(
   const { before, after } = validateComparisonInput(
     input, trustedOrganizationId, maxCases,
   );
+  const quality = {
+    before: inspectCaptureQuality(before),
+    after: inspectCaptureQuality(after),
+  };
   const comparison = compareCaseSnapshots(before, after);
   const priorities = compareReviewWorklists(before, after);
   const previousEvidence = buildEvidenceReadiness(before, LIVE_EVIDENCE_REQUIREMENTS);
@@ -100,12 +106,14 @@ export function compareIntegrityCaptures(
   const priorityByKey = new Map(priorities.changes.map(change => [change.key, change]));
   const evidenceByKey = new Map(evidenceChanges.map(change => [change.caseKey, change]));
   const trends = trendCases(before, after, comparison);
+  const verifiedCoverage = comparison.complete &&
+    quality.before.safeToTreatAsComplete && quality.after.safeToTreatAsComplete;
   const changes = comparison.deltas
     .filter(delta => delta.kind !== "UNCHANGED")
     .map(delta => {
       const priority = priorityByKey.get(delta.key);
       const evidence = evidenceByKey.get(delta.key);
-      const uncertain = !comparison.complete ||
+      const uncertain = !verifiedCoverage ||
         delta.kind === "INDETERMINATE" || Boolean(evidence?.uncertain);
       return {
         key: delta.key, kind: delta.kind, fields: delta.changes,
@@ -124,7 +132,8 @@ export function compareIntegrityCaptures(
     organizationId: trustedOrganizationId,
     beforeCapturedAt: before.capturedAt,
     afterCapturedAt: after.capturedAt,
-    complete: comparison.complete,
+    complete: verifiedCoverage,
+    quality,
     counts: comparison.counts,
     priority: {
       escalations: priorities.escalations,
@@ -154,6 +163,9 @@ export function compareIntegrityCaptures(
     warnings: [
       ...comparison.warnings,
       ...trends.warnings,
+      ...(!verifiedCoverage && comparison.complete ? [
+        "One or both supplied captures contain quality warnings; coverage-dependent conclusions are not certified.",
+      ] : []),
       "Snapshots are supplied by the caller and are not authenticated source records.",
       "Differences in diagnostic data do not establish remediation or security control effectiveness.",
       "Only captures with identical authenticated organization IDs can be compared.",
