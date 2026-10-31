@@ -2,18 +2,31 @@ import { db } from "@cyberpilot/database";
 import { requireOrganizationAccess } from "../../../../../../lib/organizations";
 import { exportActionCenterCsv } from "../../../../../../lib/action-center";
 import { buildSmeRemediationOverview } from "../../../../../../lib/sme-remediation-overview";
+import { parseActionPageInput } from "../../../../../../lib/action-pagination";
+import { buildScopedActionQuery } from "../../../../../../lib/action-database-query";
 
 /**
  * Authorized, tenant-scoped export of a bounded operational overview.
  * Contains workflow metadata only; never includes raw evidence, credentials or action payloads.
  */
-export async function GET(_request:Request,{params}:{params:Promise<{slug:string}>}) {
+export async function GET(request:Request,{params}:{params:Promise<{slug:string}>}) {
   const {slug}=await params;
   const {membership}=await requireOrganizationAccess(slug);
+  const params=new URL(request.url).searchParams;
+  const settings=parseActionPageInput({
+    status:params.get("status")??params.get("view")??undefined,
+    search:params.get("search")??undefined,
+    severity:params.get("severity")??undefined,
+    sort:params.get("sort")??undefined,
+  });
+  const {where,orderBy}=buildScopedActionQuery(membership.organization.id,settings);
+  const count=await db.remediation.count({where});
+  if(count>2000)return new Response(
+    "The export exceeds 2000 actions. Narrow the filters and try again.",
+    {status:422,headers:{"Cache-Control":"private, no-store"}},
+  );
   const records=await db.remediation.findMany({
-    where:{organizationId:membership.organization.id},
-    take:200,
-    orderBy:[{createdAt:"desc"},{id:"asc"}],
+    where,orderBy,take:2000,
     select:{
       id:true,title:true,status:true,mode:true,steps:true,
       finding:{select:{status:true,severity:true}},
@@ -42,7 +55,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{slug:string
   return new Response(content,{
     headers:{
       "Content-Type":"text/csv; charset=utf-8",
-      "Content-Disposition":"attachment; filename=\"cyberpilot-actions.csv\"",
+      "Content-Disposition":"attachment; filename=\"cyberpilot-actions-filtered.csv\"",
       "Cache-Control":"private, no-store",
       "X-Content-Type-Options":"nosniff",
     },
