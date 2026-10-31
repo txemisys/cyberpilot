@@ -1,7 +1,7 @@
 import {db} from "@cyberpilot/database";
 import {requireOrganizationAccess} from "../../../../../../../lib/organizations";
 import {loadReviewData,parseReviewListOptions} from "../../../../../../../lib/finding-review-data";
-import {buildAuditPortfolio,auditPortfolioCsv} from "../../../../../../../lib/audit-preparation";
+import {buildAuditPortfolio,auditPortfolioCsv,auditPortfolioText} from "../../../../../../../lib/audit-preparation";
 export async function GET(request:Request,{params}:{params:Promise<{slug:string}>}){
  const {slug}=await params;
  const {membership}=await requireOrganizationAccess(slug);
@@ -31,9 +31,12 @@ export async function GET(request:Request,{params}:{params:Promise<{slug:string}
    status:409,headers:{"Cache-Control":"private, no-store"},
   });
  const portfolio=buildAuditPortfolio(findings);
- return new Response(auditPortfolioCsv(portfolio),{headers:{
-  "Content-Type":"text/csv; charset=utf-8",
-  "Content-Disposition":'attachment; filename="cyberpilot-audit-readiness.csv"',
+ const asText=new URL(request.url).searchParams.get("format")==="text";
+ return new Response(asText?auditPortfolioText(portfolio):auditPortfolioCsv(portfolio),{headers:{
+  "Content-Type":asText?"text/plain; charset=utf-8":"text/csv; charset=utf-8",
+  "Content-Disposition":asText?
+   'attachment; filename="cyberpilot-audit-readiness.txt"':
+   'attachment; filename="cyberpilot-audit-readiness.csv"',
   "Cache-Control":"private, no-store",
   "X-Content-Type-Options":"nosniff",
  }});
