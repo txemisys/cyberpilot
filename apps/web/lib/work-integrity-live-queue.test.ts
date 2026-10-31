@@ -199,3 +199,112 @@ describe("integrated live analyst report", () => {
     expect(LIVE_EVIDENCE_REQUIREMENTS[0]?.requireHumanReview).toBe(true);
   });
 });
+
+describe("live queue isolation and edge-case guarantees", () => {
+  it("preserves organization identity across filtered reports", () => {
+    for (const priority of ["P0", "P1", "P2", "P3", "P4"] as const) {
+      const report = buildLiveIntegrityPage("tenant-private", page(), { priority });
+      expect(report.organizationId).toBe("tenant-private");
+    }
+  });
+  it("never reports complete capture when any linked case is partial", () => {
+    for (const entry of [urgent, reviewed, stale, incomplete]) {
+      const result = buildLiveIntegrityPage("org-a", page([entry]));
+      expect(result.snapshotComplete).toBe(entry.completeCoverage);
+    }
+  });
+  it("does not silently drop the source page cursor", () => {
+    const result = buildLiveIntegrityPage("org-a", page([urgent], "opaque-next"));
+    expect(result.nextWorkCursor).toBe("opaque-next");
+    expect(result.snapshotComplete).toBe(false);
+  });
+  it("distinguishes pagination of cases from work-item pagination", () => {
+    const result = buildLiveIntegrityPage("org-a",
+      page([urgent, reviewed], "opaque-next"), { pageSize: "1" });
+    expect(result.nextOffset).toBe(1);
+    expect(result.nextWorkCursor).toBe("opaque-next");
+  });
+  it("does not declare a previous cursor page complete", () => {
+    const result = buildLiveIntegrityPage("org-a",
+      page([reviewed], null, true, "opaque-previous"));
+    expect(result.snapshotComplete).toBe(false);
+    expect(result.entries[0]?.evidenceReady).toBe(false);
+  });
+  it("does not count reviewed cases as missing review", () => {
+    const result = buildLiveIntegrityPage("org-a", page([reviewed]));
+    expect(result.evidence.missingReview).toBe(0);
+  });
+  it("treats a stale review as evidence blocked", () => {
+    const result = buildLiveIntegrityPage("org-a", page([stale]));
+    expect(result.evidence.blocked).toBe(1);
+    expect(result.entries[0]?.missingEvidence).toContain("revision");
+  });
+  it("does not treat historical-only cases as current findings", () => {
+    const historical = row("old", {
+      state: "NO_LONGER_DETECTED", historicalOnly: true,
+      severity: null, diagnostic: null, recommendation: null,
+    });
+    const result = buildLiveIntegrityPage("org-a", page([historical]));
+    expect(result.metrics.historical).toBe(1);
+    expect(result.entries[0]?.state).toBe("NO_LONGER_DETECTED");
+  });
+  it("supports an empty page without fabricating cases", () => {
+    const result = buildLiveIntegrityPage("org-a", page([]));
+    expect(result.entries).toEqual([]);
+    expect(result.totalCasesOnWorkPage).toBe(0);
+    expect(result.evidence.total).toBe(0);
+  });
+  it("keeps all priority buckets present when empty", () => {
+    const result = buildLiveIntegrityPage("org-a", page([]));
+    expect(Object.keys(result.priorities).sort()).toEqual(["P0", "P1", "P2", "P3", "P4"]);
+  });
+  it("returns stable deterministic order", () => {
+    const original = buildLiveIntegrityPage("org-a", page([reviewed, urgent, stale]));
+    const reordered = buildLiveIntegrityPage("org-a", page([stale, reviewed, urgent]));
+    expect(original.entries.map(item => item.caseKey)).toEqual(
+      reordered.entries.map(item => item.caseKey));
+  });
+  it("does not mutate source cases during report generation", () => {
+    const cases = [urgent, reviewed, stale].map(item => ({ ...item }));
+    const original = JSON.stringify(cases);
+    buildLiveIntegrityPage("org-a", page(cases));
+    expect(JSON.stringify(cases)).toBe(original);
+  });
+  it("does not leak another tenant ID into report identity", () => {
+    const a = buildLiveIntegrityPage("tenant-a", page([urgent]));
+    const b = buildLiveIntegrityPage("tenant-b", page([urgent]));
+    expect(a.organizationId).toBe("tenant-a");
+    expect(b.organizationId).toBe("tenant-b");
+  });
+  it("keeps filtered pagination counts local to selected work page", () => {
+    const result = buildLiveIntegrityPage("org-a", page([urgent, reviewed]),
+      { reviewed: "NO", offset: "1" });
+    expect(result.totalMatching).toBe(1);
+    expect(result.entries).toHaveLength(0);
+    expect(result.nextOffset).toBeNull();
+  });
+  it("exports no case rows for empty selection", () => {
+    const result = buildLiveIntegrityPage("org-a", page([urgent]),
+      { reviewed: "YES" });
+    expect(liveIntegrityCsv(result).trim().split("\r\n")).toHaveLength(1);
+  });
+  it("does not expose a false claim of organization-wide coverage", () => {
+    const result = buildLiveIntegrityPage("org-a", page([urgent]));
+    expect(result.limitations.some(line =>
+      line.includes("bounded work-item cursor page"))).toBe(true);
+  });
+  it("handles large but bounded offsets without throwing", () => {
+    const result = buildLiveIntegrityPage("org-a", page([urgent]),
+      { offset: "100000" });
+    expect(result.entries).toEqual([]);
+  });
+  it("rejects exponential notation in pagination", () => {
+    expect(() => parseLiveIntegrityFilters({ offset: "1e2" })).toThrow();
+  });
+  it("rejects leading plus in pagination", () => {
+    expect(() => parseLiveIntegrityFilters({ pageSize: "+10" })).toThrow();
+  });
+  it("rejects whitespace in pagination", () => {
+    expect(() => parseLiveIntegrityFilters({ offset: " 2 " })).toThrow();
+  });
+});
