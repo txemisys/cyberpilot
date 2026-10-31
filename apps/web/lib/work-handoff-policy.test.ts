@@ -120,6 +120,12 @@ describe("handoff workflow and stale updates",()=>{
  it("rejects expired pending requests",()=>{
   expect(()=>assertPendingHandoff(record({expiresAt:new Date("2026-10-30")}),1,now)).toThrow();
  });
+ it("allows cancelling expired pending requests but not accepting them",()=>{
+  const expired=record({expiresAt:new Date("2026-10-30")});
+  expect(()=>assertPendingHandoff(expired,1,now,false)).toThrow();
+  expect(()=>assertPendingHandoff(expired,1,now,true)).not.toThrow();
+  expect(()=>assertPendingHandoff({...expired,status:"ACCEPTED"},1,now,true)).toThrow();
+ });
  it("labels expired requests without altering stored state",()=>{
   expect(handoffLabel(record({expiresAt:new Date("2026-10-30")}),now)).toBe("EXPIRED");
   expect(handoffLabel(record(),now)).toBe("AWAITING_RESPONSE");
