@@ -25,6 +25,11 @@ export default async function ManagementFindingDecisionPage({params}:Props){
    <p className="action-link"><Link href={base+"/dossiers/"+finding.id}>Evidence dossier</Link></p>
    <p className="action-link"><Link href={base+"/closure-readiness/"+finding.id}>Closure readiness</Link></p>
    <p className="action-link"><Link href={base+"/chronology/"+finding.id}>Evidence chronology</Link></p>
+   <p className="action-link">
+    <a href={`/api/organizations/${slug}/actions/decisions/${finding.id}`}>
+     Download this finding's management decision briefing
+    </a>
+   </p>
    <PrintReportButton/>
   </div>
   <section className="remediation-section">
