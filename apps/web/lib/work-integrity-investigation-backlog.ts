@@ -274,3 +274,91 @@ export function investigationBacklogCsv(backlog: InvestigationBacklog): string {
 export function investigationBacklogJson(backlog: InvestigationBacklog): string {
   return JSON.stringify(backlog, null, 2) + "\n";
 }
+
+/** Per-analyst workload summary for planning, never a live assignment. */
+export type InvestigationAnalystLoad = {
+  analystId: string;
+  taskIds: string[];
+  totalMinutes: number;
+  byKind: Record<InvestigationActionKind, number>;
+  distinctCases: number;
+};
+export function investigationAnalystLoads(
+  backlog: InvestigationBacklog,
+): InvestigationAnalystLoad[] {
+  const grouped = new Map<string, InvestigationTask[]>();
+  for (const task of backlog.tasks) {
+    if (!task.assignedAnalystId) continue;
+    const entries = grouped.get(task.assignedAnalystId) ?? [];
+    entries.push(task);
+    grouped.set(task.assignedAnalystId, entries);
+  }
+  return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b))
+    .map(([analystId, tasks]) => {
+      const byKind = Object.fromEntries(kinds.map(kind => [kind, 0])) as
+        Record<InvestigationActionKind, number>;
+      for (const task of tasks) byKind[task.kind]++;
+      return {
+        analystId, taskIds: tasks.map(task => task.id).sort(),
+        totalMinutes: tasks.reduce((sum, task) => sum + task.estimatedMinutes, 0),
+        byKind, distinctCases: new Set(tasks.map(task => task.caseKey)).size,
+      };
+    });
+}
+/** Reconcile a proposed task subset against the immutable dependency graph. */
+export type InvestigationSelection = {
+  requested: string[];
+  expanded: string[];
+  missing: string[];
+  totalEstimatedMinutes: number;
+  withinBudget: boolean;
+};
+export function selectInvestigationTasks(
+  backlog: InvestigationBacklog,
+  requested: readonly string[],
+  budgetMinutes: number,
+): InvestigationSelection {
+  if (!Number.isSafeInteger(budgetMinutes) || budgetMinutes < 0 ||
+      budgetMinutes > 10_000_000)
+    throw new Error("Invalid investigation selection budget.");
+  if (!Array.isArray(requested) || requested.length > 100000)
+    throw new Error("Invalid requested task selection.");
+  const byId = new Map(backlog.tasks.map(task => [task.id, task]));
+  const selected = new Set<string>();
+  const missing = new Set<string>();
+  const visiting = new Set<string>();
+  function visit(id: string): void {
+    if (selected.has(id)) return;
+    if (visiting.has(id)) throw new Error("Cyclic task dependency.");
+    const task = byId.get(id);
+    if (!task) {
+      missing.add(id);
+      return;
+    }
+    visiting.add(id);
+    for (const dependency of task.dependsOn) visit(dependency);
+    visiting.delete(id);
+    selected.add(id);
+  }
+  for (const id of requested) {
+    if (typeof id !== "string" || !id.trim())
+      throw new Error("Invalid requested task ID.");
+    visit(id);
+  }
+  const expanded = [...selected].sort();
+  const totalEstimatedMinutes = expanded.reduce((sum, id) =>
+    sum + byId.get(id)!.estimatedMinutes, 0);
+  return {
+    requested: [...new Set(requested)].sort(), expanded,
+    missing: [...missing].sort(), totalEstimatedMinutes,
+    withinBudget: !missing.size && totalEstimatedMinutes <= budgetMinutes,
+  };
+}
+/** Explicitly report tasks without a recommended analyst. */
+export function unassignedInvestigationTasks(
+  backlog: InvestigationBacklog,
+): InvestigationTask[] {
+  return backlog.tasks.filter(task => !task.assignedAnalystId)
+    .sort((a, b) => a.priority.localeCompare(b.priority) ||
+      a.id.localeCompare(b.id));
+}
