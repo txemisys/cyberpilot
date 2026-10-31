@@ -1,6 +1,6 @@
 import { db } from "@cyberpilot/database";
 import { requireOrganizationAccess } from "../../../../../../lib/organizations";
-import { exportActionCenterCsv } from "../../../../../../lib/action-center";
+import { serializeRemediationExport } from "../../../../../../lib/remediation-operations-export";
 import { buildSmeRemediationOverview } from "../../../../../../lib/sme-remediation-overview";
 import { parseActionPageInput } from "../../../../../../lib/action-pagination";
 import { buildScopedActionQuery } from "../../../../../../lib/action-database-query";
@@ -29,7 +29,8 @@ export async function GET(request:Request,{params}:{params:Promise<{slug:string}
     where,orderBy,take:2000,
     select:{
       id:true,title:true,status:true,mode:true,steps:true,
-      finding:{select:{status:true,severity:true}},
+      createdAt:true,approvedAt:true,startedAt:true,completedAt:true,verifiedAt:true,
+      finding:{select:{title:true,status:true,severity:true}},
     },
   });
   const acknowledgements=await db.guidedRemediationStep.findMany({
@@ -44,14 +45,20 @@ export async function GET(request:Request,{params}:{params:Promise<{slug:string}
   }
   const overview=buildSmeRemediationOverview(records,progress);
   const needsVerification=new Map(overview.items.map(item=>[item.id,item.needsVerification]));
-  const rows=records.map(item=>({
-    id:item.id,title:item.title,status:item.status,
-    severity:item.finding.severity,
-    findingStatus:item.finding.status,
-    needsVerification:needsVerification.get(item.id)??false,
-  }));
-  const content=exportActionCenterCsv(rows,membership.organization.id);
-  if(content===null)return new Response("Invalid export",{status:422});
+  const rows=records.map(item=>{
+    const steps=Array.isArray(item.steps)?item.steps.filter((step):step is string=>typeof step==="string"):[];
+    const completed=steps.filter((_,index)=>progress.get(item.id)?.has(index)).length;
+    return {
+      id:item.id,title:item.title,status:item.status,mode:item.mode,
+      severity:item.finding.severity,findingTitle:item.finding.title,
+      findingStatus:item.finding.status,
+      createdAt:item.createdAt,approvedAt:item.approvedAt,startedAt:item.startedAt,
+      completedAt:item.completedAt,verifiedAt:item.verifiedAt,
+      guidedCompleted:completed,guidedTotal:steps.length,
+      needsVerification:needsVerification.get(item.id)??false,
+    };
+  });
+  const content=serializeRemediationExport(rows);
   return new Response(content,{
     headers:{
       "Content-Type":"text/csv; charset=utf-8",
