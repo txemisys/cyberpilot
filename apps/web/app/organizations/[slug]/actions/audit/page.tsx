@@ -75,6 +75,17 @@ export default async function AuditPreparationPage({params,searchParams}:Props){
    </a>
   </p>
   <section className="remediation-section">
+   <h2>Complete review handoff</h2>
+   <p>Export the audit preparation report as readable text, including
+    the documentary questions, stored facts and review actions for every
+    matching finding within the server limit.</p>
+   <p className="action-link no-print">
+    <a href={`/api/organizations/${slug}/actions/audit/export?format=text&${filters}`}>
+     Download full audit preparation report (text)
+    </a>
+   </p>
+  </section>
+  <section className="remediation-section">
    <h2>Evidence packets requiring review</h2>
    {portfolio.packets.length===0?<p>No findings match the selection.</p>:(
     <ol className="remediation-list">{portfolio.packets.map(packet=>(
