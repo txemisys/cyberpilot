@@ -44,6 +44,7 @@ export default async function ActionDetailPage({params}:Props){
     <h1 className="dashboard-title">{action.title}</h1>
     <p className="lede">{membership.organization.name} · {action.finding.severity} · {action.mode}</p>
     <p className="action-link"><Link href={base+"/actions"}>Back to action center</Link></p>
+    <p className="action-link"><Link href={base+"/actions/"+action.id+"/runbook"}>Printable remediation runbook</Link></p>
     <div className="panel">
       <div><p className="panel-label">Workflow status</p><strong>{action.status}</strong></div>
       <div><p className="panel-label">Guided steps completed</p><strong>{completed}/{instructions.length}</strong></div>
