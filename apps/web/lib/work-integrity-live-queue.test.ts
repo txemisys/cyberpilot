@@ -308,3 +308,31 @@ describe("live queue isolation and edge-case guarantees", () => {
     expect(() => parseLiveIntegrityFilters({ offset: " 2 " })).toThrow();
   });
 });
+
+describe("review filter regression after CI failure", () => {
+  it("reviewed-only selection excludes unreviewed cases", () => {
+    const result = buildLiveIntegrityPage("org-a", page(), { reviewed: "YES" });
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries.every(entry => entry.reviewEventId !== null)).toBe(true);
+  });
+  it("unreviewed-only selection excludes recorded decisions", () => {
+    const result = buildLiveIntegrityPage("org-a", page(), { reviewed: "NO" });
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries.every(entry => entry.reviewEventId === null)).toBe(true);
+  });
+  it("all selection includes both reviewed and unreviewed", () => {
+    const result = buildLiveIntegrityPage("org-a", page(), { reviewed: "ALL" });
+    expect(result.entries).toHaveLength(4);
+  });
+  it("reviewed-only CSV contains no unreviewed case keys", () => {
+    const result = buildLiveIntegrityPage("org-a", page(), { reviewed: "YES" });
+    const csv = liveIntegrityCsv(result);
+    expect(csv).toContain("reviewed");
+    expect(csv).not.toContain(JSON.stringify(["urgent", "DONE_WITHOUT_COMPLETION", "urgent"]));
+  });
+  it("reviewed-only empty selection returns header only", () => {
+    const result = buildLiveIntegrityPage("org-a", page([urgent]), { reviewed: "YES" });
+    expect(result.totalMatching).toBe(0);
+    expect(result.entries).toHaveLength(0);
+  });
+});
