@@ -174,6 +174,26 @@ function createTask(
     nextStep = "Review the finding and determine which evidence is still required.";
   }
 
+  // Verification must assess the same affected control and scope. A recorded
+  // timestamp or an unrelated signal must not be used as proof of closure.
+  prerequisites.push(
+    "Confirm the original finding's affected identities, systems and control scope.",
+  );
+  if (finding.status === "OPEN") {
+    criteria.push(
+      "Confirm whether the latest stored finding still reports an open issue.",
+    );
+  }
+  if (observed.length === 0) {
+    prerequisites.push(
+      "Identify an authorized source capable of observing the relevant control.",
+    );
+  }
+  if (action?.completedAt && !observation) {
+    warnings.push(
+      "No matched observation is available to compare with recorded completion.",
+    );
+  }
   if (verificationList.length) criteria.push(...verificationList);
   else criteria.push(
     "Inspect a fresh authoritative observation.",
