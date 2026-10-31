@@ -115,8 +115,8 @@ export function buildLiveIntegrityPage(
   const evidence = buildEvidenceReadiness(snapshot, LIVE_EVIDENCE_REQUIREMENTS);
   const evidenceByKey = new Map(evidence.packets.map(packet => [packet.caseKey, packet]));
   const filtered = filterReviewWorklist(queue, {
-    priorities: filters.priority === "ALL" ? undefined : [filters.priority],
-    includeReviewed: filters.reviewed === "ALL" ? undefined : filters.reviewed === "YES",
+    ...(filters.priority === "ALL" ? {} : { priorities: [filters.priority] }),
+    ...(filters.reviewed === "ALL" ? {} : { includeReviewed: filters.reviewed === "YES" }),
     offset: filters.offset, limit: filters.pageSize,
   });
   const batches = groupReviewBatches(queue, 25);
