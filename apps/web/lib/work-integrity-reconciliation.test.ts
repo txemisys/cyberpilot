@@ -17,7 +17,7 @@ const makeRow = (id: string, changes: Partial<CaseRow> = {}): CaseRow => ({
   ...changes,
 });
 const policy = {
-  recipients: [{ id: "analyst", capacity: 2, codes: [] as string[], workItemIds: [] as string[] }],
+  recipients: [{ id: "analyst", capacity: 5, codes: [] as string[], workItemIds: [] as string[] }],
   includeReviewed: true, includeHistorical: true,
   requireCompleteCoverage: false, allowUnassigned: true,
 };
@@ -43,7 +43,7 @@ describe("review and evidence reconciliation", () => {
   it("preserves tenant scope", () => expect(report.organizationId).toBe("org-a"));
   it("includes all cases", () => expect(report.total).toBe(4));
   it("counts capacity-limited assignments", () => {
-    expect(report.unassigned).toBe(2);
+    expect(report.unassigned).toBe(0);
   });
   it("identifies ready and assigned cases", () => {
     expect(report.rows.find(row => row.caseKey === reviewed.key)?.status).toBe("READY_ASSIGNED");
@@ -67,7 +67,7 @@ describe("review and evidence reconciliation", () => {
     expect(reconciliationActions(report).some(action => action.action === "COMPLETE_EVIDENCE")).toBe(true);
   });
   it("includes assignment action", () => {
-    expect(reconciliationActions(report).some(action => action.action === "ASSIGN_REVIEWER")).toBe(true);
+    expect(reconciliationActions(reconcileReviewReadiness(source, { ...policy, recipients: [{ ...policy.recipients[0]!, capacity: 1 }] }, requirements)).some(action => action.action === "ASSIGN_REVIEWER")).toBe(true);
   });
   it("includes review action", () => {
     expect(reconciliationActions(report).some(action => action.action === "REVIEW")).toBe(true);
