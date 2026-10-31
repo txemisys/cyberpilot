@@ -11,7 +11,7 @@ const row: CaseRow = {
   reviewedRevision: null, reviewerUserId: null, reviewRationale: null,
   reviewReference: null, completeCoverage: true, historicalOnly: false,
 };
-const capture = (cases: readonly unknown[], complete = true, organizationId = "org-a") => ({
+const capture = (cases: CaseRow[], complete = true, organizationId = "org-a") => ({
   organizationId, source: "integrity-case-queue", capturedAt: "2026-10-31T12:00:00.000Z",
   complete, cases,
 });
@@ -28,14 +28,14 @@ describe("integrity case snapshot parsing", () => {
     ["mismatched key", capture([{ ...row, key: "wrong" }])],
     ["invalid revision", capture([{ ...row, taskRevision: 0 }])],
     ["invalid reviewed revision", capture([{ ...row, reviewedRevision: -1 }])],
-    ["invalid state", capture([{ ...row, state: "RESOLVED" }])],
-    ["invalid severity", capture([{ ...row, severity: "unknown" }])],
-    ["invalid coverage", capture([{ ...row, completeCoverage: "true" }])],
+    ["invalid state", capture([{ ...row, state: "RESOLVED" as never }])],
+    ["invalid severity", capture([{ ...row, severity: "unknown" as never }])],
+    ["invalid coverage", capture([{ ...row, completeCoverage: "true" as never }])],
     ["invalid work ID", capture([{ ...row, workItemId: "" }])],
-    ["invalid diagnostic", capture([{ ...row, diagnostic: 123 }])],
-    ["invalid reviewer", capture([{ ...row, reviewerUserId: 123 }])],
+    ["invalid diagnostic", capture([{ ...row, diagnostic: 123 as never }])],
+    ["invalid reviewer", capture([{ ...row, reviewerUserId: 123 as never }])],
   ])("rejects %s", (_, input) => {
-    expect(() => parseCaseSnapshot(input)).toThrow();
+    expect(() => parseCaseSnapshot(input as unknown)).toThrow();
   });
   it("enforces case count bounds", () => {
     expect(() => parseCaseSnapshot(capture([row]), 0)).toThrow();
