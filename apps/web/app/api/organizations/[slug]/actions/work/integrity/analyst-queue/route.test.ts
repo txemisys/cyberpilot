@@ -58,7 +58,8 @@ describe("authenticated live analyst queue endpoint", () => {
   it("loads cases under authenticated user scope", async () => {
     await GET(url(), context);
     expect(access.loadIntegrityCases).toHaveBeenCalledWith(
-      { organizationId: "org-a", userId: "user-a", role: "OWNER" }, {},
+      { organizationId: "org-a", userId: "user-a", role: "OWNER" },
+      { includeInfo: "true", includeHistorical: "true" },
     );
   });
   it("prevents shared caching", async () => {
