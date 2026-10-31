@@ -115,6 +115,7 @@ export default function WorkEvidence({slug,workId}:{slug:string;workId:string}){
  const shown=(model?.links??[]).filter(link=>showDetached||!link.unlinkedAt);
  return <section className="panel" aria-label="Stored evidence references">
   <h2>Evidence references for this work item</h2>
+  <p><a href={`${endpoint}/export`}>Export evidence references and review limitations (CSV)</a></p>
   <p>Reference an existing organization observation to support human review. Linking an observation does not perform a scan, verify a remediation, or close a finding.</p>
   {loading?<p role="status">Loading evidence references…</p>:null}
   {error?<p role="alert" className="auth-error">{error}</p>:null}
