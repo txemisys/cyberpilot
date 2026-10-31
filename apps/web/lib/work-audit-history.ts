@@ -52,6 +52,7 @@ export function parseHistoryFilter(data:Record<string,unknown>):HistoryFilter{
   throw new HistoryInputError("INVALID","Unsupported audit filter.");
  const limit=positiveLimit(data.limit);
  const cursor=decodeHistoryCursor(data.cursor);
+ if(data.kind===null)throw new HistoryInputError("INVALID","Unknown work-event kind.");
  const kind=data.kind===undefined||data.kind==="ALL"||data.kind===""?null:data.kind;
  if(kind!==null&&(typeof kind!=="string"||!HISTORY_KINDS.some(x=>x===kind)))
   throw new HistoryInputError("INVALID","Unknown work-event kind.");
