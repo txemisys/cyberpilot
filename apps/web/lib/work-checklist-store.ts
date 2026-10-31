@@ -62,8 +62,8 @@ async function recordEvent(
   data:{
    organizationId:context.organizationId,workItemId,actorUserId:context.userId,
    kind:"UPDATED",comment:describeChecklistAction(operation),
-   before:before===null?undefined:before as Prisma.InputJsonValue,
-   after:after===null?undefined:after as Prisma.InputJsonValue
+   ...(before===null?{}:{before:before as Prisma.InputJsonValue}),
+   ...(after===null?{}:{after:after as Prisma.InputJsonValue})
   }
  });
 }
