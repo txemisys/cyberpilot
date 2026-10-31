@@ -97,6 +97,13 @@ enum ScoreCoverage {
   PARTIAL
 }
 
+enum WorkHandoffStatus {
+  REQUESTED
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
 enum WorkItemStatus {
   TODO
   IN_PROGRESS
@@ -154,6 +161,9 @@ model User {
   completedChecklistEntries WorkChecklistEntry[] @relation("ChecklistCompleter")
   linkedWorkEvidence WorkEvidenceLink[] @relation("WorkEvidenceLinker")
   unlinkedWorkEvidence WorkEvidenceLink[] @relation("WorkEvidenceUnlinker")
+  requestedHandoffs WorkHandoff[] @relation("HandoffRequester")
+  assignedHandoffs WorkHandoff[] @relation("HandoffRecipient")
+  decidedHandoffs WorkHandoff[] @relation("HandoffDecider")
 }
 
 model Session {
@@ -222,6 +232,7 @@ model Organization {
   remediationWorkEvents     RemediationWorkEvent[]
   workChecklistEntries      WorkChecklistEntry[]
   workEvidenceLinks         WorkEvidenceLink[]
+  workHandoffs              WorkHandoff[]
 }
 
 model Membership {
@@ -484,11 +495,38 @@ model RemediationWorkItem {
   events RemediationWorkEvent[]
   checklist WorkChecklistEntry[]
   evidenceLinks WorkEvidenceLink[]
+  handoffs WorkHandoff[]
 
   @@unique([organizationId, remediationId])
   @@index([organizationId, status, dueAt])
   @@index([organizationId, assigneeUserId, status])
   @@index([organizationId, priority, createdAt])
+}
+
+model WorkHandoff {
+  id String @id @default(cuid())
+  organizationId String
+  workItemId String
+  requesterUserId String?
+  recipientUserId String
+  decidedByUserId String?
+  status WorkHandoffStatus @default(REQUESTED)
+  reason String
+  response String?
+  requestedAt DateTime @default(now())
+  decidedAt DateTime?
+  expiresAt DateTime?
+  revision Int @default(1)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  requester User? @relation("HandoffRequester", fields: [requesterUserId], references: [id], onDelete: SetNull)
+  recipient User @relation("HandoffRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  decider User? @relation("HandoffDecider", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, workItemId, requestedAt])
+  @@index([organizationId, recipientUserId, status])
+  @@index([organizationId, status, expiresAt])
 }
 
 model WorkEvidenceLink {
