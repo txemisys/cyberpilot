@@ -150,7 +150,7 @@ export function reconciliationActions(report: ReconciliationReport): Reconciliat
       caseKey: row.caseKey, action: "REASSESS", priority: 2,
       explanation: "Recorded review does not match the current task revision.",
     });
-    else if (!row.evidenceReady) actions.push({
+    if (!row.evidenceReady && row.status !== "INDETERMINATE") actions.push({
       caseKey: row.caseKey, action: "COMPLETE_EVIDENCE", priority: 3,
       explanation: "Required evidence fields or human review are missing.",
     });
