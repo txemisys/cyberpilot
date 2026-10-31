@@ -1,9 +1,9 @@
 import { db } from "@cyberpilot/database";
 import Link from "next/link";
-import { requireOrganizationAccess } from "../../../../lib/organizations";
+import { requireOrganizationAccess } from "../../../../../lib/organizations";
 import {
  buildRemediationActivityTimeline,summarizeRemediationActivity,buildRemediationMilestones,
-} from "../../../../lib/remediation-activity";
+} from "../../../../../lib/remediation-activity";
 
 type Props={params:Promise<{slug:string}>;searchParams:Promise<{action?:string}>};
 export default async function RemediationHistoryPage({params,searchParams}:Props){
