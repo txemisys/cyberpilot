@@ -10,6 +10,7 @@ import { requireOrganizationAccess } from "../../../lib/organizations";
 import { getMicrosoft365SyncStatusMessage } from "../../../lib/microsoft-365-sync-status";
 import { getPriorityNavigation } from "../../../lib/priority-navigation";
 import { buildSmeActionPriorities } from "../../../lib/sme-action-priorities";
+import { buildSmeRemediationOverview } from "../../../lib/sme-remediation-overview";
 import { getGuidedVerificationReadiness } from "../../../lib/guided-verification";
 
 type OrganizationPageProps = {
@@ -261,6 +262,8 @@ export default async function OrganizationPage({
     guidedProgress.set(progress.remediationId, completed);
   }
 
+  const remediationOverview = buildSmeRemediationOverview(visibleRemediations, guidedProgress);
+
   const hasCompletedScan = integration?.lastSyncAt !== null && integration?.lastSyncAt !== undefined;
   const domainCoverageIsPartial = domains.some(
     (domain) =>
@@ -377,6 +380,34 @@ export default async function OrganizationPage({
                 View the full report
               </Link>
             </p>
+          </div>
+        </section>
+
+        <section className="panel" aria-label="Remediation progress overview">
+          <div>
+            <h2>Security actions in progress</h2>
+            <p>
+              {remediationOverview.visibleCount} recent actions · {remediationOverview.inProgress} being worked on · {remediationOverview.waitingForAction} waiting for attention · {remediationOverview.verified} verified
+            </p>
+            {remediationOverview.items.length === 0 ? (
+              <p>No remediation actions yet. The next security steps will appear after a supported finding is assessed.</p>
+            ) : (
+              <ol>
+                {remediationOverview.items.slice(0, 3).map((item) => (
+                  <li key={item.id}>
+                    <strong>{item.title}</strong>
+                    <p>
+                      {item.label}
+                      {item.percentComplete !== null ? ` · ${item.completedSteps} of ${item.totalSteps} guided steps acknowledged` : ""}
+                    </p>
+                    {item.needsVerification ? (
+                      <p>Acknowledged work does not resolve a finding. Fresh security evidence is required.</p>
+                    ) : null}
+                    <a href={item.href}>Review action</a>
+                  </li>
+                ))}
+              </ol>
+            )}
           </div>
         </section>
 
