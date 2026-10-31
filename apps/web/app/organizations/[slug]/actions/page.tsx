@@ -5,7 +5,7 @@ import { buildSmeRemediationOverview } from "../../../../lib/sme-remediation-ove
 import { ACTION_CENTER_VIEWS, summarizeActionCenterRecords, ACTION_CENTER_SEVERITIES } from "../../../../lib/action-center";
 import { actionPageResult, actionPageUrl, parseActionPageInput } from "../../../../lib/action-pagination";
 
-type Params = { params: Promise<{slug:string}>; searchParams: Promise<{view?:string;status?:string;search?:string;severity?:string;page?:string;pageSize?:string}> };
+type Params = { params: Promise<{slug:string}>; searchParams: Promise<{view?:string;status?:string;search?:string;severity?:string;page?:string;pageSize?:string;sort?:string}> };
 
 export default async function RemediationActionCenter({params,searchParams}:Params) {
   const {slug} = await params;
@@ -31,7 +31,8 @@ export default async function RemediationActionCenter({params,searchParams}:Para
   const totalPages=Math.max(1,Math.ceil(total/settings.pageSize));
   const currentPage=Math.min(settings.page,totalPages);
   const remediations = await db.remediation.findMany({
-    where,orderBy:[{createdAt:"desc"},{id:"asc"}],
+    where,orderBy: settings.sort==="severity" ? [{finding:{severity:"desc"}},{createdAt:"desc"},{id:"asc"}] :
+      settings.sort==="oldest" ? [{createdAt:"asc"},{id:"asc"}] : [{createdAt:"desc"},{id:"asc"}],
     skip:(currentPage-1)*settings.pageSize,take:settings.pageSize,
     select:{
       id:true,title:true,summary:true,status:true,mode:true,steps:true,verification:true,
@@ -90,6 +91,12 @@ export default async function RemediationActionCenter({params,searchParams}:Para
           <label htmlFor="action-severity">Priority</label>
           <select id="action-severity" name="severity" defaultValue={settings.severity}>
             {ACTION_CENTER_SEVERITIES.map(value=><option value={value} key={value}>{value==="ALL"?"All priorities":value}</option>)}
+          </select>
+          <label htmlFor="action-sort">Order</label>
+          <select id="action-sort" name="sort" defaultValue={settings.sort}>
+            <option value="newest">Most recent first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="severity">Highest severity first</option>
           </select>
           <label htmlFor="page-size">Per page</label>
           <select id="page-size" name="pageSize" defaultValue={settings.pageSize}>
