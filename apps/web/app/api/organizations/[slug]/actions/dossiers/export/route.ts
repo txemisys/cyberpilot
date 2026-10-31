@@ -1,7 +1,7 @@
 import {db} from "@cyberpilot/database";
 import {requireOrganizationAccess} from "../../../../../../../lib/organizations";
 import {loadReviewData,parseReviewListOptions} from "../../../../../../../lib/finding-review-data";
-import {buildPortfolioDossier,serializePortfolioDossier} from "../../../../../../../lib/finding-dossier";
+import {buildPortfolioDossier,serializePortfolioDossier,serializePortfolioDossierCsv} from "../../../../../../../lib/finding-dossier";
 
 /**
  * Complete, explicitly bounded management dossier.
@@ -44,10 +44,12 @@ export async function GET(
   });
  }
  const dossier=buildPortfolioDossier(findings);
- const output=serializePortfolioDossier(dossier);
+ const asCsv=new URL(request.url).searchParams.get("format")==="csv";
+ const output=asCsv?serializePortfolioDossierCsv(dossier):serializePortfolioDossier(dossier);
  return new Response(output,{headers:{
-  "Content-Type":"text/plain; charset=utf-8",
-  "Content-Disposition":'attachment; filename="cyberpilot-evidence-dossier.txt"',
+  "Content-Type":asCsv?"text/csv; charset=utf-8":"text/plain; charset=utf-8",
+  "Content-Disposition":asCsv?'attachment; filename="cyberpilot-evidence-dossier.csv"':
+   'attachment; filename="cyberpilot-evidence-dossier.txt"',
   "Cache-Control":"private, no-store",
   "X-Content-Type-Options":"nosniff",
  }});
