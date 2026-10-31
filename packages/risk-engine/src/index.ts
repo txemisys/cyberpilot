@@ -1,3 +1,5 @@
+export { buildOwnerWorkloadChangeReport } from "./evidence-action-owner-workload-report";
+export type { OwnerWorkloadChangeReport } from "./evidence-action-owner-workload-report";
 export { compareActionOwnerWorkloads } from "./evidence-action-owner-workload-compare";
 export type { ActionWorkloadComparison } from "./evidence-action-owner-workload-compare";
 export { importActionOwnerWorkloadJson } from "./evidence-action-owner-workload-import";
