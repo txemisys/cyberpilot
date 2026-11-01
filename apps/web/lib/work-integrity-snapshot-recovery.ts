@@ -165,8 +165,15 @@ export function simulateSnapshotRecovery(
   }
   for (const action of plan.actions) {
     const key = identity(action);
-    if (action.kind === "REMOVE_UNEXPECTED") result.delete(key);
-    else if (action.kind === "RESTORE") result.set(key, action.snapshot);
+    if (action.kind === "REMOVE_UNEXPECTED") {
+      if (!result.has(key))
+        throw new Error("Recovery removal target no longer exists.");
+      result.delete(key);
+    } else if (action.kind === "RESTORE") {
+      result.set(key, action.snapshot);
+    } else if (!result.has(key)) {
+      throw new Error("Recovery retained capture no longer exists.");
+    }
   }
   const captures = [...result.values()];
   const manifest = buildSnapshotManifest(captures, plan.organizationId, expectedManifest.generatedAt);
