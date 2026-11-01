@@ -3,6 +3,8 @@ import { requireOrganizationAccess } from "../../../../../../../../lib/organizat
 import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import { loadAuditLedger, auditLedgerCsv } from "../../../../../../../../lib/work-integrity-audit-ledger";
 
+import { inspectLedgerInsights, ledgerInsightsCsv } from "../../../../../../../../lib/work-integrity-ledger-insights";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: NextRequest, { params }: Context) {
@@ -22,20 +24,27 @@ export async function GET(request: NextRequest, { params }: Context) {
     }
     const format = input.format ?? "json";
     delete input.format;
-    if (format !== "json" && format !== "csv")
+    if (format !== "json" && format !== "csv" && format !== "insights-csv")
       throw new WorkInputError("INVALID", "Unsupported ledger export format.");
     const page = await loadAuditLedger({
       organizationId: membership.organization.id,
       userId: session.user.id,
       role: membership.role,
     }, input);
+    const insights = inspectLedgerInsights(page);
+    if (format === "insights-csv") return new NextResponse(ledgerInsightsCsv(insights), {
+      headers: {
+        ...headers, "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="integrity-audit-insights.csv"',
+      },
+    });
     if (format === "csv") return new NextResponse(auditLedgerCsv(page), {
       headers: {
         ...headers, "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": 'attachment; filename="integrity-audit-ledger.csv"',
       },
     });
-    return NextResponse.json(page, { headers });
+    return NextResponse.json({ ...page, insights }, { headers });
   } catch (error) {
     if (error instanceof WorkInputError) return NextResponse.json({
       error: error.message, code: error.code,
