@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
 import { loadAuditBranches, type BranchReport } from "../../../../../../../lib/work-integrity-audit-branch-explorer";
 import { planBranchActions } from "../../../../../../../lib/work-integrity-audit-branch-actions";
+import { summarizeBranchTopology } from "../../../../../../../lib/work-integrity-audit-branch-topology";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
 
 type Props = {
@@ -106,6 +107,26 @@ export default async function AuditBranchesPage({ params, searchParams }: Props)
                 Download recorded event graph (CSV)
               </a>
             </p>
+            <section aria-label="Source review graph topology">
+              <h3>Graph source coverage</h3>
+              {(() => {
+                const topology = summarizeBranchTopology(report);
+                return (
+                  <>
+                    <p>{topology.linkedEdges} predecessor edges,
+                      {" "}{topology.rootNodes} recorded roots,
+                      {" "}{topology.terminalNodes} terminal events,
+                      {" "}{topology.unresolvedPredecessors} links outside the source.</p>
+                    <p>{topology.currentRevisionReviews} reviews match the current
+                      work revision; {topology.historicalRevisionReviews} refer
+                      to other revisions; {topology.missingActorReferences}
+                      lack current actor references.</p>
+                    <p>Coverage: {topology.coverage.replaceAll("_", " ")}.
+                      Graph completeness does not prove source immutability.</p>
+                  </>
+                );
+              })()}
+            </section>
             <section aria-label="Human audit branch followups">
               <h3>Prioritized source investigations</h3>
               {(() => {
