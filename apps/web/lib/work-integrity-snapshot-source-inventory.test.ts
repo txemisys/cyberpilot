@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { sourceInventoryCsv, exportSnapshotReport } from "./work-integrity-snapshot-exports";
 import { buildSnapshotManifest } from "./work-integrity-snapshot-integrity";
 import {
   reconcileSnapshotSourceInventory, auditInventoryAgainstManifest,
@@ -139,5 +140,33 @@ describe("scheduled capture source inventory", () => {
     ], "tenant-b", now);
     expect(() => auditInventoryAgainstManifest(report, captures, manifest))
       .toThrow(/Cross-organization/);
+  });
+});
+
+describe("source inventory CSV exports", () => {
+  it("exports scheduled source health and lag as quoted columns", () => {
+    const report = reconcileSnapshotSourceInventory([capture(31)],
+      tenant, now, [schedule], policy);
+    const csv = sourceInventoryCsv(report);
+    expect(csv).toContain('"source-a"');
+    expect(csv).toContain('"CURRENT"');
+    expect(csv).toContain('"lagMinutes"');
+  });
+  it("exports missing required sources without inventing a capture", () => {
+    const report = reconcileSnapshotSourceInventory([], tenant, now, [schedule], policy);
+    const csv = sourceInventoryCsv(report);
+    expect(csv).toContain('"MISSING"');
+    expect(csv).toContain('"Investigate connector collection');
+  });
+  it("dispatches source inventory reports through the generic exporter", () => {
+    const report = reconcileSnapshotSourceInventory([capture(31)],
+      tenant, now, [schedule], policy);
+    expect(exportSnapshotReport("source-inventory", report))
+      .toBe(sourceInventoryCsv(report));
+  });
+  it("neutralizes formula-leading source names in inventory exports", () => {
+    const special = { ...schedule, source: "=2+3" };
+    const report = reconcileSnapshotSourceInventory([], tenant, now, [special], policy);
+    expect(sourceInventoryCsv(report)).toContain('"\'=2+3"');
   });
 });
