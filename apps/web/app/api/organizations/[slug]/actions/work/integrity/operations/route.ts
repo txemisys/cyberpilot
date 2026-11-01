@@ -245,7 +245,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         error instanceof Error ? error.message : "Invalid integrity operation input.");
     }
     if (format === "csv") {
-      if (!["catalog", "trends", "incidents", "release-batch", "continuity", "source-inventory"].includes(operation))
+      if (!["catalog", "trends", "incidents", "release-batch", "continuity", "source-inventory", "custody-audit"].includes(operation))
         throw new WorkInputError("INVALID", "CSV export is unsupported for this operation.");
       return new NextResponse(exportSnapshotReport(operation as SnapshotCsvKind, result), {
         headers: { ...headers, "Content-Type": "text/csv; charset=utf-8",
