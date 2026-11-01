@@ -104,7 +104,8 @@ describe("diagnostic evidence to work associations", () => {
     expect(links).toHaveLength(1);
     expect(links[0]?.workItemId).toBe("work-456");
     expect(mocks.auditFind).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ organizationId: "org-123" }),
+      where: expect.objectContaining({ organizationId: "org-123",
+        metadata: { path: ["captureId"], equals: "capture-123" } }),
     }));
   });
   it("projects withdrawn links without erasing historical audit events", () => {
@@ -196,6 +197,24 @@ describe("diagnostic evidence to work associations", () => {
     expect(mocks.transaction).toHaveBeenCalledWith(
       expect.any(Function), { isolationLevel: "Serializable" },
     );
+  });
+
+  it("reports a truncated capture-specific audit history at the read boundary", async () => {
+    const row = {
+      id: "audit-123", action: INTEGRITY_WORK_LINK_ACTION,
+      resourceId: "work-456", actorUserId: "user-123",
+      occurredAt: new Date("2026-11-01T10:00:00.000Z"),
+      metadata: { captureId: "capture-123", caseKey },
+    };
+    mocks.auditFind.mockResolvedValueOnce(Array.from({ length: 1000 }, () => row));
+    const history = await listIntegrityWorkLinkHistory("org-123", "capture-123");
+    expect(history.truncated).toBe(true);
+    expect(mocks.auditFind).toHaveBeenCalledWith(expect.objectContaining({
+      take: 1000,
+      where: expect.objectContaining({
+        metadata: { path: ["captureId"], equals: "capture-123" },
+      }),
+    }));
   });
 
 });
