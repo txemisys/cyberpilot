@@ -153,6 +153,7 @@ export async function listIntegrityWorkLinkHistory(
       organizationId,
       action: { in: [INTEGRITY_WORK_LINK_ACTION, INTEGRITY_WORK_UNLINK_ACTION] },
       resourceType: INTEGRITY_WORK_LINK_RESOURCE,
+      metadata: { path: ["captureId"], equals: captureId },
     },
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
     take: AUDIT_LINK_HISTORY_LIMIT,
