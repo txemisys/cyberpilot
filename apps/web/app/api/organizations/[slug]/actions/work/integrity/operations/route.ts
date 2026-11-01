@@ -5,6 +5,7 @@ import { planJournalArchive } from "../../../../../../../../lib/work-integrity-s
 import { auditSnapshotCustody } from "../../../../../../../../lib/work-integrity-snapshot-custody";
 import { emptySnapshotJournal, verifySnapshotJournal, reconcileSnapshotJournal, planJournalAppendFromCaptures } from "../../../../../../../../lib/work-integrity-snapshot-journal";
 import { NextRequest, NextResponse } from "next/server";
+import { readStoredIntegrityCapture } from "../../../../../../../../lib/work-integrity-persistent-captures";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
 import { canReadWork, WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import { buildSnapshotCatalog } from "../../../../../../../../lib/work-integrity-snapshot-catalog";
@@ -114,7 +115,27 @@ export async function POST(request: NextRequest, { params }: Context) {
     if (!operations.has(operation))
       throw new WorkInputError("INVALID", "Unsupported integrity operation.");
     const organizationId = membership.organization.id;
-    const captures = list(input.captures, "captures");
+    const storedIds = input.storedCaptureIds;
+    if (storedIds !== undefined && input.captures !== undefined)
+      throw new WorkInputError("INVALID", "Choose uploaded captures or stored capture IDs, not both.");
+    let captures: unknown[];
+    if (storedIds !== undefined) {
+      if (!Array.isArray(storedIds) || storedIds.length === 0 ||
+          storedIds.length > MAX_CAPTURES ||
+          storedIds.some(id => typeof id !== "string" ||
+            !/^[a-zA-Z0-9_-]{5,100}$/.test(id)) ||
+          new Set(storedIds).size !== storedIds.length)
+        throw new WorkInputError("INVALID", "Invalid stored capture identifiers.");
+      captures = [];
+      for (const id of storedIds as string[]) {
+        const capture = await readStoredIntegrityCapture(organizationId, id);
+        if (!capture)
+          throw new WorkInputError("MISSING", "Stored capture not found.");
+        captures.push(capture);
+      }
+    } else {
+      captures = list(input.captures, "captures");
+    }
     const now = new Date().toISOString();
     let result: unknown;
     try {
@@ -295,7 +316,9 @@ export async function POST(request: NextRequest, { params }: Context) {
     return NextResponse.json({
       operation, organizationId, evaluatedAt: now, result,
       limitations: [
-        "All uploaded captures and manifests are caller-supplied and are not authenticated.",
+        storedIds === undefined ?
+          "Uploaded captures and manifests are caller-supplied and are not authenticated." :
+          "Stored captures are checked against their persisted content digests; original capture authenticity is not established.",
         "No persistent data is modified by this endpoint.",
         "Operational diagnostic changes do not establish security control effectiveness.",
       ],
