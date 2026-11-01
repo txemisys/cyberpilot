@@ -9,6 +9,7 @@ import { planSnapshotArchive, partitionSnapshotArchive } from "../../../../../..
 import { planSnapshotRecovery, simulateSnapshotRecovery } from "../../../../../../../../lib/work-integrity-snapshot-recovery";
 import { assessSnapshotReleaseBatch } from "../../../../../../../../lib/work-integrity-snapshot-release";
 import { buildSnapshotReviewLedger } from "../../../../../../../../lib/work-integrity-snapshot-reviews";
+import { planSnapshotIngestion, materializeAcceptedSnapshotBatch } from "../../../../../../../../lib/work-integrity-snapshot-ingestion";
 import { buildCaseContinuityReport } from "../../../../../../../../lib/work-integrity-case-continuity";
 import { exportSnapshotReport, type SnapshotCsvKind } from "../../../../../../../../lib/work-integrity-snapshot-exports";
 import { buildSnapshotTrendReport } from "../../../../../../../../lib/work-integrity-snapshot-trends";
@@ -80,7 +81,7 @@ async function boundedJson(request: NextRequest): Promise<RecordValue> {
 const operations = new Set([
   "catalog", "manifest", "verify-manifest", "baseline", "compare-latest",
   "incidents", "archive-plan", "archive-partitions", "recovery-plan",
-  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity",
+  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize",
 ]);
 /**
  * Read-only, tenant-scoped offline integrity operations.
@@ -168,6 +169,17 @@ export async function POST(request: NextRequest, { params }: Context) {
           result = buildSnapshotReviewLedger(captures,
             list(input.events, "review events") as Parameters<typeof buildSnapshotReviewLedger>[1],
             organizationId);
+          break;
+        case "ingestion-plan":
+          result = planSnapshotIngestion(captures,
+            list(input.existingCaptures, "existing captures"), organizationId, now,
+            policy(input.policy) as unknown as Parameters<typeof planSnapshotIngestion>[4]);
+          break;
+        case "ingestion-materialize":
+          if (object(input.plan, "plan").organizationId !== organizationId)
+            throw new Error("Cross-organization ingestion materialization forbidden.");
+          result = materializeAcceptedSnapshotBatch(
+            input.plan as Parameters<typeof materializeAcceptedSnapshotBatch>[0], captures);
           break;
         case "continuity":
           result = buildCaseContinuityReport(captures, organizationId,
