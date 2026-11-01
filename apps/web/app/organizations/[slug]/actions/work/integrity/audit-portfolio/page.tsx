@@ -64,6 +64,11 @@ export default async function AuditPortfolioPage({ params, searchParams }: Props
             Return to operational integrity queue
           </Link>
         </p>
+        <p className="action-link">
+          <Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity/audit-ledger`}>
+            Browse recorded human integrity review events
+          </Link>
+        </p>
         <form action={base} method="get" className="remediation-actions">
           <label htmlFor="portfolio-limit">Work items per cursor page</label>
           <select id="portfolio-limit" name="limit"
