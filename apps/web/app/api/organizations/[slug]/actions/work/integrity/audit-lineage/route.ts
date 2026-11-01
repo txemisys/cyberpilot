@@ -3,6 +3,8 @@ import { requireOrganizationAccess } from "../../../../../../../../lib/organizat
 import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import { loadAuditLineage, auditLineageCsv } from "../../../../../../../../lib/work-integrity-audit-lineage";
 
+import { planLineageActions, lineageActionsCsv } from "../../../../../../../../lib/work-integrity-audit-lineage-actions";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: NextRequest, { params }: Context) {
@@ -18,19 +20,26 @@ export async function GET(request: NextRequest, { params }: Context) {
     }
     const format = raw.format ?? "json";
     delete raw.format;
-    if (format !== "json" && format !== "csv")
+    if (format !== "json" && format !== "csv" && format !== "actions-csv")
       throw new WorkInputError("INVALID", "Unsupported audit lineage format.");
     const report = await loadAuditLineage({
       organizationId: membership.organization.id, userId: session.user.id,
       role: membership.role,
     }, raw);
+    const actionPlan = planLineageActions(report);
+    if (format === "actions-csv") return new NextResponse(lineageActionsCsv(actionPlan), {
+      headers: {
+        ...headers, "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="integrity-audit-lineage-actions.csv"',
+      },
+    });
     if (format === "csv") return new NextResponse(auditLineageCsv(report), {
       headers: {
         ...headers, "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": 'attachment; filename="integrity-audit-lineage.csv"',
       },
     });
-    return NextResponse.json(report, { headers });
+    return NextResponse.json({ ...report, actionPlan }, { headers });
   } catch (error) {
     if (error instanceof WorkInputError)
       return NextResponse.json({ error: error.message, code: error.code }, {
