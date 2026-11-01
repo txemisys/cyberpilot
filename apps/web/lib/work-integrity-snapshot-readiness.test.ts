@@ -118,6 +118,15 @@ describe("integrated snapshot readiness gate", () => {
     expect(() => report([capture(30)], [capture(29), capture(29)]))
       .toThrow(/Duplicate (?:readiness|manifest capture identity)/);
   });
+  it("rejects overlap between historical and incoming capture identities", () => {
+    expect(() => report([capture(30)], [capture(30)]))
+      .toThrow(/Incoming readiness capture already exists/);
+  });
+  it("accepts distinct incoming capture identities without confusing provenance", () => {
+    const result = report([capture(30)], [capture(29)]);
+    expect(result.summary.observedCaptures).toBe(1);
+    expect(result.manifest.entries).toHaveLength(1);
+  });
   it("returns a canonical manifest with the actual capture count", () => {
     const result = report([capture(30)]);
     expect(result.manifest.entries).toHaveLength(1);
