@@ -1,3 +1,4 @@
+import type { SourceInventoryReport } from "./work-integrity-snapshot-source-inventory";
 import type { ContinuityReport } from "./work-integrity-case-continuity";
 import type { SnapshotTrendReport } from "./work-integrity-snapshot-trends";
 import type { SnapshotIncidentReport } from "./work-integrity-snapshot-incidents";
@@ -100,10 +101,27 @@ export function caseContinuityCsv(report: ContinuityReport): string {
     "previousCapturedAt", "changedFields", "evidenceComplete",
   ], records);
 }
+export function sourceInventoryCsv(report: SourceInventoryReport): string {
+  return document([
+    "organizationId", "source", "required", "health", "latestCapturedAt",
+    "previousCapturedAt", "observedCaptures", "completeCaptures", "latestCaseCount",
+    "latestQualityBlockers", "lagMinutes", "observedIntervalMinutes",
+    "expectedIntervalMinutes", "maximumLagMinutes", "nextExpectedAt",
+    "reasons", "recommendedAction",
+  ], report.rows.map(item => [
+    report.organizationId, item.source, item.required, item.health,
+    item.latestCapturedAt, item.previousCapturedAt, item.observedCaptures,
+    item.completeCaptures, item.latestCaseCount, item.latestQualityBlockers,
+    item.lagMinutes, item.observedIntervalMinutes, item.expectedIntervalMinutes,
+    item.maximumLagMinutes, item.nextExpectedAt, item.reasons.join(";"),
+    item.recommendedAction,
+  ]));
+}
 export type SnapshotCsvKind =
-  | "catalog" | "trends" | "incidents" | "release-batch" | "continuity";
+  | "catalog" | "trends" | "incidents" | "release-batch" | "continuity" | "source-inventory";
 export function exportSnapshotReport(kind: SnapshotCsvKind, report: unknown): string {
   switch (kind) {
+    case "source-inventory": return sourceInventoryCsv(report as SourceInventoryReport);
     case "catalog": return snapshotCatalogCsv(report as SnapshotCatalog);
     case "trends": return snapshotTrendCsv(report as SnapshotTrendReport);
     case "incidents": return snapshotIncidentCsv(report as SnapshotIncidentReport);
