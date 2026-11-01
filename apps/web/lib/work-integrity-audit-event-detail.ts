@@ -422,6 +422,33 @@ export function classifyEventInvestigation(detail: AuditEventDetail): EventInves
     followups, verifiedRemediation: false, verifiedControlEffectiveness: false,
   };
 }
+/**
+ * Export the observed event chronology separately from the full audit
+ * relationship record. This is intentionally a bounded, read-only view.
+ */
+export function eventReviewChronologyCsv(detail: AuditEventDetail): string {
+  const report = eventReviewChronology(detail);
+  const quote = (value: unknown): string => {
+    const raw = String(value ?? "");
+    const neutralized = /^[\\s\\u0000-\\u001f]*[=+@\\-]/.test(raw) ?
+      "'" + raw : raw;
+    return '"' + neutralized.replace(/"/g, '""') + '"';
+  };
+  const columns = [
+    "eventId", "relation", "timestamp", "decision",
+    "reviewedRevision", "actorUserId", "predecessorEventId",
+    "isCurrentWorkRevision", "sourceCoverage",
+  ];
+  const rows = [columns.map(quote).join(",")];
+  for (const item of report.events) {
+    rows.push([
+      item.id, item.relation, item.timestamp, item.decision,
+      item.reviewedRevision, item.actorUserId, item.predecessorEventId,
+      item.isCurrentWorkRevision, report.coverage,
+    ].map(quote).join(","));
+  }
+  return rows.join("\\r\\n") + "\\r\\n";
+}
 export async function loadAuditEventDetail(
   scope: EventDetailScope, rawId: unknown, now = new Date(),
 ): Promise<AuditEventDetail> {
