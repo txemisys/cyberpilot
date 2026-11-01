@@ -12,7 +12,8 @@ vi.mock("./work-integrity-persistent-captures", () => ({
   readStoredIntegrityCapture: mocks.read,
 }));
 import {
-  linkIntegrityCaseToWork, listIntegrityWorkLinks, parseIntegrityWorkLinkInput,
+  linkIntegrityCaseToWork, listIntegrityWorkLinks, listIntegrityWorkLinkHistory,
+  projectIntegrityLinkHistory, parseIntegrityWorkLinkInput,
   INTEGRITY_WORK_LINK_ACTION,
 } from "./work-integrity-evidence-links";
 
@@ -33,6 +34,39 @@ beforeEach(() => {
     actorUserId: "user-123",
   });
   mocks.auditFind.mockResolvedValue([]);
+  it("projects withdrawn links without erasing historical audit events", () => {
+    const event = {
+      auditId: "audit-123", originalAuditId: null, action: "LINK" as const,
+      captureId: "capture-123", caseKey, workItemId: "work-456",
+      actorUserId: "user-123", occurredAt: "2026-11-01T10:00:00.000Z",
+    };
+    const withdrawal = {
+      ...event, auditId: "audit-456", originalAuditId: "audit-123",
+      action: "UNLINK" as const,
+    };
+    const projected = projectIntegrityLinkHistory([withdrawal, event]);
+    expect(projected.active).toHaveLength(0);
+    expect(projected.withdrawn).toHaveLength(1);
+    expect(projected.events).toHaveLength(2);
+    expect(projectIntegrityLinkHistory([event]).active).toHaveLength(1);
+  });
+  it("returns withdrawal events and a bounded history completeness indicator", async () => {
+    mocks.auditFind.mockResolvedValueOnce([
+      { id: "audit-456", action: "INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK",
+        resourceId: "work-456", actorUserId: "user-123",
+        occurredAt: new Date("2026-11-01T11:00:00.000Z"),
+        metadata: { captureId: "capture-123", caseKey, originalAuditId: "audit-123" } },
+      { id: "audit-123", action: INTEGRITY_WORK_LINK_ACTION,
+        resourceId: "work-456", actorUserId: "user-123",
+        occurredAt: new Date("2026-11-01T10:00:00.000Z"),
+        metadata: { captureId: "capture-123", caseKey } },
+    ]);
+    const history = await listIntegrityWorkLinkHistory("org-123", "capture-123");
+    expect(history.active).toHaveLength(0);
+    expect(history.withdrawn).toHaveLength(1);
+    expect(history.events).toHaveLength(2);
+    expect(history.truncated).toBe(false);
+  });
 });
 describe("diagnostic evidence to work associations", () => {
   it("rejects malformed and extra fields", () => {
@@ -85,10 +119,10 @@ describe("diagnostic evidence to work associations", () => {
   });
   it("returns only associations matching the selected capture", async () => {
     mocks.auditFind.mockResolvedValueOnce([
-      { id: "audit-123", resourceId: "work-456",
+      { id: "audit-123", action: INTEGRITY_WORK_LINK_ACTION, resourceId: "work-456",
         actorUserId: "user-123", occurredAt: new Date("2026-11-01T10:00:00.000Z"),
         metadata: { captureId: "capture-123", caseKey } },
-      { id: "audit-456", resourceId: "work-789",
+      { id: "audit-456", action: INTEGRITY_WORK_LINK_ACTION, resourceId: "work-789",
         actorUserId: "user-123", occurredAt: new Date(),
         metadata: { captureId: "other-capture", caseKey } },
     ]);
