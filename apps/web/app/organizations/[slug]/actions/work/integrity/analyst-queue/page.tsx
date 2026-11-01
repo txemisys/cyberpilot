@@ -1,5 +1,6 @@
 import IntegrityComparisonClient from "./integrity-comparison-client";
 import IntegrityTimelineClient from "./integrity-timeline-client";
+import IntegrityContinuityClient from "./integrity-continuity-client";
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
 import { loadIntegrityCases } from "../../../../../../../lib/work-integrity-cases";
@@ -337,6 +338,7 @@ export default async function AnalystQueuePage({ params, searchParams }: Props) 
             </section>
             <IntegrityComparisonClient slug={slug} />
         <IntegrityTimelineClient slug={slug} />
+            <IntegrityContinuityClient slug={slug} />
             <details>
               <summary>Coverage and interpretation limitations</summary>
               <ul>{report.limitations.map((line, index) =>
