@@ -85,7 +85,7 @@ async function boundedJson(request: NextRequest): Promise<RecordValue> {
 const operations = new Set([
   "catalog", "manifest", "verify-manifest", "baseline", "compare-latest",
   "incidents", "archive-plan", "archive-partitions", "recovery-plan",
-  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit", "journal-empty", "journal-verify", "journal-reconcile", "journal-plan", "journal-archive-plan", "custody-audit",
+  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit", "journal-empty", "journal-verify", "journal-reconcile", "journal-plan", "journal-archive-plan", "custody-audit", "readiness",
 ]);
 /**
  * Read-only, tenant-scoped offline integrity operations.
@@ -173,6 +173,14 @@ export async function POST(request: NextRequest, { params }: Context) {
           result = buildSnapshotReviewLedger(captures,
             list(input.events, "review events") as Parameters<typeof buildSnapshotReviewLedger>[1],
             organizationId);
+          break;
+        case "readiness":
+          result = assessSnapshotOperationalReadiness(captures,
+            list(input.incomingCaptures, "incoming captures"),
+            input.journal as Parameters<typeof assessSnapshotOperationalReadiness>[2],
+            organizationId, now,
+            list(input.schedule, "source schedule") as Parameters<typeof assessSnapshotOperationalReadiness>[5],
+            policy(input.policy) as unknown as Parameters<typeof assessSnapshotOperationalReadiness>[6]);
           break;
         case "custody-audit":
           result = auditSnapshotCustody(captures,
