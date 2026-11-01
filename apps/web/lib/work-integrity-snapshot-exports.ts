@@ -1,3 +1,6 @@
+import type { SnapshotReadinessReport } from "./work-integrity-snapshot-readiness";
+import type { ReadinessWorkQueue } from "./work-integrity-snapshot-readiness-work";
+import type { WorkExecutionPlan } from "./work-integrity-snapshot-readiness-execution";
 import type { CustodyReport } from "./work-integrity-snapshot-custody";
 import type { SourceInventoryReport } from "./work-integrity-snapshot-source-inventory";
 import type { ContinuityReport } from "./work-integrity-case-continuity";
@@ -130,10 +133,49 @@ export function snapshotCustodyCsv(report: CustodyReport): string {
     item.explanation, item.recommendedAction,
   ]));
 }
+export function snapshotReadinessCsv(report: SnapshotReadinessReport): string {
+  return document([
+    "organizationId", "evaluatedAt", "overallDecision", "checkId",
+    "decision", "measured", "expected", "unit", "affectedSources",
+    "explanation", "nextAction",
+  ], report.checks.map(item => [
+    report.organizationId, report.evaluatedAt, report.summary.decision,
+    item.id, item.decision, item.measured, item.expected, item.unit,
+    item.affectedSources.join(";"), item.explanation, item.nextAction,
+  ]));
+}
+export function readinessWorkQueueCsv(report: ReadinessWorkQueue): string {
+  return document([
+    "organizationId", "evaluatedAt", "itemId", "source", "title",
+    "category", "priority", "state", "createdAt", "updatedAt", "dueAt",
+    "assigneeId", "resolution", "relatedChecks", "blockingChecks",
+    "evidenceReferences", "dependencies",
+  ], report.items.map(item => [
+    report.organizationId, report.evaluatedAt, item.id, item.source,
+    item.title, item.category, item.priority, item.state,
+    item.createdAt, item.updatedAt, item.dueAt, item.assigneeId,
+    item.resolution, item.relatedChecks.join(";"),
+    item.blockingChecks.join(";"), item.evidenceReferences.join(";"),
+    item.dependencies.join(";"),
+  ]));
+}
+export function readinessExecutionCsv(report: WorkExecutionPlan): string {
+  return document([
+    "organizationId", "evaluatedAt", "planDigest", "stage", "itemIds",
+    "priority", "dueAt", "canStart", "blockedBy",
+  ], report.stages.map(stage => [
+    report.organizationId, report.evaluatedAt, report.planDigest,
+    stage.number, stage.itemIds.join(";"), stage.priority, stage.dueAt,
+    stage.canStart, stage.blockedBy.join(";"),
+  ]));
+}
 export type SnapshotCsvKind =
-  | "catalog" | "trends" | "incidents" | "release-batch" | "continuity" | "source-inventory" | "custody-audit";
+  | "catalog" | "trends" | "incidents" | "release-batch" | "continuity" | "source-inventory" | "custody-audit" | "readiness" | "readiness-work-create" | "readiness-work-execution";
 export function exportSnapshotReport(kind: SnapshotCsvKind, report: unknown): string {
   switch (kind) {
+    case "readiness": return snapshotReadinessCsv(report as SnapshotReadinessReport);
+    case "readiness-work-create": return readinessWorkQueueCsv(report as ReadinessWorkQueue);
+    case "readiness-work-execution": return readinessExecutionCsv(report as WorkExecutionPlan);
     case "custody-audit": return snapshotCustodyCsv(report as CustodyReport);
     case "source-inventory": return sourceInventoryCsv(report as SourceInventoryReport);
     case "catalog": return snapshotCatalogCsv(report as SnapshotCatalog);
