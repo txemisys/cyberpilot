@@ -105,6 +105,25 @@ describe("bounded source audit sequence interpretation", () => {
     expect(result.alerts[0]?.severity).toBe("ERROR");
     expect(JSON.stringify(entries)).toBe(before);
   });
+  it("quantifies bounded predecessor coverage without claiming global completeness", () => {
+    const result = inspectLedgerInsights(page([row("b", {
+      predecessorInPage: false,
+      predecessorChronologicallyPrior: null,
+    })]));
+    expect(result.explicitPredecessorLinks).toBe(1);
+    expect(result.linksAvailableOnPage).toBe(0);
+    expect(result.predecessorsOutsidePage).toBe(1);
+    expect(result.sourceCoverage).toBe("PAGE_WITH_OUTSIDE_PREDECESSORS");
+  });
+  it("counts current, historical and unavailable work revisions separately", () => {
+    const result = inspectLedgerInsights(page([
+      row("a"), row("b", { reviewedRevisionIsCurrent: false }),
+      row("c", { currentWorkRevision: null, reviewedRevisionIsCurrent: null }),
+    ]));
+    expect(result.currentWorkRevisionMatches).toBe(1);
+    expect(result.outdatedWorkRevisions).toBe(1);
+    expect(result.missingCurrentWork).toBe(1);
+  });
   it("returns a CSV with event and evidence references", () => {
     const result = inspectLedgerInsights(page([row("a", { actorUserId: null })]));
     const csv = ledgerInsightsCsv(result);
