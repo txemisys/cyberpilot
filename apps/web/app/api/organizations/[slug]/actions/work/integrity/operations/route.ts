@@ -127,11 +127,12 @@ export async function POST(request: NextRequest, { params }: Context) {
           result = buildSnapshotManifest(captures, organizationId, now);
           break;
         case "verify-manifest":
+          // Enforce tenant ownership before inspecting caller-supplied evidence.
+          if (object(input.manifest, "manifest").organizationId !== organizationId)
+            throw new Error("Cross-organization manifest verification forbidden.");
           result = verifySnapshotManifest(
             input.manifest as Parameters<typeof verifySnapshotManifest>[0],
             captures);
-          if (object(input.manifest, "manifest").organizationId !== organizationId)
-            throw new Error("Cross-organization manifest verification forbidden.");
           break;
         case "baseline":
           result = selectSnapshotBaseline(captures, input.target,
