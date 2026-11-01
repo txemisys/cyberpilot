@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
 import { loadAuditLedger, type LedgerPage } from "../../../../../../../lib/work-integrity-audit-ledger";
+import { inspectLedgerInsights } from "../../../../../../../lib/work-integrity-ledger-insights";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
 
 type Props = {
@@ -103,6 +104,41 @@ export default async function AuditLedgerPage({ params, searchParams }: Props) {
                 Download selected raw-page review decisions (CSV)
               </a>
             </p>
+            <section aria-label="Audit event sequence observations">
+              <h3>Review continuity observations</h3>
+              {(() => {
+                const insights = inspectLedgerInsights(page);
+                return (
+                  <>
+                    <p>{insights.scanned} decisions across {insights.caseIdentities}
+                      {" "}diagnostic identities and {insights.workIdentities} work items.</p>
+                    <p>{insights.counts.ERROR} errors,
+                      {" "}{insights.counts.REVIEW} requiring review,
+                      {" "}{insights.counts.UNKNOWN} unknowns and
+                      {" "}{insights.counts.INFO} informational observations.</p>
+                    <p className="action-link">
+                      <a href={`${api}?${createSearch({ format: "insights-csv" })}`}>
+                        Download event sequence observations (CSV)
+                      </a>
+                    </p>
+                    {insights.alerts.length ? (
+                      <details>
+                        <summary>Inspect {insights.alerts.length} ledger observations</summary>
+                        <ul>{insights.alerts.slice(0, 100).map((issue, index) =>
+                          <li key={`${issue.eventId}-${issue.kind}-${index}`}>
+                            <strong>{issue.severity}: {issue.kind.replaceAll("_", " ")}</strong>
+                            <p>Audit event: {issue.eventId}</p>
+                            <p>{issue.explanation}</p>
+                            <p>Next step: {issue.followup}</p>
+                          </li>)}</ul>
+                        {insights.alerts.length > 100 ?
+                          <p>Only 100 observations are shown. Use the CSV for the remainder.</p> : null}
+                      </details>
+                    ) : <p>No additional sequence issues detected on this raw page.</p>}
+                  </>
+                );
+              })()}
+            </section>
             {page.entries.length ? (
               <div className="remediation-list">
                 {page.entries.map(item => (
