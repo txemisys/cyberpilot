@@ -90,6 +90,8 @@ export async function readStoredIntegrityCapture(
   const manifest = buildSnapshotManifest([capture], organizationId, new Date().toISOString());
   if (manifest.entries[0]?.sha256 !== row.digest)
     throw new Error("Stored capture integrity check failed.");
+  if (row.digest.length !== 64)
+    throw new Error("Stored capture digest has invalid length.");
   return capture;
 }
 
