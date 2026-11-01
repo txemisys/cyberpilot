@@ -352,6 +352,11 @@ export default async function AnalystQueuePage({ params, searchParams }: Props) 
                   Inspect a stored work-item review chain
                 </Link>
               </p>
+              <p className="action-link">
+                <Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity/audit-portfolio`}>
+                  Inspect the organization work-audit portfolio
+                </Link>
+              </p>
             </section>
             <details>
               <summary>Coverage and interpretation limitations</summary>
