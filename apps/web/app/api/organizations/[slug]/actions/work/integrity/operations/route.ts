@@ -1,4 +1,5 @@
 import { planJournalArchive } from "../../../../../../../../lib/work-integrity-snapshot-journal-archive";
+import { auditSnapshotCustody } from "../../../../../../../../lib/work-integrity-snapshot-custody";
 import { emptySnapshotJournal, verifySnapshotJournal, reconcileSnapshotJournal, planJournalAppendFromCaptures } from "../../../../../../../../lib/work-integrity-snapshot-journal";
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
@@ -84,7 +85,7 @@ async function boundedJson(request: NextRequest): Promise<RecordValue> {
 const operations = new Set([
   "catalog", "manifest", "verify-manifest", "baseline", "compare-latest",
   "incidents", "archive-plan", "archive-partitions", "recovery-plan",
-  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit", "journal-empty", "journal-verify", "journal-reconcile", "journal-plan", "journal-archive-plan",
+  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit", "journal-empty", "journal-verify", "journal-reconcile", "journal-plan", "journal-archive-plan", "custody-audit",
 ]);
 /**
  * Read-only, tenant-scoped offline integrity operations.
@@ -172,6 +173,12 @@ export async function POST(request: NextRequest, { params }: Context) {
           result = buildSnapshotReviewLedger(captures,
             list(input.events, "review events") as Parameters<typeof buildSnapshotReviewLedger>[1],
             organizationId);
+          break;
+        case "custody-audit":
+          result = auditSnapshotCustody(captures,
+            input.journal as Parameters<typeof auditSnapshotCustody>[1],
+            organizationId, now,
+            policy(input.policy) as unknown as Parameters<typeof auditSnapshotCustody>[4]);
           break;
         case "journal-archive-plan":
           result = planJournalArchive(captures,
