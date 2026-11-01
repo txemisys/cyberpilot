@@ -37,6 +37,10 @@ export type ContinuityActionPlan = {
   totals: Record<ContinuityAction["priority"], number>;
   byType: Partial<Record<ContinuityActionType, number>>;
   affectedCaseCount: number;
+  requiresHumanDecisionCount: number;
+  requiresSourceAccessCount: number;
+  urgentCaseCount: number;
+  unresolvedSourceCoverage: boolean;
   totalActionCandidates: number;
   truncated: boolean;
   limitations: string[];
@@ -246,6 +250,15 @@ export function planContinuityActions(
     actions, totals, byType,
     affectedCaseCount: new Set(candidates.map(action => action.caseKey)
       .filter((key): key is string => key !== null)).size,
+    requiresHumanDecisionCount: candidates.filter(action =>
+      action.requiresHumanDecision).length,
+    requiresSourceAccessCount: candidates.filter(action =>
+      action.requiresSourceAccess).length,
+    urgentCaseCount: new Set(candidates.filter(action =>
+      action.priority === "P0" && action.caseKey !== null)
+      .map(action => action.caseKey)).size,
+    unresolvedSourceCoverage: report.transitions.some(transition =>
+      transition.incompleteScope),
     totalActionCandidates: candidates.length,
     truncated: candidates.length > limit,
     limitations: [
@@ -256,6 +269,28 @@ export function planContinuityActions(
         ["Some suggested actions were omitted by the bounded response limit."] : []),
     ],
   };
+}
+/**
+ * Report a compact, scope-aware operating summary for managers.
+ * These figures count distinct action candidates, not separate work items.
+ * No recommendation is converted into a persisted assignment.
+ */
+export function summarizeContinuityActions(plan: ContinuityActionPlan): string[] {
+  const lines: string[] = [];
+  lines.push(`${plan.totalActionCandidates} distinct investigation actions were suggested.`);
+  lines.push(`${plan.affectedCaseCount} case identities require at least one follow-up.`);
+  if (plan.urgentCaseCount > 0)
+    lines.push(`${plan.urgentCaseCount} case identities have a P0 audit-integrity issue.`);
+  if (plan.requiresSourceAccessCount > 0)
+    lines.push(`${plan.requiresSourceAccessCount} actions require access to authoritative source records.`);
+  if (plan.requiresHumanDecisionCount > 0)
+    lines.push(`${plan.requiresHumanDecisionCount} actions require an authorized human decision.`);
+  if (plan.unresolvedSourceCoverage)
+    lines.push("At least one transition lacked full declared capture coverage; absence is inconclusive.");
+  if (plan.truncated)
+    lines.push("The bounded action result omits candidates; totals include all assessed candidates.");
+  lines.push("No action is executed automatically and no security outcome is verified.");
+  return lines;
 }
 export function continuityActionsCsv(plan: ContinuityActionPlan): string {
   const quote = (value: unknown): string => {
