@@ -1,3 +1,4 @@
+import { emptySnapshotJournal, verifySnapshotJournal, reconcileSnapshotJournal, planJournalAppendFromCaptures } from "../../../../../../../../lib/work-integrity-snapshot-journal";
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
 import { canReadWork, WorkInputError } from "../../../../../../../../lib/remediation-work-input";
@@ -82,7 +83,7 @@ async function boundedJson(request: NextRequest): Promise<RecordValue> {
 const operations = new Set([
   "catalog", "manifest", "verify-manifest", "baseline", "compare-latest",
   "incidents", "archive-plan", "archive-partitions", "recovery-plan",
-  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit",
+  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit", "journal-empty", "journal-verify", "journal-reconcile", "journal-plan",
 ]);
 /**
  * Read-only, tenant-scoped offline integrity operations.
@@ -170,6 +171,23 @@ export async function POST(request: NextRequest, { params }: Context) {
           result = buildSnapshotReviewLedger(captures,
             list(input.events, "review events") as Parameters<typeof buildSnapshotReviewLedger>[1],
             organizationId);
+          break;
+        case "journal-empty":
+          result = emptySnapshotJournal(organizationId);
+          break;
+        case "journal-verify":
+          result = verifySnapshotJournal(
+            input.journal as Parameters<typeof verifySnapshotJournal>[0], organizationId);
+          break;
+        case "journal-reconcile":
+          result = reconcileSnapshotJournal(
+            input.journal as Parameters<typeof reconcileSnapshotJournal>[0],
+            captures, organizationId, now);
+          break;
+        case "journal-plan":
+          result = planJournalAppendFromCaptures(captures,
+            input.journal as Parameters<typeof planJournalAppendFromCaptures>[1],
+            organizationId, now, session.user.id);
           break;
         case "source-inventory":
           result = reconcileSnapshotSourceInventory(captures, organizationId, now,
