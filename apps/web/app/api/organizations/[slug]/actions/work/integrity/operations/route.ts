@@ -9,6 +9,7 @@ import { planSnapshotArchive, partitionSnapshotArchive } from "../../../../../..
 import { planSnapshotRecovery, simulateSnapshotRecovery } from "../../../../../../../../lib/work-integrity-snapshot-recovery";
 import { assessSnapshotReleaseBatch } from "../../../../../../../../lib/work-integrity-snapshot-release";
 import { buildSnapshotReviewLedger } from "../../../../../../../../lib/work-integrity-snapshot-reviews";
+import { reconcileSnapshotSourceInventory, auditInventoryAgainstManifest } from "../../../../../../../../lib/work-integrity-snapshot-source-inventory";
 import { planSnapshotIngestion, materializeAcceptedSnapshotBatch } from "../../../../../../../../lib/work-integrity-snapshot-ingestion";
 import { buildCaseContinuityReport } from "../../../../../../../../lib/work-integrity-case-continuity";
 import { exportSnapshotReport, type SnapshotCsvKind } from "../../../../../../../../lib/work-integrity-snapshot-exports";
@@ -81,7 +82,7 @@ async function boundedJson(request: NextRequest): Promise<RecordValue> {
 const operations = new Set([
   "catalog", "manifest", "verify-manifest", "baseline", "compare-latest",
   "incidents", "archive-plan", "archive-partitions", "recovery-plan",
-  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize",
+  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit",
 ]);
 /**
  * Read-only, tenant-scoped offline integrity operations.
@@ -169,6 +170,19 @@ export async function POST(request: NextRequest, { params }: Context) {
           result = buildSnapshotReviewLedger(captures,
             list(input.events, "review events") as Parameters<typeof buildSnapshotReviewLedger>[1],
             organizationId);
+          break;
+        case "source-inventory":
+          result = reconcileSnapshotSourceInventory(captures, organizationId, now,
+            list(input.schedule, "source schedule") as Parameters<typeof reconcileSnapshotSourceInventory>[3],
+            policy(input.policy) as unknown as Parameters<typeof reconcileSnapshotSourceInventory>[4]);
+          break;
+        case "inventory-manifest-audit":
+          if (object(input.report, "inventory report").organizationId !== organizationId ||
+              object(input.manifest, "manifest").organizationId !== organizationId)
+            throw new Error("Cross-organization inventory audit forbidden.");
+          result = auditInventoryAgainstManifest(
+            input.report as Parameters<typeof auditInventoryAgainstManifest>[0],
+            captures, input.manifest as Parameters<typeof auditInventoryAgainstManifest>[2]);
           break;
         case "ingestion-plan":
           result = planSnapshotIngestion(captures,
