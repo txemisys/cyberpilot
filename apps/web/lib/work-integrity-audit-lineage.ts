@@ -221,11 +221,7 @@ export async function loadAuditLineage(
   let cursor: string | null = filters.eventId;
   let completeToRoot = false;
   for (let depth = 0; cursor !== null && depth < filters.maxDepth; depth++) {
-    if (visited.has(cursor)) {
-      const repeated = rows.find(row => row.id === cursor);
-      if (repeated) rows.push(repeated);
-      break;
-    }
+    if (visited.has(cursor)) break;
     visited.add(cursor);
     const record: LineageSource | null = await db.auditEvent.findFirst({
       where: {
