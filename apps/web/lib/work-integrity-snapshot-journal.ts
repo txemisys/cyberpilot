@@ -143,6 +143,9 @@ export function appendSnapshotJournalEntry(
 ): JournalAppendResult {
   if (journal.organizationId !== organizationId)
     throw new Error("Cross-organization journal mutation forbidden.");
+  if (journal.entries.length !== journal.nextSequence - 1 ||
+      journal.headDigest !== (journal.entries.at(-1)?.entryDigest ?? null))
+    throw new Error("Journal head or sequence is inconsistent.");
   if (journal.version !== 1 || journal.entries.length > 50000 ||
       journal.captures.length > 10000)
     throw new Error("Unsupported or oversized capture journal.");
@@ -197,13 +200,14 @@ export function appendSnapshotJournalEntry(
 export function verifySnapshotJournal(
   input: SnapshotJournal, organizationId: string,
 ): JournalValidation {
-  if (input.organizationId !== organizationId)
+  if (!input || input.organizationId !== organizationId)
     throw new Error("Cross-organization journal verification forbidden.");
   const errors: string[] = [];
   let rebuilt = emptySnapshotJournal(organizationId);
   let firstInvalidSequence: number | null = null;
   if (input.version !== 1 || !Array.isArray(input.entries) ||
-      input.entries.length > 50000)
+      !Array.isArray(input.captures) || input.entries.length > 50000 ||
+      input.captures.length > 10000)
     return {
       valid: false, checkedEntries: 0, firstInvalidSequence: null,
       errors: ["Invalid journal version or entry cardinality."], rebuilt: null,
