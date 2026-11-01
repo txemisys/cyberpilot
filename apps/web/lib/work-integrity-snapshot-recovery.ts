@@ -132,6 +132,28 @@ export function simulateSnapshotRecovery(
   if (!plan.executable) throw new Error("Recovery plan contains blocking issues.");
   if (plan.organizationId !== expectedManifest.organizationId)
     throw new Error("Cross-organization recovery simulation is forbidden.");
+  if (plan.manifestRoot !== expectedManifest.rootSha256)
+    throw new Error("Recovery plan manifest does not match expected manifest.");
+  if (plan.restores !== plan.actions.filter(action => action.kind === "RESTORE").length ||
+      plan.removals !== plan.actions.filter(action => action.kind === "REMOVE_UNEXPECTED").length ||
+      plan.retained !== plan.actions.filter(action => action.kind === "RETAIN").length)
+    throw new Error("Recovery plan action counts are inconsistent.");
+  const plannedIdentities = new Set<string>();
+  for (const action of plan.actions) {
+    if (action.kind !== "RESTORE" && action.kind !== "REMOVE_UNEXPECTED" &&
+        action.kind !== "RETAIN")
+      throw new Error("Unsupported recovery action.");
+    const key = identity(action);
+    if (plannedIdentities.has(key))
+      throw new Error("Duplicate recovery action identity.");
+    plannedIdentities.add(key);
+    if (action.kind === "RESTORE") {
+      const snapshot = parseCaseSnapshot(action.snapshot);
+      if (snapshot.organizationId !== plan.organizationId ||
+          identity(snapshot) !== key)
+        throw new Error("Recovery action snapshot identity mismatch.");
+    }
+  }
   const result = new Map<string, CaseSnapshot>();
   for (const value of currentSnapshots) {
     const capture = parseCaseSnapshot(value);
