@@ -34,6 +34,13 @@ export type LedgerInsights = {
   scanned: number;
   caseIdentities: number;
   workIdentities: number;
+  explicitPredecessorLinks: number;
+  linksAvailableOnPage: number;
+  predecessorsOutsidePage: number;
+  currentWorkRevisionMatches: number;
+  outdatedWorkRevisions: number;
+  missingCurrentWork: number;
+  sourceCoverage: "PAGE_ONLY" | "PAGE_WITH_OUTSIDE_PREDECESSORS";
   counts: Record<LedgerInsight["severity"], number>;
   byKind: Partial<Record<LedgerInsightKind, number>>;
   alerts: LedgerInsight[];
@@ -158,6 +165,21 @@ export function inspectLedgerInsights(page: LedgerPage): LedgerInsights {
     scanned: entries.length,
     caseIdentities: byCase.size,
     workIdentities: new Set(entries.map(item => item.workItemId)).size,
+    explicitPredecessorLinks: entries.filter(item =>
+      item.predecessorEventId !== null).length,
+    linksAvailableOnPage: entries.filter(item =>
+      item.predecessorEventId !== null && item.predecessorInPage).length,
+    predecessorsOutsidePage: entries.filter(item =>
+      item.predecessorEventId !== null && !item.predecessorInPage).length,
+    currentWorkRevisionMatches: entries.filter(item =>
+      item.reviewedRevisionIsCurrent === true).length,
+    outdatedWorkRevisions: entries.filter(item =>
+      item.reviewedRevisionIsCurrent === false).length,
+    missingCurrentWork: entries.filter(item =>
+      item.currentWorkRevision === null).length,
+    sourceCoverage: entries.some(item =>
+      item.predecessorEventId !== null && !item.predecessorInPage)
+      ? "PAGE_WITH_OUTSIDE_PREDECESSORS" : "PAGE_ONLY",
     counts, byKind, alerts,
     limitations: [
       "Insights describe only matching decoded events on the selected bounded raw page.",
