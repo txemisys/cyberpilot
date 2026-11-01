@@ -19,6 +19,7 @@ vi.mock("@cyberpilot/database", () => ({
 import {
   DEFAULT_CAPTURE_POLICY, ingestStoredIntegrityCaptures,
   listStoredIntegrityCaptures, readStoredIntegrityCapture,
+  pageStoredIntegrityCaptures, decodeCaptureHistoryCursor,
 } from "./work-integrity-persistent-captures";
 
 const scope = { organizationId: "org-1", actorUserId: "user-1" };
@@ -170,5 +171,65 @@ describe("transactional integrity ingestion", () => {
     await expect(ingestStoredIntegrityCaptures(scope, [capture()]))
       .rejects.toThrow("audit unavailable");
     expect(mock.transaction).toHaveBeenCalled();
+  });
+});
+
+describe("stable capture history pagination", () => {
+  it("rejects malformed opaque cursors", () => {
+    for (const cursor of ["", "bad=", "!", "YWJj", "e30"]) {
+      expect(() => decodeCaptureHistoryCursor(cursor)).toThrow("cursor");
+    }
+  });
+  it("enforces organization scope and bounded page sizes", async () => {
+    await expect(pageStoredIntegrityCaptures("", 10)).rejects.toThrow("Organization");
+    await expect(pageStoredIntegrityCaptures("org-1", 0)).rejects.toThrow("page size");
+    await expect(pageStoredIntegrityCaptures("org-1", 101)).rejects.toThrow("page size");
+    expect(mock.findMany).not.toHaveBeenCalled();
+  });
+  it("returns an opaque next cursor and source filter", async () => {
+    const first = { ...row(), id: "capture-2" };
+    const second = { ...row(), id: "capture-1" };
+    mock.findMany.mockResolvedValueOnce([first, second]);
+    const result = await pageStoredIntegrityCaptures("org-1", 1, undefined, "test-source");
+    expect(result.captures).toHaveLength(1);
+    expect(result.hasMore).toBe(true);
+    expect(result.nextCursor).toBeTruthy();
+    expect(decodeCaptureHistoryCursor(result.nextCursor!)).toEqual({
+      capturedAt: at, id: "capture-2",
+    });
+    expect(mock.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { organizationId: "org-1", source: "test-source" },
+      take: 2,
+      orderBy: [{ capturedAt: "desc" }, { id: "desc" }],
+    }));
+  });
+  it("uses an exclusive composite cursor to avoid skipping same-time captures", async () => {
+    const cursor = Buffer.from(JSON.stringify({
+      capturedAt: at, id: "capture-2",
+    })).toString("base64url");
+    mock.findMany.mockResolvedValueOnce([{ ...row(), id: "capture-1" }]);
+    const result = await pageStoredIntegrityCaptures("org-1", 5, cursor);
+    expect(result.hasMore).toBe(false);
+    expect(result.nextCursor).toBeNull();
+    expect(mock.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        organizationId: "org-1",
+        OR: [
+          { capturedAt: { lt: new Date(at) } },
+          { capturedAt: new Date(at), id: { lt: "capture-2" } },
+        ],
+      },
+    }));
+  });
+  it("rejects empty source filters", async () => {
+    await expect(pageStoredIntegrityCaptures("org-1", 10, undefined, " "))
+      .rejects.toThrow("source");
+  });
+  it("does not expose another tenant's captures through the history query", async () => {
+    mock.findMany.mockResolvedValueOnce([]);
+    expect((await pageStoredIntegrityCaptures("org-2")).captures).toEqual([]);
+    expect(mock.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { organizationId: "org-2" },
+    }));
   });
 });
