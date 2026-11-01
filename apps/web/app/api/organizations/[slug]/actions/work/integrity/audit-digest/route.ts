@@ -5,6 +5,8 @@ import { loadAuditDigest, auditDigestCsv } from "../../../../../../../../lib/wor
 
 import { planAuditReviewWorkload, reviewWorkloadCsv } from "../../../../../../../../lib/work-integrity-audit-digest-review";
 
+import { analyzeAuditDigestTrends, auditTrendCsv } from "../../../../../../../../lib/work-integrity-audit-digest-trends";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: NextRequest, { params }: Context) {
@@ -21,13 +23,20 @@ export async function GET(request: NextRequest, { params }: Context) {
     }
     const format = raw.format ?? "json";
     delete raw.format;
-    if (format !== "json" && format !== "csv" && format !== "workload-csv")
+    if (format !== "json" && format !== "csv" && format !== "workload-csv" && format !== "trends-csv")
       throw new WorkInputError("INVALID", "Unknown audit digest format.");
     const result = await loadAuditDigest({
       organizationId: membership.organization.id,
       userId: session.user.id, role: membership.role,
     }, raw);
     const workload = planAuditReviewWorkload(result);
+    const trends = analyzeAuditDigestTrends(result);
+    if (format === "trends-csv") return new NextResponse(auditTrendCsv(trends), {
+      headers: {
+        ...headers, "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="integrity-audit-trends.csv"',
+      },
+    });
     if (format === "workload-csv") return new NextResponse(reviewWorkloadCsv(workload), {
       headers: {
         ...headers, "Content-Type": "text/csv; charset=utf-8",
@@ -40,7 +49,7 @@ export async function GET(request: NextRequest, { params }: Context) {
         "Content-Disposition": 'attachment; filename="integrity-audit-digest.csv"',
       },
     });
-    return NextResponse.json({ ...result, workload }, { headers });
+    return NextResponse.json({ ...result, workload, trends }, { headers });
   } catch (error) {
     if (error instanceof WorkInputError)
       return NextResponse.json({ error: error.message, code: error.code }, {
