@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireOrganizationAccess } from "../../../../../../lib/organizations";
 import LinkDiagnosticWork from "./link-diagnostic-work";
 import { canManageWork, canReadWork } from "../../../../../../lib/remediation-work-input";
-import { listIntegrityWorkLinks } from "../../../../../../lib/work-integrity-evidence-links";
+import { listIntegrityWorkLinkHistory } from "../../../../../../lib/work-integrity-evidence-links";
 import { readStoredIntegrityCapture } from "../../../../../../lib/work-integrity-persistent-captures";
 
 type Props = { params: Promise<{ slug: string; captureId: string }> };
@@ -14,7 +14,8 @@ export default async function IntegrityCaptureDetail({ params }: Props) {
   if (!/^[a-zA-Z0-9_-]{5,100}$/.test(captureId)) notFound();
   const capture = await readStoredIntegrityCapture(membership.organization.id, captureId);
   if (!capture) notFound();
-  const links = await listIntegrityWorkLinks(membership.organization.id, captureId);
+  const history = await listIntegrityWorkLinkHistory(membership.organization.id, captureId);
+  const links = history.active;
   const linkedByCase = new Map<string, typeof links>();
   for (const link of links) {
     const list = linkedByCase.get(link.caseKey) ?? [];
@@ -34,6 +35,8 @@ export default async function IntegrityCaptureDetail({ params }: Props) {
     </dl>
     {!capture.complete && <p role="status">Incomplete capture: missing cases cannot be interpreted as resolved.</p>}
     <h2>Recorded diagnostic cases</h2>
+    {history.truncated && <p role="status">The evidence association audit history is truncated to 1,000 events; displayed active links may be incomplete.</p>}
+    {history.withdrawn.length > 0 && <p>{history.withdrawn.length} previous association(s) withdrawn. Audit history is retained.</p>}
     {capture.cases.length === 0 ? <p>No cases were recorded in this capture. This does not prove the environment is secure.</p> :
       <table><thead><tr><th>Severity</th><th>State</th><th>Diagnostic</th><th>Work item</th><th>Coverage</th></tr></thead>
         <tbody>{capture.cases.map(item => <tr key={item.key}>
