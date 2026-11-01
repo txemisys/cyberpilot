@@ -339,6 +339,20 @@ export default async function AnalystQueuePage({ params, searchParams }: Props) 
             <IntegrityComparisonClient slug={slug} />
         <IntegrityTimelineClient slug={slug} />
             <IntegrityContinuityClient slug={slug} />
+            <section aria-label="Inspect stored audit provenance">
+              <h2>Direct audit-event provenance review</h2>
+              <p>
+                Unlike uploaded snapshot comparisons, this investigation reads
+                tenant-scoped triage decisions directly from stored audit records.
+                Select an operational work ID to examine predecessor chains,
+                missing history, review concurrency and revision consistency.
+              </p>
+              <p className="action-link">
+                <Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity/audit-chain`}>
+                  Inspect a stored work-item review chain
+                </Link>
+              </p>
+            </section>
             <details>
               <summary>Coverage and interpretation limitations</summary>
               <ul>{report.limitations.map((line, index) =>
