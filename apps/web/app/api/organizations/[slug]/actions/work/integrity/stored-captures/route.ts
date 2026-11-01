@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
+import { compareLatestStoredIntegrityCaptures, compareStoredIntegrityCaptureIds } from "../../../../../../../../lib/work-integrity-persistent-comparisons";
 import {
   canManageWork, canReadWork, WorkInputError,
 } from "../../../../../../../../lib/remediation-work-input";
@@ -33,10 +34,31 @@ export async function GET(request: NextRequest, { params }: Context) {
     if (!canReadWork(membership.role))
       throw new WorkInputError("FORBIDDEN", "Capture read access denied.");
     const query = request.nextUrl.searchParams;
-    if ([...query.keys()].some(key => !["id", "limit", "cursor", "source"].includes(key) ||
+    if ([...query.keys()].some(key => !["id", "limit", "cursor", "source", "compareTo", "compareLatest"].includes(key) ||
       query.getAll(key).length !== 1))
       throw new WorkInputError("INVALID", "Invalid capture query.");
     const id = query.get("id");
+    const compareTo = query.get("compareTo");
+    const compareLatest = query.get("compareLatest");
+    if (compareLatest !== null) {
+      if (compareLatest !== "true" || !query.get("source") ||
+          [...query.keys()].some(key => key !== "compareLatest" && key !== "source"))
+        throw new WorkInputError("INVALID", "Latest comparison requires only a source.");
+      const result = await compareLatestStoredIntegrityCaptures(
+        membership.organization.id, query.get("source")!,
+      );
+      return NextResponse.json({ comparison: result }, { headers });
+    }
+    if (compareTo !== null) {
+      if (id === null || [...query.keys()].some(key => key !== "id" && key !== "compareTo") ||
+          !/^[a-zA-Z0-9_-]{5,100}$/.test(id) ||
+          !/^[a-zA-Z0-9_-]{5,100}$/.test(compareTo))
+        throw new WorkInputError("INVALID", "Comparison requires two capture IDs.");
+      const result = await compareStoredIntegrityCaptureIds(
+        membership.organization.id, id, compareTo,
+      );
+      return NextResponse.json({ comparison: result }, { headers });
+    }
     if (id !== null && (query.has("cursor") || query.has("source") || query.has("limit")))
       throw new WorkInputError("INVALID", "Capture detail cannot be combined with history filters.");
     if (id !== null) {
