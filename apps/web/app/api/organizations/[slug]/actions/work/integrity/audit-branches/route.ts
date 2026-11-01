@@ -5,6 +5,8 @@ import { loadAuditBranches, auditBranchesCsv } from "../../../../../../../../lib
 
 import { planBranchActions, branchActionsCsv } from "../../../../../../../../lib/work-integrity-audit-branch-actions";
 
+import { summarizeBranchTopology } from "../../../../../../../../lib/work-integrity-audit-branch-topology";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: NextRequest, { params }: Context) {
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest, { params }: Context) {
         "Content-Disposition": 'attachment; filename="integrity-audit-branches.csv"',
       },
     });
-    return NextResponse.json({ ...report, actionPlan }, { headers });
+    return NextResponse.json({ ...report, actionPlan, topology: summarizeBranchTopology(report) }, { headers });
   } catch (error) {
     if (error instanceof WorkInputError)
       return NextResponse.json({ error: error.message, code: error.code }, {
