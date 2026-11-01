@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
 import { loadAuditLedger, type LedgerPage } from "../../../../../../../lib/work-integrity-audit-ledger";
+import { reconstructDecisionPaths } from "../../../../../../../lib/work-integrity-ledger-decision-path";
 import { inspectLedgerInsights } from "../../../../../../../lib/work-integrity-ledger-insights";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
 
@@ -142,6 +143,44 @@ export default async function AuditLedgerPage({ params, searchParams }: Props) {
                           <p>Only 100 observations are shown. Use the CSV for the remainder.</p> : null}
                       </details>
                     ) : <p>No additional sequence issues detected on this raw page.</p>}
+                  </>
+                );
+              })()}
+            </section>
+            <section aria-label="Bounded audited decision paths">
+              <h3>Human review transition paths</h3>
+              {(() => {
+                const analysis = reconstructDecisionPaths(page);
+                return (
+                  <>
+                    <p>{analysis.totalPaths} diagnostic paths,
+                      {" "}{analysis.eventsInspected} decoded events,
+                      {" "}{analysis.errors} invalid transitions and
+                      {" "}{analysis.unknowns} predecessors outside this page.</p>
+                    <p className="action-link">
+                      <a href={`${api}?${createSearch({ format: "paths-csv" })}`}>
+                        Download decision-path findings (CSV)
+                      </a>
+                    </p>
+                    {analysis.paths.some(path => path.issues.length) ? (
+                      <details>
+                        <summary>Inspect decision transitions and missing links</summary>
+                        <ul>{analysis.paths.filter(path => path.issues.length)
+                          .slice(0, 50).map(path => (
+                            <li key={path.caseKey}>
+                              <strong>{path.diagnosticCode}</strong>:
+                              {" "}{path.eventsOnPage} review events,
+                              {" "}{path.issues.length} observations
+                              <ul>{path.issues.slice(0, 20).map((issue, index) => (
+                                <li key={`${issue.eventId}-${issue.code}-${index}`}>
+                                  {issue.severity}: {issue.explanation}
+                                  {" "}Next: {issue.nextStep}
+                                </li>
+                              ))}</ul>
+                            </li>
+                          ))}</ul>
+                      </details>
+                    ) : <p>No invalid recorded transitions detected within this page.</p>}
                   </>
                 );
               })()}
