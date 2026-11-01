@@ -63,6 +63,11 @@ export default async function AuditLedgerPage({ params, searchParams }: Props) {
             Return to stored audit portfolio
           </Link>
         </p>
+        <p className="action-link">
+          <Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity/audit-digest`}>
+            View bounded human-review activity by day and actor
+          </Link>
+        </p>
         <form action={base} method="get" className="remediation-actions">
           <label htmlFor="ledger-work">Work ID (optional)</label>
           <input id="ledger-work" name="workItemId" type="text"
