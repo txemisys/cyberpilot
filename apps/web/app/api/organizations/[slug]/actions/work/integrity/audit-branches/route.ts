@@ -3,6 +3,8 @@ import { requireOrganizationAccess } from "../../../../../../../../lib/organizat
 import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import { loadAuditBranches, auditBranchesCsv } from "../../../../../../../../lib/work-integrity-audit-branch-explorer";
 
+import { planBranchActions, branchActionsCsv } from "../../../../../../../../lib/work-integrity-audit-branch-actions";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: NextRequest, { params }: Context) {
@@ -18,19 +20,26 @@ export async function GET(request: NextRequest, { params }: Context) {
     }
     const format = input.format ?? "json";
     delete input.format;
-    if (format !== "json" && format !== "csv")
+    if (format !== "json" && format !== "csv" && format !== "actions-csv")
       throw new WorkInputError("INVALID", "Invalid source audit branch format.");
     const report = await loadAuditBranches({
       organizationId: membership.organization.id,
       userId: session.user.id, role: membership.role,
     }, input);
+    const actionPlan = planBranchActions(report);
+    if (format === "actions-csv") return new NextResponse(branchActionsCsv(actionPlan), {
+      headers: {
+        ...headers, "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="integrity-audit-branch-followups.csv"',
+      },
+    });
     if (format === "csv") return new NextResponse(auditBranchesCsv(report), {
       headers: {
         ...headers, "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": 'attachment; filename="integrity-audit-branches.csv"',
       },
     });
-    return NextResponse.json(report, { headers });
+    return NextResponse.json({ ...report, actionPlan }, { headers });
   } catch (error) {
     if (error instanceof WorkInputError)
       return NextResponse.json({ error: error.message, code: error.code }, {
