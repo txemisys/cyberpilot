@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CaseRow } from "./work-integrity-cases";
 import { analyzeReviewContinuity, reviewContinuityCsv } from "./work-integrity-review-continuity";
-import { planContinuityActions, continuityActionsCsv } from "./work-integrity-continuity-actions";
+import { planContinuityActions, continuityActionsCsv, summarizeContinuityActions } from "./work-integrity-continuity-actions";
 
 const a: CaseRow = {
   key: JSON.stringify(["work-123", "DONE_WITHOUT_COMPLETION", "work-123"]),
@@ -171,6 +171,26 @@ describe("deduplicated human continuity handoffs", () => {
     expect(() => planContinuityActions(report, { limit: 0 })).toThrow();
     expect(() => planContinuityActions(report, { limit: 1001 })).toThrow();
     expect(() => planContinuityActions(report, { limit: 1.2 })).toThrow();
+  });
+  it("summarizes source access and human review needs without claiming completion", () => {
+    const report = analyze(a, {
+      ...a, reviewerUserId: null, reviewRationale: null,
+    });
+    const plan = planContinuityActions(report);
+    const lines = summarizeContinuityActions(plan);
+    expect(lines.join(" ")).toMatch(/authoritative source/);
+    expect(lines.join(" ")).toMatch(/authorized human decision/);
+    expect(lines.join(" ")).toMatch(/No action is executed automatically/);
+    expect(plan.requiresSourceAccessCount).toBeGreaterThan(0);
+    expect(plan.requiresHumanDecisionCount).toBeGreaterThan(0);
+  });
+  it("surfaces missing capture coverage in the manager summary", () => {
+    const report = analyzeReviewContinuity([
+      capture(2), capture(3, [], false),
+    ]);
+    const plan = planContinuityActions(report);
+    expect(plan.unresolvedSourceCoverage).toBe(true);
+    expect(summarizeContinuityActions(plan).join(" ")).toMatch(/inconclusive/);
   });
   it("escapes spreadsheet formulas in a bounded action export", () => {
     const row = { ...a, reviewRationale: "=SUM(A1:A2)" };
