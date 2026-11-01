@@ -53,6 +53,11 @@ export default async function IntegrityCasesPage({ params, searchParams }: Props
             Record or inspect an auditable review decision
           </Link>
         </p>
+        <p className="action-link">
+          <Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity/analyst-queue`}>
+            Open prioritized analyst queue with live evidence-readiness checks
+          </Link>
+        </p>
         <form method="get" action={base} className="remediation-actions">
           <label htmlFor="case-state">Review state</label>
           <select id="case-state" name="state" defaultValue={query.state ?? "ALL"}>
