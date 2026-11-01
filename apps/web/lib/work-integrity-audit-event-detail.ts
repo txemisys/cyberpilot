@@ -227,6 +227,97 @@ export function inspectAuditEventDetail(input: {
     ],
   };
 }
+/**
+ * Produce a source-linked, bounded case chronology for audit investigators.
+ * The links below are only the selected event and its direct relationships;
+ * gaps are deliberately retained instead of being reconstructed as facts.
+ */
+export type EventReviewChronology = {
+  organizationId: string;
+  workItemId: string | null;
+  selectedEventId: string;
+  events: Array<{
+    id: string;
+    relation: AuditEventLink["relation"];
+    timestamp: string;
+    decision: string;
+    reviewedRevision: number;
+    actorUserId: string | null;
+    predecessorEventId: string | null;
+    isCurrentWorkRevision: boolean | null;
+  }>;
+  firstObservedAt: string | null;
+  lastObservedAt: string | null;
+  chronologicalReversals: number;
+  missingSourceLinks: number;
+  reviewActors: number;
+  revisionChanges: number;
+  successorBranches: number;
+  coverage: "PARTIAL" | "LINKS_OBSERVED";
+  recommendations: string[];
+};
+export function eventReviewChronology(detail: AuditEventDetail): EventReviewChronology {
+  const linked = [
+    ...(detail.predecessor ? [detail.predecessor] : []),
+    ...(detail.selected ? [detail.selected] : []),
+    ...detail.successors,
+  ];
+  const events = [...linked].sort((a, b) =>
+    a.occurredAt.localeCompare(b.occurredAt) || a.id.localeCompare(b.id));
+  const index = new Map(events.map(event => [event.id, event]));
+  let chronologicalReversals = 0;
+  let missingSourceLinks = 0;
+  for (const event of events) {
+    if (event.previousEventId === null) continue;
+    const predecessor = index.get(event.previousEventId);
+    if (!predecessor) {
+      missingSourceLinks++;
+      continue;
+    }
+    if (predecessor.occurredAt > event.occurredAt) chronologicalReversals++;
+  }
+  const reviewActors = new Set(events.map(event => event.actorUserId)
+    .filter((id): id is string => id !== null)).size;
+  let revisionChanges = 0;
+  for (let i = 1; i < events.length; i++) {
+    if (events[i]!.reviewedRevision !== events[i - 1]!.reviewedRevision)
+      revisionChanges++;
+  }
+  const recommendations: string[] = [];
+  if (missingSourceLinks > 0) recommendations.push(
+    "Open the broader work-item audit chain to inspect missing immediate history.");
+  if (chronologicalReversals > 0) recommendations.push(
+    "Compare authoritative audit timestamps before trusting review ordering.");
+  if (detail.successors.length > 1) recommendations.push(
+    "Investigate review concurrency because one decision has multiple successors.");
+  if (detail.successorQueryTruncated) recommendations.push(
+    "Narrow the audit history window; the successor source query was capped.");
+  if (detail.problems.some(problem => problem.severity === "ERROR"))
+    recommendations.push("Reconcile source review links before accepting recorded dispositions.");
+  if (!recommendations.length) recommendations.push(
+    "No direct-link issue identified; independently verify any remediation claims.");
+  const partial = detail.successorQueryTruncated || missingSourceLinks > 0 ||
+    !detail.selected || detail.problems.some(problem => problem.severity === "UNKNOWN");
+  return {
+    organizationId: detail.organizationId,
+    workItemId: detail.workItemId,
+    selectedEventId: detail.eventId,
+    events: events.map(event => ({
+      id: event.id, relation: event.relation,
+      timestamp: event.occurredAt, decision: event.decision,
+      reviewedRevision: event.reviewedRevision,
+      actorUserId: event.actorUserId,
+      predecessorEventId: event.previousEventId,
+      isCurrentWorkRevision: event.isCurrentWorkRevision,
+    })),
+    firstObservedAt: events[0]?.occurredAt ?? null,
+    lastObservedAt: events[events.length - 1]?.occurredAt ?? null,
+    chronologicalReversals, missingSourceLinks, reviewActors,
+    revisionChanges, successorBranches: detail.successors.length,
+    coverage: partial ? "PARTIAL" : "LINKS_OBSERVED",
+    recommendations,
+  };
+}
 export async function loadAuditEventDetail(
   scope: EventDetailScope, rawId: unknown, now = new Date(),
 ): Promise<AuditEventDetail> {
