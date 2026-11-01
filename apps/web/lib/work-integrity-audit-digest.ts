@@ -39,6 +39,10 @@ export type AuditDigest = {
   historyTruncated: boolean; malformed: number;
   recorded: number; uniqueWorkItems: number; uniqueCases: number;
   reviewedByActors: number;
+  knownActorCount: number;
+  unattributedDecisionCount: number;
+  outdatedReviewCount: number;
+  historyCoverage: "TRUNCATED" | "MALFORMED" | "BOUNDED_COMPLETE";
   decisions: { INVESTIGATE: number; ACKNOWLEDGE: number; DISMISS: number; REOPEN: number };
   daily: AuditDigestBucket[];
   actors: AuditDigestActor[];
@@ -174,6 +178,11 @@ export function aggregateAuditDigest(input: {
     malformed, recorded: Object.values(decisions).reduce((a, b) => a + b, 0),
     uniqueWorkItems: new Set([...cases.values()].map(c => c.workItemId)).size,
     uniqueCases: cases.size, reviewedByActors: actors.size,
+    knownActorCount: [...actors.keys()].filter(id => id !== "__missing__").length,
+    unattributedDecisionCount: daily.reduce((sum, day) => sum + day.unknownActors, 0),
+    outdatedReviewCount: daily.reduce((sum, day) => sum + day.staleReviews, 0),
+    historyCoverage: truncated ? "TRUNCATED" : malformed > 0 ?
+      "MALFORMED" : "BOUNDED_COMPLETE",
     decisions, daily,
     actors: [...actors].map(([id, actor]) => ({
       actorUserId: id === "__missing__" ? null : id,
