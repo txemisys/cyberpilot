@@ -25,7 +25,7 @@ function capture(day: number, source = "source-a", complete = true,
 }
 function bundle() {
   return createAuthenticatedSnapshotBundle([capture(30)], tenant, key,
-    "2026-10-31T12:00:00.000Z", "2026-11-01T13:00:00.000Z",
+    "2026-11-01T10:00:00.000Z", "2026-11-01T13:00:00.000Z",
     "unique-nonce");
 }
 describe("keyring authenticated snapshot bundles", () => {
@@ -74,25 +74,25 @@ describe("keyring authenticated snapshot bundles", () => {
   it("rejects an invalid key length", () => {
     expect(() => createAuthenticatedSnapshotBundle([capture(30)],
       tenant, { ...key, secret: new Uint8Array(8) },
-      "2026-10-31T12:00:00.000Z", "2026-11-01T13:00:00.000Z",
+      "2026-11-01T10:00:00.000Z", "2026-11-01T13:00:00.000Z",
       "nonce")).toThrow(/32/);
   });
   it("rejects a revoked signing key", () => {
     expect(() => createAuthenticatedSnapshotBundle([capture(30)],
       tenant, { ...key, revoked: true },
-      "2026-10-31T12:00:00.000Z", "2026-11-01T13:00:00.000Z",
+      "2026-11-01T10:00:00.000Z", "2026-11-01T13:00:00.000Z",
       "nonce")).toThrow(/Revoked/);
   });
   it("rejects a source outside the configured allowlist", () => {
     expect(() => createAuthenticatedSnapshotBundle([capture(30)],
-      tenant, key, "2026-10-31T12:00:00.000Z",
+      tenant, key, "2026-11-01T10:00:00.000Z",
       "2026-11-01T13:00:00.000Z", "nonce",
       { ...DEFAULT_BUNDLE_POLICY, allowedSources: ["other"] }))
       .toThrow(/allowlist/);
   });
   it("rejects duplicate capture identities", () => {
     expect(() => createAuthenticatedSnapshotBundle([capture(30), capture(30)],
-      tenant, key, "2026-10-31T12:00:00.000Z",
+      tenant, key, "2026-11-01T10:00:00.000Z",
       "2026-11-01T13:00:00.000Z", "nonce"))
       .toThrow(/Duplicate/);
   });
@@ -103,7 +103,7 @@ describe("keyring authenticated snapshot bundles", () => {
   it("rejects incomplete captures under strict policy", () => {
     expect(() => createAuthenticatedSnapshotBundle([
       capture(30, "source-a", false),
-    ], tenant, key, "2026-10-31T12:00:00.000Z",
+    ], tenant, key, "2026-11-01T10:00:00.000Z",
       "2026-11-01T13:00:00.000Z", "nonce",
       { ...DEFAULT_BUNDLE_POLICY, requireCompleteCaptures: true }))
       .toThrow(/complete/);
