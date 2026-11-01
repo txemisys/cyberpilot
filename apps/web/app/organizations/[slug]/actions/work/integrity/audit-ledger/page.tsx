@@ -206,6 +206,13 @@ export default async function AuditLedgerPage({ params, searchParams }: Props) {
                     <p>Work: {item.workTitle ?? item.workItemId};
                       {" "}revision {item.revision} (current: {item.currentWorkRevision ?? "unknown"})</p>
                     <p>Event: <code>{item.eventId}</code></p>
+                    <p className="action-link">
+                      <Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity/audit-event?${new URLSearchParams({
+                        eventId: item.eventId,
+                      }).toString()}`}>
+                        Inspect this event's stored predecessor and successor links
+                      </Link>
+                    </p>
                     <p>Predecessor: <code>{item.predecessorEventId ?? "First recorded decision"}</code></p>
                     {item.predecessorEventId ? (
                       <p>Earlier event on this page: {item.predecessorInPage ? "Yes" : "Unknown"}.
