@@ -102,7 +102,7 @@ export async function unlinkIntegrityCaseFromWork(
       throw new WorkInputError("INVALID", "Invalid association identity.");
     // PostgreSQL transaction-scoped advisory lock serializes withdrawals
     // of the same association, including concurrent requests.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${original.id}, 0))`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${original.id}, 0))`;
     const prior = await tx.auditEvent.findFirst({
       where: {
         organizationId: scope.organizationId,
