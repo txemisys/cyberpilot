@@ -6,7 +6,8 @@ const digest = (patch: Partial<AuditDigest> = {}): AuditDigest => ({
   generatedAt: "2026-11-01T12:00:00.000Z",
   from: "2026-10-31T00:00:00.000Z", to: "2026-11-01T11:59:59.000Z",
   rawRecordsRead: 3, historyTruncated: false, malformed: 0,
-  recorded: 3, uniqueWorkItems: 1, uniqueCases: 1, reviewedByActors: 1,
+  recorded: 3, uniqueWorkItems: 1, uniqueCases: 1, reviewedByActors: 1, knownActorCount: 1, unattributedDecisionCount: 0,
+  outdatedReviewCount: 0, historyCoverage: "BOUNDED_COMPLETE",
   decisions: { INVESTIGATE: 2, ACKNOWLEDGE: 1, DISMISS: 0, REOPEN: 0 },
   daily: [{
     day: "2026-10-31", recorded: 3, investigations: 2,
