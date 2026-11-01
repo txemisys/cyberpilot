@@ -5,6 +5,8 @@ import { loadAuditLedger, auditLedgerCsv } from "../../../../../../../../lib/wor
 
 import { inspectLedgerInsights, ledgerInsightsCsv } from "../../../../../../../../lib/work-integrity-ledger-insights";
 
+import { reconstructDecisionPaths, decisionPathCsv } from "../../../../../../../../lib/work-integrity-ledger-decision-path";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: NextRequest, { params }: Context) {
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest, { params }: Context) {
     }
     const format = input.format ?? "json";
     delete input.format;
-    if (format !== "json" && format !== "csv" && format !== "insights-csv")
+    if (format !== "json" && format !== "csv" && format !== "insights-csv" && format !== "paths-csv")
       throw new WorkInputError("INVALID", "Unsupported ledger export format.");
     const page = await loadAuditLedger({
       organizationId: membership.organization.id,
@@ -32,6 +34,13 @@ export async function GET(request: NextRequest, { params }: Context) {
       role: membership.role,
     }, input);
     const insights = inspectLedgerInsights(page);
+    const decisionPaths = reconstructDecisionPaths(page);
+    if (format === "paths-csv") return new NextResponse(decisionPathCsv(decisionPaths), {
+      headers: {
+        ...headers, "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="integrity-decision-paths.csv"',
+      },
+    });
     if (format === "insights-csv") return new NextResponse(ledgerInsightsCsv(insights), {
       headers: {
         ...headers, "Content-Type": "text/csv; charset=utf-8",
@@ -44,7 +53,7 @@ export async function GET(request: NextRequest, { params }: Context) {
         "Content-Disposition": 'attachment; filename="integrity-audit-ledger.csv"',
       },
     });
-    return NextResponse.json({ ...page, insights }, { headers });
+    return NextResponse.json({ ...page, insights, decisionPaths }, { headers });
   } catch (error) {
     if (error instanceof WorkInputError) return NextResponse.json({
       error: error.message, code: error.code,
