@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
 import { canReadWork, WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import {
-  linkIntegrityCaseToWork, listIntegrityWorkLinks, unlinkIntegrityCaseFromWork,
+  linkIntegrityCaseToWork, listIntegrityWorkLinkHistory, unlinkIntegrityCaseFromWork,
 } from "../../../../../../../../lib/work-integrity-evidence-links";
 
 type Context = { params: Promise<{ slug: string }> };
@@ -26,10 +26,10 @@ export async function GET(request: NextRequest, { params }: Context) {
     if ([...search.keys()].some(key => key !== "captureId") ||
         search.getAll("captureId").length !== 1)
       throw new WorkInputError("INVALID", "Exactly one capture ID is required.");
-    const links = await listIntegrityWorkLinks(
+    const history = await listIntegrityWorkLinkHistory(
       membership.organization.id, search.get("captureId")!,
     );
-    return NextResponse.json({ links }, { headers });
+    return NextResponse.json({ history }, { headers });
   } catch (error) { return failure(error); }
 }
 export async function POST(request: NextRequest, { params }: Context) {
