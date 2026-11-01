@@ -12,7 +12,7 @@ export type IntegrityWorkLink = {
   auditId: string; captureId: string; caseKey: string; workItemId: string;
   actorUserId: string | null; occurredAt: string;
 };
-export type IntegrityWorkLinkHistory = IntegrityWorkLink & { action: "LINK" | "UNLINK" };
+
 export function parseIntegrityWorkLinkInput(value: unknown): {
   captureId: string; caseKey: string; workItemId: string;
 } {
@@ -127,12 +127,6 @@ export async function unlinkIntegrityCaseFromWork(
     });
     return { auditId: audit.id, originalAuditId: original.id };
   }, { isolationLevel: "Serializable" });
-}
-export function activeIntegrityWorkLinks(history: readonly IntegrityWorkLinkHistory[]): IntegrityWorkLink[] {
-  const unlinked = new Set(history.filter(row => row.action === "UNLINK")
-    .map(row => row.auditId));
-  return history.filter(row => row.action === "LINK" && !unlinked.has(row.auditId))
-    .map(({ action: _action, ...row }) => row);
 }
 export async function listIntegrityWorkLinks(
   organizationId: string, captureId: string,
