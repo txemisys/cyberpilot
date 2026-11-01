@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
 import { loadAuditBranches, type BranchReport } from "../../../../../../../lib/work-integrity-audit-branch-explorer";
+import { planBranchActions } from "../../../../../../../lib/work-integrity-audit-branch-actions";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
 
 type Props = {
@@ -105,6 +106,41 @@ export default async function AuditBranchesPage({ params, searchParams }: Props)
                 Download recorded event graph (CSV)
               </a>
             </p>
+            <section aria-label="Human audit branch followups">
+              <h3>Prioritized source investigations</h3>
+              {(() => {
+                const plan = planBranchActions(report);
+                const params = new URLSearchParams(downloadParams);
+                params.set("format", "actions-csv");
+                return (
+                  <>
+                    <p>{plan.total} proposed human follow-ups;
+                      {" "}{plan.priorities.P0} urgent P0,
+                      {" "}{plan.priorities.P1} P1,
+                      {" "}{plan.uniqueAffectedCases} distinct affected cases.</p>
+                    <p className="action-link">
+                      <a href={`${api}?${params.toString()}`}>
+                        Download source investigation handoff (CSV)
+                      </a>
+                    </p>
+                    <div className="remediation-list">
+                      {plan.actions.slice(0, 25).map(item => (
+                        <article key={item.id} className="remediation-card">
+                          <h4>{item.priority}: {item.type.replaceAll("_", " ")}</h4>
+                          <p>{item.explanation}</p>
+                          <p>Related events: {item.eventIds.join(", ") || "Not determined"}.</p>
+                          <p>Next step: {item.nextStep}</p>
+                          <p>Requires source access: {item.sourceAccessRequired ? "Yes" : "No"}.
+                            {" "}Requires human decision: {item.humanDecisionRequired ? "Yes" : "No"}.</p>
+                        </article>
+                      ))}
+                    </div>
+                    {plan.omitted > 0 ? <p>{plan.omitted} follow-ups excluded
+                      by the response cap; totals include them.</p> : null}
+                  </>
+                );
+              })()}
+            </section>
             <section aria-label="Review graph diagnostic cases">
               <h3>Decision graph by diagnostic case</h3>
               {report.cases.length ? (
