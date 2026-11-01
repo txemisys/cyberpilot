@@ -32,6 +32,20 @@ type Continuity = {
   transitions: Transition[];
   affectedCaseKeys: string[];
   limitations: string[];
+  actionPlan: {
+    totalActionCandidates: number;
+    truncated: boolean;
+    affectedCaseCount: number;
+    totals: Record<string, number>;
+    actions: Array<{
+      id: string; caseKey: string | null;
+      priority: string; type: string;
+      explanation: string; nextStep: string;
+      occurrences: number; requiresSourceAccess: boolean;
+      requiresHumanDecision: boolean;
+    }>;
+    limitations: string[];
+  };
 };
 const MAX_FILES = 12;
 const MAX_FILE_BYTES = 1_900_000;
@@ -46,7 +60,7 @@ export default function IntegrityContinuityClient({ slug }: Props) {
   const [showResolved, setShowResolved] = useState(false);
   const [selectedTransition, setSelectedTransition] = useState("ALL");
   const base = `/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/continuity`;
-  async function execute(format: "json" | "csv") {
+  async function execute(format: "json" | "csv" | "actions-csv") {
     if (files.length < 2 || files.length > MAX_FILES) {
       setFailure("Select between two and twelve source-matched JSON captures.");
       return;
@@ -87,7 +101,8 @@ export default function IntegrityContinuityClient({ slug }: Props) {
         try {
           const anchor = document.createElement("a");
           anchor.href = url;
-          anchor.download = "integrity-review-continuity.csv";
+          anchor.download = format === "actions-csv"
+            ? "integrity-review-actions.csv" : "integrity-review-continuity.csv";
           document.body.append(anchor);
           anchor.click();
           anchor.remove();
@@ -136,6 +151,11 @@ export default function IntegrityContinuityClient({ slug }: Props) {
           onClick={() => void execute("csv")}>
           {exporting ? "Preparing CSV…" : "Download continuity CSV"}
         </button>
+        <button type="button" className="secondary-button"
+          disabled={loading || exporting || files.length < 2 || files.length > 12}
+          onClick={() => void execute("actions-csv")}>
+          {exporting ? "Preparing export…" : "Download suggested follow-ups CSV"}
+        </button>
       </div>
       <p>{files.length} of 2–12 required snapshots selected.</p>
       {failure ? <p role="alert" className="auth-error">{failure}</p> : null}
@@ -155,6 +175,43 @@ export default function IntegrityContinuityClient({ slug }: Props) {
               </div>
             ))}
           </div>
+          <section aria-label="Human investigation handoffs">
+            <h4>Suggested follow-up actions</h4>
+            <p>
+              {report.actionPlan.totalActionCandidates} deduplicated action
+              suggestions across {report.actionPlan.affectedCaseCount} cases.
+              These are advisory and are not persisted assignments.
+            </p>
+            {report.actionPlan.truncated ? (
+              <p className="permission-warning">
+                The response is capped. Exported actions do not include
+                candidates omitted beyond the configured limit.
+              </p>
+            ) : null}
+            <div className="remediation-list">
+              {report.actionPlan.actions.slice(0, 50).map(action => (
+                <article key={action.id} className="remediation-card">
+                  <div className="remediation-heading">
+                    <h5>{action.type.replaceAll("_", " ")}</h5>
+                    <span className="role-badge">{action.priority}</span>
+                  </div>
+                  <p>{action.caseKey ?? "Source coverage"}</p>
+                  <p>{action.explanation}</p>
+                  <p><strong>Suggested next step:</strong> {action.nextStep}</p>
+                  <p>{action.occurrences} related observations.</p>
+                  <p>{action.requiresSourceAccess
+                    ? "Source audit access required." : "Available from captured metadata."}
+                    {" "}{action.requiresHumanDecision
+                      ? "Authorized human decision required." : "No automatic decision is performed."}
+                  </p>
+                </article>
+              ))}
+            </div>
+            {report.actionPlan.actions.length > 50 ? (
+              <p>Showing the first 50 action suggestions. Export the bounded
+                CSV for additional suggestions.</p>
+            ) : null}
+          </section>
           <div className="remediation-actions">
             <label htmlFor="continuity-severity">Severity</label>
             <select id="continuity-severity" value={severity}
