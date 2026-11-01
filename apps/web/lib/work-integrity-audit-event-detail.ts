@@ -288,6 +288,13 @@ export function eventReviewChronology(detail: AuditEventDetail): EventReviewChro
     ...(detail.selected ? [detail.selected] : []),
     ...detail.successors,
   ];
+  if (linked.some(item => item.workItemId !== detail.workItemId))
+    throw new Error("Direct audit chronology contains a foreign work identity.");
+  const uniqueEvents = new Set(linked.map(item => item.id));
+  if (uniqueEvents.size !== linked.length)
+    throw new Error("Repeated event identity in direct audit chronology.");
+  if (linked.some(item => !Number.isFinite(Date.parse(item.occurredAt))))
+    throw new Error("Direct audit chronology contains an invalid source timestamp.");
   const events = [...linked].sort((a, b) =>
     a.occurredAt.localeCompare(b.occurredAt) || a.id.localeCompare(b.id));
   const index = new Map(events.map(event => [event.id, event]));
