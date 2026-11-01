@@ -9,6 +9,7 @@ import { planSnapshotArchive, partitionSnapshotArchive } from "../../../../../..
 import { planSnapshotRecovery, simulateSnapshotRecovery } from "../../../../../../../../lib/work-integrity-snapshot-recovery";
 import { assessSnapshotReleaseBatch } from "../../../../../../../../lib/work-integrity-snapshot-release";
 import { buildSnapshotReviewLedger } from "../../../../../../../../lib/work-integrity-snapshot-reviews";
+import { buildSnapshotTrendReport } from "../../../../../../../../lib/work-integrity-snapshot-trends";
 import { planSnapshotRetention } from "../../../../../../../../lib/work-integrity-snapshot-retention";
 
 type Context = { params: Promise<{ slug: string }> };
@@ -77,7 +78,7 @@ async function boundedJson(request: NextRequest): Promise<RecordValue> {
 const operations = new Set([
   "catalog", "manifest", "verify-manifest", "baseline", "compare-latest",
   "incidents", "archive-plan", "archive-partitions", "recovery-plan",
-  "recovery-simulate", "release-batch", "review-ledger", "retention-plan",
+  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends",
 ]);
 /**
  * Read-only, tenant-scoped offline integrity operations.
@@ -120,18 +121,18 @@ export async function POST(request: NextRequest, { params }: Context) {
           break;
         case "baseline":
           result = selectSnapshotBaseline(captures, input.target,
-            organizationId, policy(input.policy) as Parameters<typeof selectSnapshotBaseline>[3]);
+            organizationId, policy(input.policy) as unknown as Parameters<typeof selectSnapshotBaseline>[3]);
           break;
         case "compare-latest":
           result = compareLatestCapturesBySource(captures, organizationId);
           break;
         case "incidents":
           result = detectSnapshotIncidents(captures, organizationId,
-            policy(input.policy) as Parameters<typeof detectSnapshotIncidents>[2]);
+            policy(input.policy) as unknown as Parameters<typeof detectSnapshotIncidents>[2]);
           break;
         case "archive-plan":
           result = planSnapshotArchive(captures, organizationId, now,
-            policy(input.policy) as Parameters<typeof planSnapshotArchive>[3]);
+            policy(input.policy) as unknown as Parameters<typeof planSnapshotArchive>[3]);
           break;
         case "archive-partitions":
           result = partitionSnapshotArchive(captures, organizationId,
@@ -142,9 +143,12 @@ export async function POST(request: NextRequest, { params }: Context) {
             input.manifest as Parameters<typeof planSnapshotRecovery>[0],
             list(input.trustedSnapshots, "trusted snapshots"),
             captures, organizationId,
-            policy(input.policy) as Parameters<typeof planSnapshotRecovery>[4]);
+            policy(input.policy) as unknown as Parameters<typeof planSnapshotRecovery>[4]);
           break;
         case "recovery-simulate":
+          if (object(input.plan, "plan").organizationId !== organizationId ||
+              object(input.manifest, "manifest").organizationId !== organizationId)
+            throw new Error("Cross-organization recovery simulation forbidden.");
           result = simulateSnapshotRecovery(
             input.plan as Parameters<typeof simulateSnapshotRecovery>[0],
             captures,
@@ -152,16 +156,20 @@ export async function POST(request: NextRequest, { params }: Context) {
           break;
         case "release-batch":
           result = assessSnapshotReleaseBatch(captures, organizationId, now,
-            policy(input.policy) as Parameters<typeof assessSnapshotReleaseBatch>[3]);
+            policy(input.policy) as unknown as Parameters<typeof assessSnapshotReleaseBatch>[3]);
           break;
         case "review-ledger":
           result = buildSnapshotReviewLedger(captures,
             list(input.events, "review events") as Parameters<typeof buildSnapshotReviewLedger>[1],
             organizationId);
           break;
+        case "trends":
+          result = buildSnapshotTrendReport(captures, organizationId, now,
+            policy(input.policy) as unknown as Parameters<typeof buildSnapshotTrendReport>[3]);
+          break;
         case "retention-plan":
           result = planSnapshotRetention(captures, organizationId, now,
-            policy(input.policy) as Parameters<typeof planSnapshotRetention>[3]);
+            policy(input.policy) as unknown as Parameters<typeof planSnapshotRetention>[3]);
           break;
       }
     } catch (error) {
