@@ -174,8 +174,7 @@ export function materializeAcceptedSnapshotBatch(
   // including rejected and skipped candidates. Otherwise a stale or forged
   // plan could be replayed against a different batch without detection.
   const plannedKeys = new Set(plan.candidates.map(identity));
-  if (plannedKeys.size !== plan.candidates.length ||
-      captures.length !== plan.candidates.length)
+  if (plannedKeys.size !== plan.candidates.length)
     throw new Error("Ingestion batch differs from its preflight plan.");
   const seen = new Set<string>();
   const accepted: CaseSnapshot[] = [];
@@ -189,8 +188,9 @@ export function materializeAcceptedSnapshotBatch(
       throw new Error("Unplanned ingestion capture identity.");
     if (acceptedByKey.has(key)) accepted.push(capture);
   }
-  if (accepted.length !== acceptedByKey.size)
-    throw new Error("Ingestion plan references missing accepted captures.");
+  if (accepted.length !== acceptedByKey.size ||
+      seen.size !== plannedKeys.size)
+    throw new Error("Ingestion plan references missing captures.");
   const hashes = digestMap(accepted, plan.organizationId, plan.evaluatedAt);
   for (const [key, digest] of acceptedByKey)
     if (hashes.get(key) !== digest)
