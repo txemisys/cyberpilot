@@ -170,6 +170,13 @@ export function materializeAcceptedSnapshotBatch(
   const acceptedByKey = new Map(plan.candidates.filter(candidate =>
     candidate.disposition === "ACCEPT").map(candidate =>
       [identity(candidate), candidate.digest]));
+  // A materialization request must contain precisely the preflight identities,
+  // including rejected and skipped candidates. Otherwise a stale or forged
+  // plan could be replayed against a different batch without detection.
+  const plannedKeys = new Set(plan.candidates.map(identity));
+  if (plannedKeys.size !== plan.candidates.length ||
+      captures.length !== plan.candidates.length)
+    throw new Error("Ingestion batch differs from its preflight plan.");
   const seen = new Set<string>();
   const accepted: CaseSnapshot[] = [];
   for (const capture of captures) {
@@ -178,6 +185,8 @@ export function materializeAcceptedSnapshotBatch(
     const key = identity(capture);
     if (seen.has(key)) throw new Error("Duplicate ingestion materialization identity.");
     seen.add(key);
+    if (!plannedKeys.has(key))
+      throw new Error("Unplanned ingestion capture identity.");
     if (acceptedByKey.has(key)) accepted.push(capture);
   }
   if (accepted.length !== acceptedByKey.size)
