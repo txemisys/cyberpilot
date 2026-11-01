@@ -13,7 +13,8 @@ const digest = (daily: AuditDigestBucket[], patch: Partial<AuditDigest> = {}): A
   rawRecordsRead: daily.reduce((s, d) => s + d.recorded, 0),
   historyTruncated: false, malformed: 0,
   recorded: daily.reduce((s, d) => s + d.recorded, 0),
-  uniqueWorkItems: 0, uniqueCases: 0, reviewedByActors: 0,
+  uniqueWorkItems: 0, uniqueCases: 0, reviewedByActors: 0, knownActorCount: 0, unattributedDecisionCount: 0,
+  outdatedReviewCount: 0, historyCoverage: "BOUNDED_COMPLETE",
   decisions: { INVESTIGATE: 0, ACKNOWLEDGE: 0, DISMISS: 0, REOPEN: 0 },
   daily, actors: [], cases: [], limitations: [], ...patch,
 });
