@@ -164,6 +164,7 @@ model User {
   requestedHandoffs WorkHandoff[] @relation("HandoffRequester")
   assignedHandoffs WorkHandoff[] @relation("HandoffRecipient")
   decidedHandoffs WorkHandoff[] @relation("HandoffDecider")
+  createdIntegrityCaptures IntegrityCaseCapture[] @relation("IntegrityCaptureCreator")
 }
 
 model Session {
@@ -233,6 +234,7 @@ model Organization {
   workChecklistEntries      WorkChecklistEntry[]
   workEvidenceLinks         WorkEvidenceLink[]
   workHandoffs              WorkHandoff[]
+  integrityCaseCaptures     IntegrityCaseCapture[]
 }
 
 model Membership {
@@ -657,6 +659,26 @@ model AuditEvent {
   @@index([actorUserId])
 }
 
+
+model IntegrityCaseCapture {
+  id             String   @id @default(cuid())
+  organizationId String
+  source         String
+  capturedAt     DateTime
+  complete       Boolean
+  caseCount      Int
+  digest         String   @db.VarChar(64)
+  payload        Json
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("IntegrityCaptureCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, source, capturedAt])
+  @@index([organizationId, capturedAt])
+  @@index([organizationId, source, capturedAt])
+}
 
 model RequestRateLimit {
   id          String   @id @default(cuid())
