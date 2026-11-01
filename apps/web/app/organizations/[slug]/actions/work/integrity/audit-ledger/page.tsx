@@ -112,6 +112,13 @@ export default async function AuditLedgerPage({ params, searchParams }: Props) {
                   <>
                     <p>{insights.scanned} decisions across {insights.caseIdentities}
                       {" "}diagnostic identities and {insights.workIdentities} work items.</p>
+                    <p>Predecessor coverage: {insights.linksAvailableOnPage}
+                      {" "}/ {insights.explicitPredecessorLinks} linked events available
+                      on this page; {insights.predecessorsOutsidePage} referenced
+                      predecessors outside the selected window.</p>
+                    <p>Work revision checks: {insights.currentWorkRevisionMatches}
+                      {" "}matching, {insights.outdatedWorkRevisions} historical,
+                      {" "}{insights.missingCurrentWork} unavailable.</p>
                     <p>{insights.counts.ERROR} errors,
                       {" "}{insights.counts.REVIEW} requiring review,
                       {" "}{insights.counts.UNKNOWN} unknowns and
