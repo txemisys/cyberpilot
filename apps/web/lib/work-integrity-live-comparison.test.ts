@@ -160,7 +160,7 @@ describe("integrated case delta comparison", () => {
   it("reports evidence readiness before and after", () => {
     const ready = row("a", {
       state: "ACKNOWLEDGED", reviewEventId: "event",
-      reviewedAt: afterTime, reviewedRevision: 2, reviewRationale: "Checked",
+      reviewedAt: afterTime, reviewedRevision: 2, reviewerUserId: "reviewer-1", reviewRationale: "Checked",
     });
     const report = compareIntegrityCaptures(payload([row("a")], [ready]), "org-a");
     expect(report.evidence.beforeBlocked).toBe(1);
@@ -169,7 +169,7 @@ describe("integrated case delta comparison", () => {
   it("identifies newly ready evidence", () => {
     const ready = row("a", {
       state: "ACKNOWLEDGED", reviewEventId: "event",
-      reviewedAt: afterTime, reviewedRevision: 2, reviewRationale: "Checked",
+      reviewedAt: afterTime, reviewedRevision: 2, reviewerUserId: "reviewer-1", reviewRationale: "Checked",
     });
     const report = compareIntegrityCaptures(payload([row("a")], [ready]), "org-a");
     expect(report.evidence.newlyReady).toBe(1);
@@ -177,7 +177,7 @@ describe("integrated case delta comparison", () => {
   it("identifies newly blocked evidence", () => {
     const ready = row("a", {
       state: "ACKNOWLEDGED", reviewEventId: "event",
-      reviewedAt: beforeTime, reviewedRevision: 2, reviewRationale: "Checked",
+      reviewedAt: beforeTime, reviewedRevision: 2, reviewerUserId: "reviewer-1", reviewRationale: "Checked",
     });
     const report = compareIntegrityCaptures(payload([ready], [row("a")]), "org-a");
     expect(report.evidence.newlyBlocked).toBe(1);
@@ -185,7 +185,7 @@ describe("integrated case delta comparison", () => {
   it("does not report newly ready when comparison is uncertain", () => {
     const ready = row("a", {
       state: "ACKNOWLEDGED", reviewEventId: "event",
-      reviewedAt: afterTime, reviewedRevision: 2, reviewRationale: "Checked",
+      reviewedAt: afterTime, reviewedRevision: 2, reviewerUserId: "reviewer-1", reviewRationale: "Checked",
     });
     const report = compareIntegrityCaptures(payload(
       [row("a")], [ready], false,
@@ -279,7 +279,7 @@ describe("longitudinal comparison capture-scope protections", () => {
   it("never calls a readiness improvement confirmed for incomplete captures", () => {
     const ready = row("a", {
       state: "ACKNOWLEDGED", reviewEventId: "event",
-      reviewedAt: afterTime, reviewedRevision: 2, reviewRationale: "Checked",
+      reviewedAt: afterTime, reviewedRevision: 2, reviewerUserId: "reviewer-1", reviewRationale: "Checked",
     });
     for (const [oldComplete, newComplete] of [
       [false, true], [true, false], [false, false],
@@ -294,7 +294,7 @@ describe("longitudinal comparison capture-scope protections", () => {
   it("never calls evidence loss confirmed for incomplete captures", () => {
     const ready = row("a", {
       state: "ACKNOWLEDGED", reviewEventId: "event",
-      reviewedAt: beforeTime, reviewedRevision: 2, reviewRationale: "Checked",
+      reviewedAt: beforeTime, reviewedRevision: 2, reviewerUserId: "reviewer-1", reviewRationale: "Checked",
     });
     const report = compareIntegrityCaptures(payload(
       [ready], [row("a")], false,
