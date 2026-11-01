@@ -5,6 +5,8 @@ import { loadAuditLineage, auditLineageCsv } from "../../../../../../../../lib/w
 
 import { planLineageActions, lineageActionsCsv } from "../../../../../../../../lib/work-integrity-audit-lineage-actions";
 
+import { summarizeAuditLineage } from "../../../../../../../../lib/work-integrity-audit-lineage-summary";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: NextRequest, { params }: Context) {
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest, { params }: Context) {
         "Content-Disposition": 'attachment; filename="integrity-audit-lineage.csv"',
       },
     });
-    return NextResponse.json({ ...report, actionPlan }, { headers });
+    return NextResponse.json({ ...report, actionPlan, summary: summarizeAuditLineage(report) }, { headers });
   } catch (error) {
     if (error instanceof WorkInputError)
       return NextResponse.json({ error: error.message, code: error.code }, {
