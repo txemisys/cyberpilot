@@ -51,6 +51,7 @@ export default async function IntegrityHistoryPage({ params, searchParams }: Pro
         {error && <p role="alert">{error}</p>}
         {comparison && <section aria-label="Latest capture comparison">
           <h2>Latest comparison · {comparison.source}</h2>
+          <p><Link href={`${base}/${encodeURIComponent(comparison.before.id)}/compare/${encodeURIComponent(comparison.after.id)}`}>Inspect individual case changes</Link></p>
           <p>From {comparison.before.capturedAt} to {comparison.after.capturedAt}</p>
           <p>{comparison.comparison.complete ? "Both captures declare complete coverage." :
             "Coverage is incomplete; missing cases are indeterminate."}</p>
@@ -67,7 +68,7 @@ export default async function IntegrityHistoryPage({ params, searchParams }: Pro
             <table><thead><tr><th>Source</th><th>Captured</th><th>Cases</th><th>Coverage</th><th>Digest</th></tr></thead>
               <tbody>{page.captures.map(item => <tr key={item.id}>
                 <td><Link href={historyUrl().split("?")[0] + "?source=" + encodeURIComponent(item.source)}>{item.source}</Link></td>
-                <td>{item.capturedAt}</td><td>{item.caseCount}</td>
+                <td><Link href={`${base}/${encodeURIComponent(item.id)}`}>{item.capturedAt}</Link></td><td>{item.caseCount}</td>
                 <td>{item.complete ? "Declared complete" : "Incomplete"}</td>
                 <td><code title={item.digest}>{item.digest.slice(0, 12)}…</code></td>
               </tr>)}</tbody></table>}
