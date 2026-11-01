@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   read: vi.fn(), workFind: vi.fn(), auditCreate: vi.fn(), auditFind: vi.fn(),
-  transaction: vi.fn(),
+  transaction: vi.fn(), advisoryLock: vi.fn(),
 }));
 vi.mock("@cyberpilot/database", () => ({
   db: {
@@ -39,6 +39,7 @@ beforeEach(() => {
   mocks.auditFind.mockResolvedValue([]);
   mocks.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn({
     auditEvent: { findFirst: mocks.auditFind, create: mocks.auditCreate },
+    $queryRaw: mocks.advisoryLock,
   }));
 });
 
@@ -185,6 +186,7 @@ describe("diagnostic evidence to work associations", () => {
       scope, { auditId: "audit-123" },
     );
     expect(result).toEqual({ auditId: "withdrawal-123", originalAuditId: "audit-123" });
+    expect(mocks.advisoryLock).toHaveBeenCalledTimes(1);
     expect(mocks.auditCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         action: INTEGRITY_WORK_UNLINK_ACTION, organizationId: "org-123",
