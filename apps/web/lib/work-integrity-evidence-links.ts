@@ -1,0 +1,98 @@
+import { db } from "@cyberpilot/database";
+import { canManageWork, parseWorkId, WorkInputError, type WorkRole } from "./remediation-work-input";
+import { readStoredIntegrityCapture } from "./work-integrity-persistent-captures";
+
+export const INTEGRITY_WORK_LINK_ACTION = "INTEGRITY_CAPTURE_CASE_LINKED_TO_WORK";
+export const INTEGRITY_WORK_LINK_RESOURCE = "REMEDIATION_WORK_ITEM";
+export type IntegrityWorkLinkScope = {
+  organizationId: string; actorUserId: string; role: WorkRole;
+};
+export type IntegrityWorkLink = {
+  auditId: string; captureId: string; caseKey: string; workItemId: string;
+  actorUserId: string | null; occurredAt: string;
+};
+export function parseIntegrityWorkLinkInput(value: unknown): {
+  captureId: string; caseKey: string; workItemId: string;
+} {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new WorkInputError("INVALID", "Expected an evidence link object.");
+  const input = value as Record<string, unknown>;
+  if (Object.keys(input).some(key => !["captureId", "caseKey", "workItemId"].includes(key)))
+    throw new WorkInputError("INVALID", "Unknown evidence link field.");
+  const captureId = parseWorkId(input.captureId, "capture ID");
+  const workItemId = parseWorkId(input.workItemId, "work item ID");
+  if (typeof input.caseKey !== "string" || !input.caseKey ||
+      input.caseKey.length > 1500 || /[\u0000-\u001f\u007f]/.test(input.caseKey))
+    throw new WorkInputError("INVALID", "Invalid diagnostic case identity.");
+  return { captureId, caseKey: input.caseKey, workItemId };
+}
+export async function linkIntegrityCaseToWork(
+  scope: IntegrityWorkLinkScope, value: unknown,
+): Promise<IntegrityWorkLink> {
+  if (!scope.organizationId || !scope.actorUserId || !canManageWork(scope.role))
+    throw new WorkInputError("FORBIDDEN", "Organization administrator required.");
+  const input = parseIntegrityWorkLinkInput(value);
+  const capture = await readStoredIntegrityCapture(scope.organizationId, input.captureId);
+  if (!capture) throw new WorkInputError("MISSING", "Capture not found.");
+  const diagnostic = capture.cases.find(item => item.key === input.caseKey);
+  if (!diagnostic) throw new WorkInputError("MISSING", "Diagnostic case not found.");
+  const work = await db.remediationWorkItem.findFirst({
+    where: { id: input.workItemId, organizationId: scope.organizationId },
+    select: { id: true },
+  });
+  if (!work) throw new WorkInputError("MISSING", "Work item not found in organization.");
+  const audit = await db.auditEvent.create({
+    data: {
+      organizationId: scope.organizationId,
+      actorType: "USER",
+      actorUserId: scope.actorUserId,
+      action: INTEGRITY_WORK_LINK_ACTION,
+      resourceType: INTEGRITY_WORK_LINK_RESOURCE,
+      resourceId: input.workItemId,
+      metadata: {
+        captureId: input.captureId, caseKey: diagnostic.key,
+        source: capture.source, capturedAt: capture.capturedAt,
+        diagnosticWorkItemId: diagnostic.workItemId,
+        diagnosticCode: diagnostic.code, diagnosticResourceId: diagnostic.resourceId,
+        workItemId: input.workItemId,
+        limitation: "Historical diagnostic association; not security verification.",
+      },
+    },
+    select: { id: true, occurredAt: true, actorUserId: true },
+  });
+  return {
+    auditId: audit.id, captureId: input.captureId, caseKey: diagnostic.key,
+    workItemId: input.workItemId, actorUserId: audit.actorUserId,
+    occurredAt: audit.occurredAt.toISOString(),
+  };
+}
+export async function listIntegrityWorkLinks(
+  organizationId: string, captureId: string,
+): Promise<IntegrityWorkLink[]> {
+  if (!organizationId) throw new WorkInputError("FORBIDDEN", "Organization required.");
+  parseWorkId(captureId, "capture ID");
+  const rows = await db.auditEvent.findMany({
+    where: {
+      organizationId, action: INTEGRITY_WORK_LINK_ACTION,
+      resourceType: INTEGRITY_WORK_LINK_RESOURCE,
+    },
+    orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+    take: 1000,
+    select: {
+      id: true, resourceId: true, actorUserId: true,
+      occurredAt: true, metadata: true,
+    },
+  });
+  return rows.flatMap(row => {
+    const metadata = row.metadata;
+    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
+    const data = metadata as Record<string, unknown>;
+    if (data.captureId !== captureId || typeof data.caseKey !== "string" ||
+        !row.resourceId) return [];
+    return [{
+      auditId: row.id, captureId, caseKey: data.caseKey,
+      workItemId: row.resourceId, actorUserId: row.actorUserId,
+      occurredAt: row.occurredAt.toISOString(),
+    }];
+  });
+}
