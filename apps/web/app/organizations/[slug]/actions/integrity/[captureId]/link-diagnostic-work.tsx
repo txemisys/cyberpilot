@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 type Props = {
   slug: string; captureId: string; caseKey: string;
 };
 export default function LinkDiagnosticWork({ slug, captureId, caseKey }: Props) {
+  const router = useRouter();
   const [workItemId, setWorkItemId] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,6 +32,7 @@ export default function LinkDiagnosticWork({ slug, captureId, caseKey }: Props) 
       }
       setStatus(`Evidence association recorded (audit ${result.link?.auditId ?? "created"}). This does not verify remediation.`);
       setWorkItemId("");
+      router.refresh();
     } catch {
       setStatus("The evidence link could not be recorded. Retry when connected.");
     } finally {
