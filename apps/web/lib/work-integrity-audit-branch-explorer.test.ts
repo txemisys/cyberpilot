@@ -51,13 +51,14 @@ describe("tenant-scoped work audit branch graph", () => {
     expect(() => inspect([event("a", null, { resourceId: "work-other" })]))
       .toThrow(/outside the authorized work scope/);
   });
-  it("refuses source metadata that disagrees with the work-item ID", () => {
-    expect(() => inspect([event("a", null, {
+  it("preserves distinct diagnostic resources under the same work item", () => {
+    const result = inspect([event("a", null, {
       metadata: {
         code: "DONE_WITHOUT_COMPLETION", decision: "INVESTIGATE",
         resourceId: "resource-a", revision: 2, rationale: "Reviewed source",
       },
-    })])).toThrow();
+    })]);
+    expect(result.cases[0]?.resourceId).toBe("resource-a");
   });
   it("keeps a linear review graph without concurrency anomalies", () => {
     const result = inspect([event("c", "b"), event("b", "a"), event("a", null)]);
