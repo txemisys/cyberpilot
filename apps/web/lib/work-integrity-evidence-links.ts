@@ -128,33 +128,63 @@ export async function unlinkIntegrityCaseFromWork(
     return { auditId: audit.id, originalAuditId: original.id };
   }, { isolationLevel: "Serializable" });
 }
-export async function listIntegrityWorkLinks(
+export type IntegrityLinkHistoryEvent = {
+  auditId: string; originalAuditId: string | null;
+  action: "LINK" | "UNLINK"; captureId: string; caseKey: string;
+  workItemId: string; actorUserId: string | null; occurredAt: string;
+};
+export function projectIntegrityLinkHistory(events: readonly IntegrityLinkHistoryEvent[]) {
+  const withdrawn = new Set(events.filter(event => event.action === "UNLINK")
+    .map(event => event.originalAuditId).filter((id): id is string => !!id));
+  return {
+    active: events.filter(event => event.action === "LINK" && !withdrawn.has(event.auditId)),
+    withdrawn: events.filter(event => event.action === "LINK" && withdrawn.has(event.auditId)),
+    events,
+  };
+}
+export async function listIntegrityWorkLinkHistory(
   organizationId: string, captureId: string,
-): Promise<IntegrityWorkLink[]> {
+) {
   if (!organizationId) throw new WorkInputError("FORBIDDEN", "Organization required.");
   parseWorkId(captureId, "capture ID");
   const rows = await db.auditEvent.findMany({
     where: {
-      organizationId, action: INTEGRITY_WORK_LINK_ACTION,
+      organizationId,
+      action: { in: [INTEGRITY_WORK_LINK_ACTION, INTEGRITY_WORK_UNLINK_ACTION] },
       resourceType: INTEGRITY_WORK_LINK_RESOURCE,
     },
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
     take: 1000,
     select: {
-      id: true, resourceId: true, actorUserId: true,
+      id: true, action: true, resourceId: true, actorUserId: true,
       occurredAt: true, metadata: true,
     },
   });
-  return rows.flatMap(row => {
+  const events: IntegrityLinkHistoryEvent[] = rows.flatMap(row => {
     const metadata = row.metadata;
     if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
     const data = metadata as Record<string, unknown>;
     if (data.captureId !== captureId || typeof data.caseKey !== "string" ||
         !row.resourceId) return [];
+    const isUnlink = row.action === INTEGRITY_WORK_UNLINK_ACTION;
     return [{
-      auditId: row.id, captureId, caseKey: data.caseKey,
-      workItemId: row.resourceId, actorUserId: row.actorUserId,
-      occurredAt: row.occurredAt.toISOString(),
+      auditId: row.id,
+      originalAuditId: isUnlink && typeof data.originalAuditId === "string" ?
+        data.originalAuditId : null,
+      action: isUnlink ? "UNLINK" as const : "LINK" as const,
+      captureId, caseKey: data.caseKey, workItemId: row.resourceId,
+      actorUserId: row.actorUserId, occurredAt: row.occurredAt.toISOString(),
     }];
   });
+  return { ...projectIntegrityLinkHistory(events), truncated: rows.length === 1000 };
+}
+export async function listIntegrityWorkLinks(
+  organizationId: string, captureId: string,
+): Promise<IntegrityWorkLink[]> {
+  const history = await listIntegrityWorkLinkHistory(organizationId, captureId);
+  return history.active.map(event => ({
+    auditId: event.auditId, captureId: event.captureId, caseKey: event.caseKey,
+    workItemId: event.workItemId, actorUserId: event.actorUserId,
+    occurredAt: event.occurredAt,
+  }));
 }
