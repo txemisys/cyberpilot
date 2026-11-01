@@ -78,12 +78,12 @@ describe("capture custody audit", () => {
       tenant, now, policy);
     expect(result.issues.map(item => item.kind)).toContain("FUTURE_CAPTURE");
   });
-  it("reports incomplete active capture coverage", () => {
+  it("does not count rejected incomplete captures as active evidence", () => {
     const captures = [capture(30, "source-a", false)];
     const result = auditSnapshotCustody(captures, journal(captures),
       tenant, now, policy);
-    expect(result.issues.map(item => item.kind))
-      .toContain("INCOMPLETE_ACTIVE_CAPTURE");
+    expect(result.matchedActiveCaptures).toBe(0);
+    expect(result.issues.map(item => item.kind)).toContain("CAPTURE_REJECTED");
   });
   it("rejects invalid capture cardinality policy", () => {
     expect(() => auditSnapshotCustody([], emptySnapshotJournal(tenant),
