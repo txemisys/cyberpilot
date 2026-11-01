@@ -113,7 +113,16 @@ export function auditSnapshotCustody(
     issues.push(issue("JOURNAL_INVALID", "BLOCKER", "*", null, null, null,
       "Journal hash chain or materialized state failed replay validation.",
       "Restore the journal from a trusted checkpoint before reconciling custody."));
-  const manifest = buildSnapshotManifest(captures, organizationId, evaluatedAt);
+  const uniqueCaptures: CaseSnapshot[] = [];
+  const manifestIdentities = new Set<string>();
+  for (const capture of captures) {
+    const key = identity(capture.source, capture.capturedAt);
+    if (!manifestIdentities.has(key)) {
+      uniqueCaptures.push(capture);
+      manifestIdentities.add(key);
+    }
+  }
+  const manifest = buildSnapshotManifest(uniqueCaptures, organizationId, evaluatedAt);
   const digests = new Map(manifest.entries.map(entry =>
     [identity(entry.source, entry.capturedAt), entry.sha256]));
   const journalByIdentity = new Map<string, JournalCaptureState>();
