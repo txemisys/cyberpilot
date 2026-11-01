@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
 import { loadAuditDigest, type AuditDigest } from "../../../../../../../lib/work-integrity-audit-digest";
+import { analyzeAuditDigestTrends } from "../../../../../../../lib/work-integrity-audit-digest-trends";
 import { planAuditReviewWorkload } from "../../../../../../../lib/work-integrity-audit-digest-review";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
 
@@ -107,6 +108,38 @@ export default async function AuditDigestPage({ params, searchParams }: Props) {
                 Download daily recorded review counts (CSV)
               </a>
             </p>
+            <section aria-label="Recorded review workload trends">
+              <h2>Bounded recorded-review trend</h2>
+              {(() => {
+                const trends = analyzeAuditDigestTrends(digest);
+                const params = new URLSearchParams(search);
+                params.set("format", "trends-csv");
+                return (
+                  <>
+                    <p>First half: {trends.prior.recorded} decisions across
+                      {" "}{trends.prior.days} days; second half:
+                      {" "}{trends.current.recorded} decisions across
+                      {" "}{trends.current.days} days.</p>
+                    <p>Change in recorded decisions: {trends.recordedDelta}.
+                      These counts do not measure remediation success.</p>
+                    <p className="action-link">
+                      <a href={`${api}?${params.toString()}`}>
+                        Download recorded activity trend observations (CSV)
+                      </a>
+                    </p>
+                    {trends.findings.length ? (
+                      <ul>{trends.findings.map(issue => (
+                        <li key={issue.signal}>
+                          <strong>{issue.priority}: {issue.signal.replaceAll("_", " ")}</strong>
+                          <p>{issue.explanation}</p>
+                          <p>Next step: {issue.nextStep}</p>
+                        </li>
+                      ))}</ul>
+                    ) : <p>Insufficient bounded activity to infer a direction.</p>}
+                  </>
+                );
+              })()}
+            </section>
             <section aria-label="Suggested audit investigation workload">
               <h2>Human investigation follow-ups</h2>
               {(() => {
