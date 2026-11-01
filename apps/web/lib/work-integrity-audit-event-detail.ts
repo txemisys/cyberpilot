@@ -318,6 +318,84 @@ export function eventReviewChronology(detail: AuditEventDetail): EventReviewChro
     recommendations,
   };
 }
+/**
+ * Export the selected source relationship and all visible audit links.
+ * Every line refers to a stored event, never an invented verification.
+ */
+export function auditEventDetailCsv(detail: AuditEventDetail): string {
+  const quote = (value: unknown): string => {
+    const raw = String(value ?? "");
+    const safe = /^[\\s\\u0000-\\u001f]*[=+@\\-]/.test(raw) ? "'" + raw : raw;
+    return '"' + safe.replace(/"/g, '""') + '"';
+  };
+  const columns = [
+    "relation", "eventId", "caseKey", "workItemId", "occurredAt",
+    "decision", "actorUserId", "reviewedRevision", "isCurrentWorkRevision",
+    "previousEventId", "rationale", "reference",
+  ];
+  const lines = [columns.map(quote).join(",")];
+  const records = [
+    ...(detail.predecessor ? [detail.predecessor] : []),
+    ...(detail.selected ? [detail.selected] : []),
+    ...detail.successors,
+  ];
+  for (const event of records) lines.push([
+    event.relation, event.id, event.caseKey, event.workItemId,
+    event.occurredAt, event.decision, event.actorUserId,
+    event.reviewedRevision, event.isCurrentWorkRevision,
+    event.previousEventId, event.rationale, event.reference,
+  ].map(quote).join(","));
+  return lines.join("\\r\\n") + "\\r\\n";
+}
+/**
+ * Build an investigator-readable result with explicit source caveats.
+ * The investigation must never be confused with a verification decision.
+ */
+export type EventInvestigationOutcome = {
+  eventId: string;
+  organizationId: string;
+  classification: "REQUIRES_SOURCE_REVIEW" | "LINK_COVERAGE_UNKNOWN" | "NO_DIRECT_ANOMALY";
+  actionableFindings: number;
+  sourceUnknowns: number;
+  warningFindings: number;
+  caseId: string | null;
+  reviewedRevision: number | null;
+  latestWorkRevision: number | null;
+  actorKnown: boolean;
+  knownDirectPredecessor: boolean;
+  knownDirectSuccessors: number;
+  sourceCapped: boolean;
+  followups: string[];
+  verifiedRemediation: false;
+  verifiedControlEffectiveness: false;
+};
+export function classifyEventInvestigation(detail: AuditEventDetail): EventInvestigationOutcome {
+  const errors = detail.problems.filter(problem => problem.severity === "ERROR");
+  const unknowns = detail.problems.filter(problem => problem.severity === "UNKNOWN");
+  const warnings = detail.problems.filter(problem => problem.severity === "WARNING");
+  const classification: EventInvestigationOutcome["classification"] =
+    errors.length > 0 ? "REQUIRES_SOURCE_REVIEW" :
+    unknowns.length > 0 || detail.successorQueryTruncated || !detail.selected ?
+      "LINK_COVERAGE_UNKNOWN" : "NO_DIRECT_ANOMALY";
+  const followups = [...new Set(detail.problems.map(problem => problem.nextAction))];
+  if (detail.successorQueryTruncated) followups.push(
+    "Inspect additional source audit pages to rule out omitted successor events.");
+  if (followups.length === 0) followups.push(
+    "Inspect broader work-item audit history and independently verify security outcomes.");
+  return {
+    eventId: detail.eventId, organizationId: detail.organizationId,
+    classification, actionableFindings: errors.length,
+    sourceUnknowns: unknowns.length, warningFindings: warnings.length,
+    caseId: detail.selected?.caseKey ?? null,
+    reviewedRevision: detail.selected?.reviewedRevision ?? null,
+    latestWorkRevision: detail.currentWorkRevision,
+    actorKnown: detail.selected?.actorUserId !== null && !!detail.selected,
+    knownDirectPredecessor: detail.predecessor !== null,
+    knownDirectSuccessors: detail.successors.length,
+    sourceCapped: detail.successorQueryTruncated,
+    followups, verifiedRemediation: false, verifiedControlEffectiveness: false,
+  };
+}
 export async function loadAuditEventDetail(
   scope: EventDetailScope, rawId: unknown, now = new Date(),
 ): Promise<AuditEventDetail> {
