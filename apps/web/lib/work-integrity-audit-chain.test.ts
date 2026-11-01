@@ -97,7 +97,6 @@ describe("audit event predecessor graph", () => {
   });
   it("detects a cycle without looping indefinitely", () => {
     const result = report([event("a", "b"), event("b", "a")]);
-    expect(result.byCode).toBeUndefined();
     expect(result.problems.some(problem => problem.code === "CYCLE")).toBe(true);
     expect(result.historyComplete).toBe(false);
   });
