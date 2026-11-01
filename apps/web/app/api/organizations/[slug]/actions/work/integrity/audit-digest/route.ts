@@ -3,6 +3,8 @@ import { requireOrganizationAccess } from "../../../../../../../../lib/organizat
 import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import { loadAuditDigest, auditDigestCsv } from "../../../../../../../../lib/work-integrity-audit-digest";
 
+import { planAuditReviewWorkload, reviewWorkloadCsv } from "../../../../../../../../lib/work-integrity-audit-digest-review";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: NextRequest, { params }: Context) {
@@ -19,19 +21,26 @@ export async function GET(request: NextRequest, { params }: Context) {
     }
     const format = raw.format ?? "json";
     delete raw.format;
-    if (format !== "json" && format !== "csv")
+    if (format !== "json" && format !== "csv" && format !== "workload-csv")
       throw new WorkInputError("INVALID", "Unknown audit digest format.");
     const result = await loadAuditDigest({
       organizationId: membership.organization.id,
       userId: session.user.id, role: membership.role,
     }, raw);
+    const workload = planAuditReviewWorkload(result);
+    if (format === "workload-csv") return new NextResponse(reviewWorkloadCsv(workload), {
+      headers: {
+        ...headers, "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="integrity-audit-followups.csv"',
+      },
+    });
     if (format === "csv") return new NextResponse(auditDigestCsv(result), {
       headers: {
         ...headers, "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": 'attachment; filename="integrity-audit-digest.csv"',
       },
     });
-    return NextResponse.json(result, { headers });
+    return NextResponse.json({ ...result, workload }, { headers });
   } catch (error) {
     if (error instanceof WorkInputError)
       return NextResponse.json({ error: error.message, code: error.code }, {
