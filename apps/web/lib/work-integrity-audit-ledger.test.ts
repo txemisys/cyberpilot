@@ -15,7 +15,7 @@ const raw = (id: string, extra: Partial<LedgerRawEvent> = {}): LedgerRawEvent =>
     resourceId: "work-123", revision: 2,
     rationale: "Checking evidence status",
     previousEventId: id === "event-1" ? null : "event-1",
-  } as Prisma.InputJsonValue,
+  } as Prisma.JsonValue,
   ...extra,
 });
 const work: LedgerWorkItem = {
