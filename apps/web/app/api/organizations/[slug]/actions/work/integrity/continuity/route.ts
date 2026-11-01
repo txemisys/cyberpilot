@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
 import { canReadWork, WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import { parseTimelineInput } from "../../../../../../../../lib/work-integrity-case-timeline";
-import { planContinuityActions, continuityActionsCsv } from "../../../../../../../../lib/work-integrity-continuity-actions";
+import { planContinuityActions, continuityActionsCsv, summarizeContinuityActions } from "../../../../../../../../lib/work-integrity-continuity-actions";
 import {
   analyzeReviewContinuity, reviewContinuityCsv,
 } from "../../../../../../../../lib/work-integrity-review-continuity";
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         },
       });
     }
-    return NextResponse.json({ ...report, actionPlan }, { headers: common });
+    return NextResponse.json({ ...report, actionPlan, actionSummary: summarizeContinuityActions(actionPlan) }, { headers: common });
   } catch (error) {
     if (error instanceof WorkInputError) {
       return NextResponse.json({ error: error.message, code: error.code }, {
