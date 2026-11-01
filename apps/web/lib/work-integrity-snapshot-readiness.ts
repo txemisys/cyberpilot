@@ -194,6 +194,15 @@ export function assessSnapshotOperationalReadiness(
   const incoming = uniqueCaptures(incomingCaptures, organizationId);
   if (captures.length + incoming.length > 10000)
     throw new Error("Combined readiness capture limit exceeded.");
+  // A capture cannot be both historical and pending ingestion. Reject this
+  // ambiguous provenance before custody, source coverage or incident analysis.
+  // The two collections are individually unique, but must also be disjoint.
+  const historicalKeys = new Set(captures.map(capture =>
+    identity(capture.source, capture.capturedAt)));
+  for (const candidate of incoming) {
+    if (historicalKeys.has(identity(candidate.source, candidate.capturedAt)))
+      throw new Error("Incoming readiness capture already exists in historical captures.");
+  }
   const manifest = buildSnapshotManifest(captures, organizationId, evaluatedAt);
   const journalCheck = verifySnapshotJournal(journal, organizationId);
   const custody = auditSnapshotCustody(captures, journal, organizationId,
