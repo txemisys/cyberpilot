@@ -167,6 +167,17 @@ export function materializeAcceptedSnapshotBatch(
 ): IngestionExecutionBatch {
   if (incomingInput.length > 10000) throw new Error("Ingestion materialization limit exceeded.");
   const captures = incomingInput.map(value => parseCaseSnapshot(value));
+  if (!plan || plan.organizationId.length === 0 ||
+      !Number.isFinite(Date.parse(plan.evaluatedAt)) ||
+      !Array.isArray(plan.candidates) || plan.candidates.length > 10000)
+    throw new Error("Invalid ingestion materialization plan.");
+  if (plan.accepted !== plan.candidates.filter(candidate =>
+      candidate.disposition === "ACCEPT").length ||
+      plan.rejected !== plan.candidates.filter(candidate =>
+        candidate.disposition === "REJECT").length ||
+      plan.skippedIdentical !== plan.candidates.filter(candidate =>
+        candidate.disposition === "SKIP_IDENTICAL").length)
+    throw new Error("Ingestion plan disposition totals are inconsistent.");
   const acceptedByKey = new Map(plan.candidates.filter(candidate =>
     candidate.disposition === "ACCEPT").map(candidate =>
       [identity(candidate), candidate.digest]));
