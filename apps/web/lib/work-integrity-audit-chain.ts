@@ -1,5 +1,4 @@
 import { db } from "@cyberpilot/database";
-import type { Prisma } from "@cyberpilot/database";
 import { canReadWork, WorkInputError, parseWorkId, type WorkRole } from "./remediation-work-input";
 import {
   TRIAGE_AUDIT_ACTION, TRIAGE_RESOURCE_TYPE, hydrateTriageEvent,
@@ -262,8 +261,8 @@ export function inspectAuditChain(input: ChainInput): AuditChainReport {
     currentRevision: input.currentRevision,
     generatedAt: input.generatedAt,
     bounded: input.bounded,
-    historyComplete: !input.bounded && input.malformedRecords === 0 &&
-      cases.every(row => row.completeHistory),
+    historyComplete: input.events.length > 0 && !input.bounded &&
+      input.malformedRecords === 0 && cases.every(row => row.completeHistory),
     recordsRead: input.rawRecordsRead,
     malformedRecords: input.malformedRecords,
     cases,
