@@ -184,7 +184,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         case "readiness-work-transition":
           result = transitionReadinessWorkItem(
             input.queue as Parameters<typeof transitionReadinessWorkItem>[0],
-            input.transition as Parameters<typeof transitionReadinessWorkItem>[1],
+            { ...(object(input.transition, "work transition") as Parameters<typeof transitionReadinessWorkItem>[1]), actorId: session.user.id },
             organizationId,
             policy(input.policy) as unknown as Parameters<typeof transitionReadinessWorkItem>[3]);
           break;
