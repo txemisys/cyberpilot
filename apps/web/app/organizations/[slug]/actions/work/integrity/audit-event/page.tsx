@@ -134,6 +134,13 @@ export default async function AuditEventPage({ params, searchParams }: Props) {
                         Download directly linked event records (CSV)
                       </a>
                     </p>
+                    <p className="action-link">
+                      <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/audit-event?${new URLSearchParams({
+                        eventId: detail.eventId, format: "chronology-csv",
+                      }).toString()}`}>
+                        Download observed review chronology (CSV)
+                      </a>
+                    </p>
                     <h4>Recommended source follow-ups</h4>
                     <ul>{result.followups.map((step, index) =>
                       <li key={index}>{step}</li>)}</ul>
