@@ -4,6 +4,7 @@ import {
   loadAuditLineage, type LineageReport,
 } from "../../../../../../../lib/work-integrity-audit-lineage";
 import { planLineageActions } from "../../../../../../../lib/work-integrity-audit-lineage-actions";
+import { summarizeAuditLineage } from "../../../../../../../lib/work-integrity-audit-lineage-summary";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
 
 type Props = {
@@ -107,6 +108,30 @@ export default async function AuditLineagePage({ params, searchParams }: Props) 
             <p className="action-link">
               <a href={`${api}?${csv.toString()}`}>Download source lineage (CSV)</a>
             </p>
+            <section aria-label="Recorded audit decision summary">
+              <h3>Decision and revision distribution</h3>
+              {(() => {
+                const summary = summarizeAuditLineage(report);
+                return (
+                  <>
+                    <p>{summary.decisions.INVESTIGATE} investigations,
+                      {" "}{summary.decisions.ACKNOWLEDGE} acknowledgements,
+                      {" "}{summary.decisions.DISMISS} dismissals,
+                      {" "}{summary.decisions.REOPEN} reopenings.</p>
+                    <p>{summary.uniqueActorReferences} distinct retained actors,
+                      {" "}{summary.missingActorReferences} reviews with no
+                      current actor attribution and
+                      {" "}{summary.distinctReviewedRevisions} distinct reviewed revisions.</p>
+                    <p>Recorded timeline: {summary.earliestRecordedAt ?? "Unknown"}
+                      {" "}to {summary.latestRecordedAt ?? "Unknown"}.</p>
+                    <p>Chronological predecessor ordering:
+                      {" "}{summary.sequenceChronological ? "Consistent" : "Inconsistent"}.
+                      Revision sequence:
+                      {" "}{summary.sequenceRevisionMonotonic ? "Nondecreasing" : "Inconsistent"}.</p>
+                  </>
+                );
+              })()}
+            </section>
             <section aria-label="Human lineage investigation plan">
               <h3>Human investigation follow-ups</h3>
               {(() => {
