@@ -3,6 +3,7 @@ import { requireOrganizationAccess } from "../../../../../../../lib/organization
 import {
   loadAuditLineage, type LineageReport,
 } from "../../../../../../../lib/work-integrity-audit-lineage";
+import { planLineageActions } from "../../../../../../../lib/work-integrity-audit-lineage-actions";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
 
 type Props = {
@@ -106,6 +107,41 @@ export default async function AuditLineagePage({ params, searchParams }: Props) 
             <p className="action-link">
               <a href={`${api}?${csv.toString()}`}>Download source lineage (CSV)</a>
             </p>
+            <section aria-label="Human lineage investigation plan">
+              <h3>Human investigation follow-ups</h3>
+              {(() => {
+                const plan = planLineageActions(report);
+                const params = new URLSearchParams(csv);
+                params.set("format", "actions-csv");
+                return (
+                  <>
+                    <p>{plan.itemCount} suggested follow-ups:
+                      {" "}{plan.byPriority.P0} P0,
+                      {" "}{plan.byPriority.P1} P1,
+                      {" "}{plan.byPriority.P2} P2.
+                      These are not persisted assignments.</p>
+                    <p className="action-link">
+                      <a href={`${api}?${params.toString()}`}>
+                        Download bounded investigation plan (CSV)
+                      </a>
+                    </p>
+                    <div className="remediation-list">
+                      {plan.actions.slice(0, 25).map(action => (
+                        <article className="remediation-card" key={action.key}>
+                          <h4>{action.priority}: {action.type.replaceAll("_", " ")}</h4>
+                          <p>Events: {action.eventIds.join(", ")}</p>
+                          <p>Source observations: {action.sourceCodes.join(", ")}</p>
+                          <p>Next step: {action.nextStep}</p>
+                          <p>Requires human decision: {action.requiresHumanDecision ? "Yes" : "No"}.</p>
+                        </article>
+                      ))}
+                    </div>
+                    {plan.itemCount > 25 ?
+                      <p>Additional suggestions are available in the CSV.</p> : null}
+                  </>
+                );
+              })()}
+            </section>
             <section aria-label="Stored review predecessor sequence">
               <h3>Review events, newest to oldest</h3>
               <div className="remediation-list">
