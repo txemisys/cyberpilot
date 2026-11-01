@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, { params }: Context) {
     }
     const format = raw.format ?? "json";
     delete raw.format;
-    if (format !== "json" && format !== "csv" && format !== "workload-csv" && format !== "trends-csv")
+    if (format !== "json" && format !== "csv" && format !== "workload-csv" && format !== "trends-csv" && format !== "reconciliation-csv")
       throw new WorkInputError("INVALID", "Unknown audit digest format.");
     const result = await loadAuditDigest({
       organizationId: membership.organization.id,
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest, { params }: Context) {
         "Content-Disposition": 'attachment; filename="integrity-audit-digest.csv"',
       },
     });
-    return NextResponse.json({ ...result, workload, trends }, { headers });
+    return NextResponse.json({ ...result, workload, trends, reconciliation }, { headers });
   } catch (error) {
     if (error instanceof WorkInputError)
       return NextResponse.json({ error: error.message, code: error.code }, {
