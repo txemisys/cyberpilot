@@ -1,3 +1,4 @@
+import { planReadinessWorkExecution } from "../../../../../../../../lib/work-integrity-snapshot-readiness-execution";
 import { assessSnapshotOperationalReadiness } from "../../../../../../../../lib/work-integrity-snapshot-readiness";
 import { createReadinessWorkQueue, transitionReadinessWorkItem, validateReadinessWorkQueue, summarizeReadinessWorkQueue } from "../../../../../../../../lib/work-integrity-snapshot-readiness-work";
 import { planJournalArchive } from "../../../../../../../../lib/work-integrity-snapshot-journal-archive";
@@ -87,7 +88,7 @@ async function boundedJson(request: NextRequest): Promise<RecordValue> {
 const operations = new Set([
   "catalog", "manifest", "verify-manifest", "baseline", "compare-latest",
   "incidents", "archive-plan", "archive-partitions", "recovery-plan",
-  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit", "journal-empty", "journal-verify", "journal-reconcile", "journal-plan", "journal-archive-plan", "custody-audit", "readiness", "readiness-work-create", "readiness-work-transition", "readiness-work-validate", "readiness-work-summary",
+  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit", "journal-empty", "journal-verify", "journal-reconcile", "journal-plan", "journal-archive-plan", "custody-audit", "readiness", "readiness-work-create", "readiness-work-transition", "readiness-work-validate", "readiness-work-summary", "readiness-work-execution",
 ]);
 /**
  * Read-only, tenant-scoped offline integrity operations.
@@ -193,6 +194,12 @@ export async function POST(request: NextRequest, { params }: Context) {
         case "readiness-work-validate":
           result = validateReadinessWorkQueue(
             input.queue as Parameters<typeof validateReadinessWorkQueue>[0], organizationId);
+          break;
+        case "readiness-work-execution":
+          result = planReadinessWorkExecution(
+            input.queue as Parameters<typeof planReadinessWorkExecution>[0],
+            organizationId, now,
+            policy(input.policy) as unknown as Parameters<typeof planReadinessWorkExecution>[3]);
           break;
         case "readiness-work-summary":
           result = summarizeReadinessWorkQueue(
