@@ -88,7 +88,7 @@ export async function readStoredIntegrityCapture(
   if (capture.organizationId !== organizationId)
     throw new Error("Stored capture violates tenant isolation.");
   const manifest = buildSnapshotManifest([capture], organizationId, new Date().toISOString());
-  if (manifest.entries[0].sha256 !== row.digest)
+  if (manifest.entries[0]?.sha256 !== row.digest)
     throw new Error("Stored capture integrity check failed.");
   return capture;
 }
