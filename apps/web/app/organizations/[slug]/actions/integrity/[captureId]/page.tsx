@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOrganizationAccess } from "../../../../../../lib/organizations";
-import { canReadWork } from "../../../../../../lib/remediation-work-input";
+import LinkDiagnosticWork from "./link-diagnostic-work";
+import { canManageWork, canReadWork } from "../../../../../../lib/remediation-work-input";
 import { readStoredIntegrityCapture } from "../../../../../../lib/work-integrity-persistent-captures";
 
 type Props = { params: Promise<{ slug: string; captureId: string }> };
@@ -32,7 +33,8 @@ export default async function IntegrityCaptureDetail({ params }: Props) {
           <td><strong>{item.code}</strong><p>{item.diagnostic ?? "No diagnostic text recorded."}</p>
             {item.recommendation && <p>Recommendation: {item.recommendation}</p>}</td>
           <td><code>{item.workItemId}</code><p><Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity`}>Open current work integrity</Link></p></td>
-          <td>{item.completeCoverage ? "Declared complete" : "Partial"}</td>
+          <td>{item.completeCoverage ? "Declared complete" : "Partial"}
+            {canManageWork(membership.role) && <LinkDiagnosticWork slug={slug} captureId={captureId} caseKey={item.key} />}</td>
         </tr>)}</tbody></table>}
     <p>Historical diagnostics and review states may be stale. Consult current work records before taking action.</p>
     <p><Link href={`/organizations/${encodeURIComponent(slug)}/actions/work`}>Open remediation coordination</Link></p>
