@@ -7,6 +7,8 @@ import { planAuditReviewWorkload, reviewWorkloadCsv } from "../../../../../../..
 
 import { analyzeAuditDigestTrends, auditTrendCsv } from "../../../../../../../../lib/work-integrity-audit-digest-trends";
 
+import { reconcileAuditDigest, auditReconciliationCsv } from "../../../../../../../../lib/work-integrity-audit-digest-reconciliation";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 export async function GET(request: NextRequest, { params }: Context) {
@@ -30,6 +32,13 @@ export async function GET(request: NextRequest, { params }: Context) {
       userId: session.user.id, role: membership.role,
     }, raw);
     const workload = planAuditReviewWorkload(result);
+    const reconciliation = reconcileAuditDigest(result);
+    if (format === "reconciliation-csv") return new NextResponse(auditReconciliationCsv(reconciliation), {
+      headers: {
+        ...headers, "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="integrity-audit-reconciliation.csv"',
+      },
+    });
     const trends = analyzeAuditDigestTrends(result);
     if (format === "trends-csv") return new NextResponse(auditTrendCsv(trends), {
       headers: {
