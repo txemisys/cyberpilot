@@ -9,6 +9,8 @@ import { planSnapshotArchive, partitionSnapshotArchive } from "../../../../../..
 import { planSnapshotRecovery, simulateSnapshotRecovery } from "../../../../../../../../lib/work-integrity-snapshot-recovery";
 import { assessSnapshotReleaseBatch } from "../../../../../../../../lib/work-integrity-snapshot-release";
 import { buildSnapshotReviewLedger } from "../../../../../../../../lib/work-integrity-snapshot-reviews";
+import { buildCaseContinuityReport } from "../../../../../../../../lib/work-integrity-case-continuity";
+import { exportSnapshotReport, type SnapshotCsvKind } from "../../../../../../../../lib/work-integrity-snapshot-exports";
 import { buildSnapshotTrendReport } from "../../../../../../../../lib/work-integrity-snapshot-trends";
 import { planSnapshotRetention } from "../../../../../../../../lib/work-integrity-snapshot-retention";
 
@@ -78,7 +80,7 @@ async function boundedJson(request: NextRequest): Promise<RecordValue> {
 const operations = new Set([
   "catalog", "manifest", "verify-manifest", "baseline", "compare-latest",
   "incidents", "archive-plan", "archive-partitions", "recovery-plan",
-  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends",
+  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity",
 ]);
 /**
  * Read-only, tenant-scoped offline integrity operations.
@@ -93,8 +95,12 @@ export async function POST(request: NextRequest, { params }: Context) {
     const { session, membership } = await requireOrganizationAccess(slug);
     if (!session.user.id || !canReadWork(membership.role))
       throw new WorkInputError("FORBIDDEN", "Work review access required.");
-    if ([...request.nextUrl.searchParams.keys()].length)
+    const query = request.nextUrl.searchParams;
+    if ([...query.keys()].some(key => key !== "format") || query.getAll("format").length > 1)
       throw new WorkInputError("INVALID", "Unexpected query parameters.");
+    const format = query.get("format") ?? "json";
+    if (format !== "json" && format !== "csv")
+      throw new WorkInputError("INVALID", "Unsupported response format.");
     const input = await boundedJson(request);
     const operation = string(input.operation, "operation");
     if (!operations.has(operation))
@@ -163,6 +169,10 @@ export async function POST(request: NextRequest, { params }: Context) {
             list(input.events, "review events") as Parameters<typeof buildSnapshotReviewLedger>[1],
             organizationId);
           break;
+        case "continuity":
+          result = buildCaseContinuityReport(captures, organizationId,
+            policy(input.policy) as unknown as Parameters<typeof buildCaseContinuityReport>[2]);
+          break;
         case "trends":
           result = buildSnapshotTrendReport(captures, organizationId, now,
             policy(input.policy) as unknown as Parameters<typeof buildSnapshotTrendReport>[3]);
@@ -175,6 +185,14 @@ export async function POST(request: NextRequest, { params }: Context) {
     } catch (error) {
       throw new WorkInputError("INVALID",
         error instanceof Error ? error.message : "Invalid integrity operation input.");
+    }
+    if (format === "csv") {
+      if (!["catalog", "trends", "incidents", "release-batch", "continuity"].includes(operation))
+        throw new WorkInputError("INVALID", "CSV export is unsupported for this operation.");
+      return new NextResponse(exportSnapshotReport(operation as SnapshotCsvKind, result), {
+        headers: { ...headers, "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": 'attachment; filename="integrity-snapshot-report.csv"' },
+      });
     }
     return NextResponse.json({
       operation, organizationId, evaluatedAt: now, result,
