@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
 import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
-import { loadAuditEventDetail, auditEventDetailCsv, classifyEventInvestigation } from "../../../../../../../../lib/work-integrity-audit-event-detail";
+import { loadAuditEventDetail, auditEventDetailCsv, eventReviewChronologyCsv, classifyEventInvestigation } from "../../../../../../../../lib/work-integrity-audit-event-detail";
 
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
@@ -13,13 +13,19 @@ export async function GET(request: NextRequest, { params }: Context) {
         query.getAll("eventId").length !== 1)
       throw new WorkInputError("INVALID", "Exactly one event identifier is required.");
     const format = query.get("format") ?? "json";
-    if ((format !== "json" && format !== "csv") || query.getAll("format").length > 1)
+    if ((format !== "json" && format !== "csv" && format !== "chronology-csv") || query.getAll("format").length > 1)
       throw new WorkInputError("INVALID", "Unsupported event detail format.");
     const { session, membership } = await requireOrganizationAccess(slug);
     const detail = await loadAuditEventDetail({
       organizationId: membership.organization.id,
       userId: session.user.id, role: membership.role,
     }, query.get("eventId"));
+    if (format === "chronology-csv") return new NextResponse(eventReviewChronologyCsv(detail), {
+      headers: {
+        ...headers, "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="integrity-event-chronology.csv"',
+      },
+    });
     if (format === "csv") return new NextResponse(auditEventDetailCsv(detail), {
       headers: {
         ...headers, "Content-Type": "text/csv; charset=utf-8",
