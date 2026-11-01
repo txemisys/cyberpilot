@@ -5,6 +5,7 @@ import { readStoredIntegrityCapture } from "./work-integrity-persistent-captures
 export const INTEGRITY_WORK_LINK_ACTION = "INTEGRITY_CAPTURE_CASE_LINKED_TO_WORK";
 export const INTEGRITY_WORK_LINK_RESOURCE = "REMEDIATION_WORK_ITEM";
 export const INTEGRITY_WORK_UNLINK_ACTION = "INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK";
+const AUDIT_LINK_HISTORY_LIMIT = 1000;
 export type IntegrityWorkLinkScope = {
   organizationId: string; actorUserId: string; role: WorkRole;
 };
@@ -110,6 +111,21 @@ export async function unlinkIntegrityCaseFromWork(
       select: { id: true },
     });
     if (prior) throw new WorkInputError("CONFLICT", "Evidence association already unlinked.");
+    // Serialize competing withdrawals for this link using a row lock.
+    // Serializable isolation alone does not guarantee an application-level
+    // conflict response when concurrent transactions race on the audit log.
+    await tx.$queryRaw`SELECT id FROM "AuditEvent" WHERE id = ${original.id} FOR UPDATE`;
+    const recheck = await tx.auditEvent.findFirst({
+      where: {
+        organizationId: scope.organizationId,
+        action: INTEGRITY_WORK_UNLINK_ACTION,
+        resourceType: INTEGRITY_WORK_LINK_RESOURCE,
+        resourceId: original.resourceId,
+        metadata: { path: ["originalAuditId"], equals: original.id },
+      },
+      select: { id: true },
+    });
+    if (recheck) throw new WorkInputError("CONFLICT", "Evidence association already unlinked.");
     const audit = await tx.auditEvent.create({
       data: {
         organizationId: scope.organizationId,
@@ -154,7 +170,7 @@ export async function listIntegrityWorkLinkHistory(
       resourceType: INTEGRITY_WORK_LINK_RESOURCE,
     },
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
-    take: 1000,
+    take: AUDIT_LINK_HISTORY_LIMIT,
     select: {
       id: true, action: true, resourceId: true, actorUserId: true,
       occurredAt: true, metadata: true,
@@ -176,7 +192,7 @@ export async function listIntegrityWorkLinkHistory(
       actorUserId: row.actorUserId, occurredAt: row.occurredAt.toISOString(),
     }];
   });
-  return { ...projectIntegrityLinkHistory(events), truncated: rows.length === 1000 };
+  return { ...projectIntegrityLinkHistory(events), truncated: rows.length === AUDIT_LINK_HISTORY_LIMIT };
 }
 export async function listIntegrityWorkLinks(
   organizationId: string, captureId: string,
