@@ -4,7 +4,7 @@ import {
   canManageWork, canReadWork, WorkInputError,
 } from "../../../../../../../../lib/remediation-work-input";
 import {
-  ingestStoredIntegrityCaptures, listStoredIntegrityCaptures,
+  ingestStoredIntegrityCaptures, pageStoredIntegrityCaptures,
   readStoredIntegrityCapture,
 } from "../../../../../../../../lib/work-integrity-persistent-captures";
 
@@ -33,10 +33,12 @@ export async function GET(request: NextRequest, { params }: Context) {
     if (!canReadWork(membership.role))
       throw new WorkInputError("FORBIDDEN", "Capture read access denied.");
     const query = request.nextUrl.searchParams;
-    if ([...query.keys()].some(key => !["id", "limit"].includes(key) ||
+    if ([...query.keys()].some(key => !["id", "limit", "cursor", "source"].includes(key) ||
       query.getAll(key).length !== 1))
       throw new WorkInputError("INVALID", "Invalid capture query.");
     const id = query.get("id");
+    if (id !== null && (query.has("cursor") || query.has("source") || query.has("limit")))
+      throw new WorkInputError("INVALID", "Capture detail cannot be combined with history filters.");
     if (id !== null) {
       if (!/^[a-zA-Z0-9_-]{5,100}$/.test(id))
         throw new WorkInputError("INVALID", "Invalid capture ID.");
@@ -51,9 +53,12 @@ export async function GET(request: NextRequest, { params }: Context) {
     const limit = Number(rawLimit);
     if (limit < 1 || limit > 100)
       throw new WorkInputError("INVALID", "History limit out of range.");
-    const captures = await listStoredIntegrityCaptures(membership.organization.id, limit);
+    const page = await pageStoredIntegrityCaptures(
+      membership.organization.id, limit,
+      query.get("cursor") ?? undefined, query.get("source") ?? undefined,
+    );
     return NextResponse.json({
-      captures,
+      ...page,
       limitations: [
         "Stored captures are historical diagnostic observations, not verified security controls.",
         "Capture completeness is recorded as declared and is not independently authenticated.",
