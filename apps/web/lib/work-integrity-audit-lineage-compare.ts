@@ -120,7 +120,7 @@ export function compareAuditLineages(
     for (const field of fields)
       if (beforeData[field.key] !== afterData[field.key]) add(
         field.kind, "REVIEW", id,
-        beforeData[field.key], afterData[field.key],
+        beforeData[field.key] ?? null, afterData[field.key] ?? null,
         field.explanation, true,
       );
   }
