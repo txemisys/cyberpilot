@@ -111,21 +111,6 @@ export async function unlinkIntegrityCaseFromWork(
       select: { id: true },
     });
     if (prior) throw new WorkInputError("CONFLICT", "Evidence association already unlinked.");
-    // Serialize competing withdrawals for this link using a row lock.
-    // Serializable isolation alone does not guarantee an application-level
-    // conflict response when concurrent transactions race on the audit log.
-    await tx.$queryRaw`SELECT id FROM "AuditEvent" WHERE id = ${original.id} FOR UPDATE`;
-    const recheck = await tx.auditEvent.findFirst({
-      where: {
-        organizationId: scope.organizationId,
-        action: INTEGRITY_WORK_UNLINK_ACTION,
-        resourceType: INTEGRITY_WORK_LINK_RESOURCE,
-        resourceId: original.resourceId,
-        metadata: { path: ["originalAuditId"], equals: original.id },
-      },
-      select: { id: true },
-    });
-    if (recheck) throw new WorkInputError("CONFLICT", "Evidence association already unlinked.");
     const audit = await tx.auditEvent.create({
       data: {
         organizationId: scope.organizationId,
