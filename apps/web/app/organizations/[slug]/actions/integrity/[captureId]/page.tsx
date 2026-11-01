@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireOrganizationAccess } from "../../../../../../lib/organizations";
 import LinkDiagnosticWork from "./link-diagnostic-work";
 import { canManageWork, canReadWork } from "../../../../../../lib/remediation-work-input";
+import { listIntegrityWorkLinks } from "../../../../../../lib/work-integrity-evidence-links";
 import { readStoredIntegrityCapture } from "../../../../../../lib/work-integrity-persistent-captures";
 
 type Props = { params: Promise<{ slug: string; captureId: string }> };
@@ -13,6 +14,13 @@ export default async function IntegrityCaptureDetail({ params }: Props) {
   if (!/^[a-zA-Z0-9_-]{5,100}$/.test(captureId)) notFound();
   const capture = await readStoredIntegrityCapture(membership.organization.id, captureId);
   if (!capture) notFound();
+  const links = await listIntegrityWorkLinks(membership.organization.id, captureId);
+  const linkedByCase = new Map<string, typeof links>();
+  for (const link of links) {
+    const list = linkedByCase.get(link.caseKey) ?? [];
+    list.push(link);
+    linkedByCase.set(link.caseKey, list);
+  }
   const base = `/organizations/${encodeURIComponent(slug)}/actions/integrity`;
   return <main className="shell"><section className="dashboard">
     <p className="eyebrow">CyberPilot · Stored integrity evidence</p>
@@ -34,6 +42,8 @@ export default async function IntegrityCaptureDetail({ params }: Props) {
             {item.recommendation && <p>Recommendation: {item.recommendation}</p>}</td>
           <td><code>{item.workItemId}</code><p><Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity`}>Open current work integrity</Link></p></td>
           <td>{item.completeCoverage ? "Declared complete" : "Partial"}
+            {(linkedByCase.get(item.key) ?? []).map(link =>
+              <p key={link.auditId}>Linked work: <code>{link.workItemId}</code> · {link.occurredAt}</p>)}
             {canManageWork(membership.role) && <LinkDiagnosticWork slug={slug} captureId={captureId} caseKey={item.key} />}</td>
         </tr>)}</tbody></table>}
     <p>Historical diagnostics and review states may be stale. Consult current work records before taking action.</p>
