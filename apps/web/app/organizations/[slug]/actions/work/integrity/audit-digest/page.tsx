@@ -3,6 +3,7 @@ import { requireOrganizationAccess } from "../../../../../../../lib/organization
 import { loadAuditDigest, type AuditDigest } from "../../../../../../../lib/work-integrity-audit-digest";
 import { analyzeAuditDigestTrends } from "../../../../../../../lib/work-integrity-audit-digest-trends";
 import { planAuditReviewWorkload } from "../../../../../../../lib/work-integrity-audit-digest-review";
+import { reconcileAuditDigest } from "../../../../../../../lib/work-integrity-audit-digest-reconciliation";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
 
 type Props = {
@@ -181,6 +182,14 @@ export default async function AuditDigestPage({ params, searchParams }: Props) {
                   </>
                 );
               })()}
+            </section>
+            <section aria-label="Audit source consistency">
+              <h2>Audit accounting consistency</h2>
+              <p>Errors: {reconcileAuditDigest(digest).errors},
+                warnings: {reconcileAuditDigest(digest).warnings},
+                unresolved: {reconcileAuditDigest(digest).unknowns}.</p>
+              <p>These checks reconcile recorded source totals only.
+                They do not independently verify security control operation.</p>
             </section>
             <section aria-label="Daily review counts">
               <h2>Daily review activity</h2>
