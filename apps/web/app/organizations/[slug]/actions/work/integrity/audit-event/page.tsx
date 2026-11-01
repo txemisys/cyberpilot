@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
 import {
-  loadAuditEventDetail, type AuditEventDetail,
+  loadAuditEventDetail, classifyEventInvestigation, eventReviewChronology, type AuditEventDetail,
   type AuditEventLink,
 } from "../../../../../../../lib/work-integrity-audit-event-detail";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
@@ -109,6 +109,40 @@ export default async function AuditEventPage({ params, searchParams }: Props) {
                 Not every related event may be included.
               </p>
             ) : null}
+            <section aria-label="Direct audit review classification">
+              <h3>Source investigation classification</h3>
+              {(() => {
+                const result = classifyEventInvestigation(detail);
+                const chronology = eventReviewChronology(detail);
+                const csv = new URLSearchParams({
+                  eventId: detail.eventId, format: "csv",
+                });
+                return (
+                  <>
+                    <p><strong>{result.classification.replaceAll("_", " ")}</strong>:
+                      {" "}{result.actionableFindings} source errors,
+                      {" "}{result.warningFindings} warnings,
+                      {" "}{result.sourceUnknowns} unknowns.</p>
+                    <p>Observed direct event window: {chronology.firstObservedAt ?? "Unavailable"}
+                      {" "}through {chronology.lastObservedAt ?? "Unavailable"}.</p>
+                    <p>{chronology.events.length} distinct source event references,
+                      {" "}{chronology.reviewActors} known actors,
+                      {" "}{chronology.revisionChanges} observed revision changes,
+                      {" "}{chronology.missingSourceLinks} missing direct links.</p>
+                    <p className="action-link">
+                      <a href={`/api/organizations/${encodeURIComponent(slug)}/actions/work/integrity/audit-event?${csv.toString()}`}>
+                        Download directly linked event records (CSV)
+                      </a>
+                    </p>
+                    <h4>Recommended source follow-ups</h4>
+                    <ul>{result.followups.map((step, index) =>
+                      <li key={index}>{step}</li>)}</ul>
+                    <p>Neither remediation nor control effectiveness has been verified
+                      by this source inspection.</p>
+                  </>
+                );
+              })()}
+            </section>
             <h3>Selected source event</h3>
             {detail.selected ? <EventCard row={detail.selected} /> :
               <p className="auth-error">Audit metadata could not be decoded.</p>}
