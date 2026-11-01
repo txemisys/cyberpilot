@@ -3,7 +3,7 @@ import type { Prisma } from "@cyberpilot/database";
 import { canReadWork, parseWorkId, WorkInputError, type WorkRole } from "./remediation-work-input";
 import {
   TRIAGE_AUDIT_ACTION, TRIAGE_RESOURCE_TYPE,
-  hydrateTriageEvent, type TriageEvent,
+  hydrateTriageEvent, canTransitionTriage, type TriageEvent,
 } from "./work-integrity-triage";
 
 /**
@@ -49,7 +49,9 @@ export type AuditEventDetailIssueCode =
   | "OUTDATED_WORK_REVISION"
   | "REVIEW_ACTOR_UNAVAILABLE"
   | "SOURCE_METADATA_UNINTERPRETABLE"
-  | "EVENT_NOT_IN_TRIAGE_SCOPE";
+  | "EVENT_NOT_IN_TRIAGE_SCOPE"
+  | "INVALID_TRIAGE_TRANSITION"
+  | "DECISION_EVENT_SELF_REFERENCE";
 export type AuditEventDetailIssue = {
   code: AuditEventDetailIssueCode;
   severity: "ERROR" | "WARNING" | "UNKNOWN";
@@ -153,6 +155,23 @@ export function inspectAuditEventDetail(input: {
     "REVIEW_ACTOR_UNAVAILABLE", "WARNING",
     "The recorded review actor is not retained in its user reference.",
     "Inspect source actor and account lifecycle.");
+  if (selected.previousEventId === selected.id) emit(
+    "DECISION_EVENT_SELF_REFERENCE", "ERROR",
+    "The audit review refers to itself as a predecessor.",
+    "Inspect the authoritative audit row and any concurrent review writes.",
+    selected.id);
+  if (selected.previousEventId === null &&
+      !canTransitionTriage(null, selected.decision)) emit(
+    "INVALID_TRIAGE_TRANSITION", "ERROR",
+    "The selected review declares a first decision that is not an allowed start state.",
+    "Reconcile the source event with authorized human triage transition rules.",
+    selected.id);
+  if (predecessor && caseKey(predecessor) === caseKey(selected) &&
+      !canTransitionTriage(predecessor.decision, selected.decision)) emit(
+    "INVALID_TRIAGE_TRANSITION", "ERROR",
+    "The selected decision is not an allowed transition from its recorded predecessor.",
+    "Inspect the authoritative event sequence and review concurrency before proceeding.",
+    predecessor.id);
   if (selected.previousEventId) {
     if (!predecessor) emit("MISSING_PREDECESSOR", "UNKNOWN",
       "The predecessor referenced by the selected event was not available.",
@@ -181,6 +200,13 @@ export function inspectAuditEventDetail(input: {
     "More than one subsequent review points to the selected event.",
     "Inspect concurrent triage decisions and optimistic-lock enforcement.");
   for (const successor of successors) {
+    if (caseKey(successor) === caseKey(selected) &&
+        successor.previousEventId === selected.id &&
+        !canTransitionTriage(selected.decision, successor.decision)) emit(
+      "INVALID_TRIAGE_TRANSITION", "ERROR",
+      "A linked successor records an unauthorized review state transition.",
+      "Inspect the event mutation path and the optimistic locking audit history.",
+      successor.id);
     if (successor.previousEventId !== selected.id) emit(
       "SUCCESSOR_UNLINKED_FROM_SELECTED", "ERROR",
       "The returned event does not actually reference the selected predecessor.",
