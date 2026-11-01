@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../../../../lib/organizations";
 import { loadAuditDigest, type AuditDigest } from "../../../../../../../lib/work-integrity-audit-digest";
+import { planAuditReviewWorkload } from "../../../../../../../lib/work-integrity-audit-digest-review";
 import { WorkInputError } from "../../../../../../../lib/remediation-work-input";
 
 type Props = {
@@ -106,6 +107,48 @@ export default async function AuditDigestPage({ params, searchParams }: Props) {
                 Download daily recorded review counts (CSV)
               </a>
             </p>
+            <section aria-label="Suggested audit investigation workload">
+              <h2>Human investigation follow-ups</h2>
+              {(() => {
+                const workload = planAuditReviewWorkload(digest);
+                const params = new URLSearchParams(search);
+                params.set("format", "workload-csv");
+                return (
+                  <>
+                    <p>{workload.itemCount} investigation suggestions,
+                      {" "}{workload.casesNeedingReview} distinct cases
+                      and {workload.sourceQualityItems} source-coverage actions.
+                      These recommendations are not persisted assignments.</p>
+                    <p className="action-link">
+                      <a href={`${api}?${params.toString()}`}>
+                        Download proposed audit follow-ups (CSV)
+                      </a>
+                    </p>
+                    {workload.items.length ? (
+                      <div className="remediation-list">
+                        {workload.items.slice(0, 50).map(item => (
+                          <article className="remediation-card" key={item.id}>
+                            <div className="remediation-heading">
+                              <h3>{item.kind.replaceAll("_", " ")}</h3>
+                              <span className="role-badge">{item.priority}</span>
+                            </div>
+                            {item.workItemId ? <p>Work: {item.workItemId}</p> : null}
+                            {item.day ? <p>Source day: {item.day}</p> : null}
+                            <p>{item.occurrences} related recorded occurrences.</p>
+                            <p>{item.explanation}</p>
+                            <p><strong>Next step:</strong> {item.recommendedAction}</p>
+                          </article>
+                        ))}
+                      </div>
+                    ) : <p>No follow-ups were identified within the selected bounds.</p>}
+                    {workload.omittedItems > 0 ? (
+                      <p>{workload.omittedItems} suggestions were omitted
+                        by the bounded workload limit.</p>
+                    ) : null}
+                  </>
+                );
+              })()}
+            </section>
             <section aria-label="Daily review counts">
               <h2>Daily review activity</h2>
               <div className="remediation-list">
