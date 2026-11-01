@@ -4,6 +4,7 @@ import { readStoredIntegrityCapture } from "./work-integrity-persistent-captures
 
 export const INTEGRITY_WORK_LINK_ACTION = "INTEGRITY_CAPTURE_CASE_LINKED_TO_WORK";
 export const INTEGRITY_WORK_LINK_RESOURCE = "REMEDIATION_WORK_ITEM";
+export const INTEGRITY_WORK_UNLINK_ACTION = "INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK";
 export type IntegrityWorkLinkScope = {
   organizationId: string; actorUserId: string; role: WorkRole;
 };
@@ -11,6 +12,7 @@ export type IntegrityWorkLink = {
   auditId: string; captureId: string; caseKey: string; workItemId: string;
   actorUserId: string | null; occurredAt: string;
 };
+export type IntegrityWorkLinkHistory = IntegrityWorkLink & { action: "LINK" | "UNLINK" };
 export function parseIntegrityWorkLinkInput(value: unknown): {
   captureId: string; caseKey: string; workItemId: string;
 } {
@@ -65,6 +67,72 @@ export async function linkIntegrityCaseToWork(
     workItemId: input.workItemId, actorUserId: audit.actorUserId,
     occurredAt: audit.occurredAt.toISOString(),
   };
+}
+export function parseIntegrityWorkUnlinkInput(value: unknown): { auditId: string } {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new WorkInputError("INVALID", "Expected an unlink object.");
+  const input = value as Record<string, unknown>;
+  if (Object.keys(input).length !== 1 || !("auditId" in input))
+    throw new WorkInputError("INVALID", "Only auditId is accepted.");
+  return { auditId: parseWorkId(input.auditId, "audit ID") };
+}
+export async function unlinkIntegrityCaseFromWork(
+  scope: IntegrityWorkLinkScope, value: unknown,
+): Promise<{ auditId: string; originalAuditId: string }> {
+  if (!scope.organizationId || !scope.actorUserId || !canManageWork(scope.role))
+    throw new WorkInputError("FORBIDDEN", "Organization administrator required.");
+  const { auditId } = parseIntegrityWorkUnlinkInput(value);
+  return db.$transaction(async tx => {
+    const original = await tx.auditEvent.findFirst({
+      where: {
+        id: auditId, organizationId: scope.organizationId,
+        action: INTEGRITY_WORK_LINK_ACTION,
+        resourceType: INTEGRITY_WORK_LINK_RESOURCE,
+      },
+      select: { id: true, resourceId: true, metadata: true },
+    });
+    if (!original) throw new WorkInputError("MISSING", "Evidence association not found.");
+    const metadata = original.metadata;
+    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata))
+      throw new WorkInputError("INVALID", "Invalid association metadata.");
+    const data = metadata as Record<string, unknown>;
+    if (typeof data.captureId !== "string" || typeof data.caseKey !== "string" ||
+        !original.resourceId)
+      throw new WorkInputError("INVALID", "Invalid association identity.");
+    const prior = await tx.auditEvent.findFirst({
+      where: {
+        organizationId: scope.organizationId,
+        action: INTEGRITY_WORK_UNLINK_ACTION,
+        resourceType: INTEGRITY_WORK_LINK_RESOURCE,
+        resourceId: original.resourceId,
+        metadata: { path: ["originalAuditId"], equals: original.id },
+      },
+      select: { id: true },
+    });
+    if (prior) throw new WorkInputError("CONFLICT", "Evidence association already unlinked.");
+    const audit = await tx.auditEvent.create({
+      data: {
+        organizationId: scope.organizationId,
+        actorType: "USER", actorUserId: scope.actorUserId,
+        action: INTEGRITY_WORK_UNLINK_ACTION,
+        resourceType: INTEGRITY_WORK_LINK_RESOURCE,
+        resourceId: original.resourceId,
+        metadata: {
+          originalAuditId: original.id, captureId: data.captureId,
+          caseKey: data.caseKey, workItemId: original.resourceId,
+          limitation: "Historical link withdrawn; audit history retained.",
+        },
+      },
+      select: { id: true },
+    });
+    return { auditId: audit.id, originalAuditId: original.id };
+  }, { isolationLevel: "Serializable" });
+}
+export function activeIntegrityWorkLinks(history: readonly IntegrityWorkLinkHistory[]): IntegrityWorkLink[] {
+  const unlinked = new Set(history.filter(row => row.action === "UNLINK")
+    .map(row => row.auditId));
+  return history.filter(row => row.action === "LINK" && !unlinked.has(row.auditId))
+    .map(({ action: _action, ...row }) => row);
 }
 export async function listIntegrityWorkLinks(
   organizationId: string, captureId: string,
