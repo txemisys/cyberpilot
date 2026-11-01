@@ -164,3 +164,42 @@ describe("spreadsheet-safe snapshot exports", () => {
     expect(exportSnapshotReport("continuity", report)).toBe(caseContinuityCsv(report));
   });
 });
+
+describe("CSV export boundaries", () => {
+  it("uses CRLF row separators for spreadsheet interoperability", () => {
+    const report = buildSnapshotCatalog([capture(1)], tenant);
+    const csv = snapshotCatalogCsv(report);
+    expect(csv).toContain("\r\n");
+    expect(csv.endsWith("\r\n")).toBe(true);
+  });
+  it("does not emit undefined as a literal for empty catalog data", () => {
+    const report = buildSnapshotCatalog([], tenant);
+    const csv = snapshotCatalogCsv(report);
+    expect(csv).not.toContain("undefined");
+    expect(csv).not.toContain("null");
+  });
+  it("keeps separate source rows distinct", () => {
+    const report = buildSnapshotCatalog([
+      capture(1, "source-a"), capture(1, "source-b"),
+    ], tenant);
+    const csv = snapshotCatalogCsv(report);
+    expect(csv).toContain('"source-a"');
+    expect(csv).toContain('"source-b"');
+  });
+  it("does not classify missing captures as successful remediation", () => {
+    const report = buildCaseContinuityReport([
+      capture(1), capture(2, "source-a", false),
+    ], tenant, continuityPolicy);
+    expect(report.warnings.some(warning => warning.includes("remediation"))).toBe(true);
+  });
+  it("does not expose an empty report as authenticated evidence", () => {
+    const report = buildSnapshotTrendReport([], tenant, now, trendPolicy);
+    expect(report.warnings.some(warning => warning.includes("provenance"))).toBe(true);
+  });
+  it("provides a header even when incident detection finds no alerts", () => {
+    const report = detectSnapshotIncidents([capture(1)], tenant, incidentPolicy);
+    const csv = snapshotIncidentCsv(report);
+    expect(csv).toContain('"severity"');
+    expect(csv).toContain('"nextAction"');
+  });
+});
