@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
 import { canReadWork, WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import { parseTimelineInput } from "../../../../../../../../lib/work-integrity-case-timeline";
+import { planContinuityActions, continuityActionsCsv } from "../../../../../../../../lib/work-integrity-continuity-actions";
 import {
   analyzeReviewContinuity, reviewContinuityCsv,
 } from "../../../../../../../../lib/work-integrity-review-continuity";
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         query.getAll("format").length > 1)
       throw new WorkInputError("INVALID", "Invalid continuity option.");
     const format = query.get("format") ?? "json";
-    if (format !== "json" && format !== "csv")
+    if (format !== "json" && format !== "csv" && format !== "actions-csv")
       throw new WorkInputError("INVALID", "Unsupported continuity format.");
     const body = await readBoundedJson(request);
     let report: ReturnType<typeof analyzeReviewContinuity>;
@@ -75,6 +76,16 @@ export async function POST(request: NextRequest, { params }: Context) {
       throw new WorkInputError("INVALID", error instanceof Error
         ? error.message : "Invalid continuity capture.");
     }
+    const actionPlan = planContinuityActions(report);
+    if (format === "actions-csv") {
+      return new NextResponse(continuityActionsCsv(actionPlan), {
+        headers: {
+          ...common,
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": 'attachment; filename="integrity-review-actions.csv"',
+        },
+      });
+    }
     if (format === "csv") {
       return new NextResponse(reviewContinuityCsv(report), {
         headers: {
@@ -84,7 +95,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         },
       });
     }
-    return NextResponse.json(report, { headers: common });
+    return NextResponse.json({ ...report, actionPlan }, { headers: common });
   } catch (error) {
     if (error instanceof WorkInputError) {
       return NextResponse.json({ error: error.message, code: error.code }, {
