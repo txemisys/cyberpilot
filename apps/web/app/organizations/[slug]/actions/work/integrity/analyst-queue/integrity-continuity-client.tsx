@@ -32,6 +32,7 @@ type Continuity = {
   transitions: Transition[];
   affectedCaseKeys: string[];
   limitations: string[];
+  actionSummary: string[];
   actionPlan: {
     totalActionCandidates: number;
     truncated: boolean;
@@ -175,6 +176,11 @@ export default function IntegrityContinuityClient({ slug }: Props) {
               </div>
             ))}
           </div>
+          <section aria-label="Manager-oriented continuity summary">
+            <h4>Review workload overview</h4>
+            <ul>{report.actionSummary.map((line, index) =>
+              <li key={index}>{line}</li>)}</ul>
+          </section>
           <section aria-label="Human investigation handoffs">
             <h4>Suggested follow-up actions</h4>
             <p>
