@@ -356,8 +356,8 @@ export async function loadAuditEventDetail(
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
     take: 1001, select,
   });
-  const successors = rawSuccessors.map(hydrateTriageEvent)
-    .filter((event): event is TriageEvent => !!event && event.previousEventId === id);
+  const successors = rawSuccessors.filter(row =>
+    hydrateTriageEvent(row)?.previousEventId === id);
   const work = selected?.workItemId ? await db.remediationWorkItem.findFirst({
     where: { id: selected.workItemId, organizationId: scope.organizationId },
     select: { id: true, title: true, status: true, revision: true },
