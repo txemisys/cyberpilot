@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireOrganizationAccess } from "../../../../../../lib/organizations";
 import LinkDiagnosticWork from "./link-diagnostic-work";
+import WithdrawEvidenceLink from "./withdraw-evidence-link";
 import { canManageWork, canReadWork } from "../../../../../../lib/remediation-work-input";
 import { listIntegrityWorkLinkHistory } from "../../../../../../lib/work-integrity-evidence-links";
 import { readStoredIntegrityCapture } from "../../../../../../lib/work-integrity-persistent-captures";
@@ -36,7 +37,11 @@ export default async function IntegrityCaptureDetail({ params }: Props) {
     {!capture.complete && <p role="status">Incomplete capture: missing cases cannot be interpreted as resolved.</p>}
     <h2>Recorded diagnostic cases</h2>
     {history.truncated && <p role="status">The evidence association audit history is truncated to 1,000 events; displayed active links may be incomplete.</p>}
-    {history.withdrawn.length > 0 && <p>{history.withdrawn.length} previous association(s) withdrawn. Audit history is retained.</p>}
+    {history.withdrawn.length > 0 && <details><summary>{history.withdrawn.length} withdrawn association(s) · audit history retained</summary>
+      <ul>{history.withdrawn.map(link => <li key={link.auditId}>
+        <code>{link.workItemId}</code> · case <code>{link.caseKey}</code> · originally recorded {link.occurredAt}
+      </li>)}</ul>
+    </details>}
     {capture.cases.length === 0 ? <p>No cases were recorded in this capture. This does not prove the environment is secure.</p> :
       <table><thead><tr><th>Severity</th><th>State</th><th>Diagnostic</th><th>Work item</th><th>Coverage</th></tr></thead>
         <tbody>{capture.cases.map(item => <tr key={item.key}>
@@ -46,7 +51,8 @@ export default async function IntegrityCaptureDetail({ params }: Props) {
           <td><code>{item.workItemId}</code><p><Link href={`/organizations/${encodeURIComponent(slug)}/actions/work/integrity`}>Open current work integrity</Link></p></td>
           <td>{item.completeCoverage ? "Declared complete" : "Partial"}
             {(linkedByCase.get(item.key) ?? []).map(link =>
-              <p key={link.auditId}>Linked work: <code>{link.workItemId}</code> · {link.occurredAt}</p>)}
+              <p key={link.auditId}>Linked work: <code>{link.workItemId}</code> · {link.occurredAt}
+                {canManageWork(membership.role) && <WithdrawEvidenceLink slug={slug} auditId={link.auditId} workItemId={link.workItemId} />}</p>)}
             {canManageWork(membership.role) && <LinkDiagnosticWork slug={slug} captureId={captureId} caseKey={item.key} />}</td>
         </tr>)}</tbody></table>}
     <p>Historical diagnostics and review states may be stale. Consult current work records before taking action.</p>
