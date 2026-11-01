@@ -112,11 +112,11 @@ describe("integrated snapshot readiness gate", () => {
   });
   it("blocks duplicate capture identities", () => {
     expect(() => report([capture(30), capture(30)]))
-      .toThrow(/Duplicate readiness/);
+      .toThrow(/Duplicate (?:readiness|manifest capture identity)/);
   });
   it("blocks duplicate incoming identities", () => {
     expect(() => report([capture(30)], [capture(29), capture(29)]))
-      .toThrow(/Duplicate readiness/);
+      .toThrow(/Duplicate (?:readiness|manifest capture identity)/);
   });
   it("returns a canonical manifest with the actual capture count", () => {
     const result = report([capture(30)]);
