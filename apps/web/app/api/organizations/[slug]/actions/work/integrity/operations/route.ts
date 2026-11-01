@@ -85,7 +85,7 @@ async function boundedJson(request: NextRequest): Promise<RecordValue> {
 const operations = new Set([
   "catalog", "manifest", "verify-manifest", "baseline", "compare-latest",
   "incidents", "archive-plan", "archive-partitions", "recovery-plan",
-  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit", "journal-empty", "journal-verify", "journal-reconcile", "journal-plan", "journal-archive-plan", "custody-audit", "readiness",
+  "recovery-simulate", "release-batch", "review-ledger", "retention-plan", "trends", "continuity", "ingestion-plan", "ingestion-materialize", "source-inventory", "inventory-manifest-audit", "journal-empty", "journal-verify", "journal-reconcile", "journal-plan", "journal-archive-plan", "custody-audit", "readiness", "readiness-work-create", "readiness-work-transition", "readiness-work-validate", "readiness-work-summary",
 ]);
 /**
  * Read-only, tenant-scoped offline integrity operations.
@@ -173,6 +173,28 @@ export async function POST(request: NextRequest, { params }: Context) {
           result = buildSnapshotReviewLedger(captures,
             list(input.events, "review events") as Parameters<typeof buildSnapshotReviewLedger>[1],
             organizationId);
+          break;
+        case "readiness-work-create":
+          result = createReadinessWorkQueue(
+            input.report as Parameters<typeof createReadinessWorkQueue>[0],
+            organizationId, now,
+            policy(input.policy) as unknown as Parameters<typeof createReadinessWorkQueue>[3],
+            input.existingQueue as Parameters<typeof createReadinessWorkQueue>[4]);
+          break;
+        case "readiness-work-transition":
+          result = transitionReadinessWorkItem(
+            input.queue as Parameters<typeof transitionReadinessWorkItem>[0],
+            input.transition as Parameters<typeof transitionReadinessWorkItem>[1],
+            organizationId,
+            policy(input.policy) as unknown as Parameters<typeof transitionReadinessWorkItem>[3]);
+          break;
+        case "readiness-work-validate":
+          result = validateReadinessWorkQueue(
+            input.queue as Parameters<typeof validateReadinessWorkQueue>[0], organizationId);
+          break;
+        case "readiness-work-summary":
+          result = summarizeReadinessWorkQueue(
+            input.queue as Parameters<typeof summarizeReadinessWorkQueue>[0], organizationId);
           break;
         case "readiness":
           result = assessSnapshotOperationalReadiness(captures,
