@@ -157,7 +157,7 @@ export function planBranchActions(
 export function branchActionsCsv(report: BranchActionPlan): string {
   const quote = (value: unknown): string => {
     const raw = String(value ?? "");
-    const neutral = /^[\s\u0000-\001f]*[=+@\-]/.test(raw) ? "'" + raw : raw;
+    const neutral = /^[\s\u0000-\u001f]*[=+@\-]/.test(raw) ? "'" + raw : raw;
     return '"' + neutral.replace(/"/g, '""') + '"';
   };
   const columns = ["priority", "type", "workItemId", "caseKey", "eventIds",
