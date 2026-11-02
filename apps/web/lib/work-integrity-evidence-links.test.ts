@@ -226,6 +226,8 @@ describe("diagnostic evidence to work associations", () => {
     const firstMayCommit = new Promise<void>(resolve => { releaseFirst = resolve; });
     let firstHasLock = false;
     let withdrawn = false;
+    let signalCommit!: () => void;
+    const committed = new Promise<void>(resolve => { signalCommit = resolve; });
     mocks.transaction.mockImplementation(async (
       fn: (tx: unknown) => Promise<unknown>,
     ) => {
@@ -239,6 +241,7 @@ describe("diagnostic evidence to work associations", () => {
           }),
           create: vi.fn(async () => {
             withdrawn = true;
+            signalCommit();
             return { id: "withdrawal-123" };
           }),
         },
@@ -248,7 +251,7 @@ describe("diagnostic evidence to work associations", () => {
             notifyFirst();
             await firstMayCommit;
           } else {
-            await firstMayCommit;
+            await committed;
           }
           return [];
         }),
