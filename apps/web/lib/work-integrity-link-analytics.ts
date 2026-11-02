@@ -2,12 +2,12 @@ import type { IntegrityLinkHistoryEvent } from "./work-integrity-evidence-links"
 import { WorkInputError } from "./remediation-work-input";
 
 export type LinkAnalyticsFilter = {
-  caseKey?: string;
-  workItemId?: string;
-  actorUserId?: string;
-  action?: "LINK" | "UNLINK";
-  since?: string;
-  until?: string;
+  caseKey?: string | undefined;
+  workItemId?: string | undefined;
+  actorUserId?: string | undefined;
+  action?: "LINK" | "UNLINK" | undefined;
+  since?: string | undefined;
+  until?: string | undefined;
 };
 export type LinkAnalyticsSort = "newest" | "oldest" | "case" | "work";
 export type LinkAnalyticsQuery = {
@@ -192,8 +192,8 @@ export function analyzeIntegrityLinkEvents(
   let activeLinks = 0;
   let withdrawnLinks = 0;
   for (const event of events) {
-    firstEventAt = firstEventAt === null || event.occurredAt < firstEventAt ?
-      event.occurredAt : firstEventAt;
+    if (firstEventAt === null || event.occurredAt < firstEventAt)
+      firstEventAt = event.occurredAt;
     lastEventAt = latest(lastEventAt, event.occurredAt);
     const day = event.occurredAt.slice(0, 10);
     const daily = days.get(day) ?? { day, linksCreated: 0, withdrawals: 0 };
