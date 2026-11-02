@@ -185,7 +185,9 @@ export function validateIntegrityHistoryCursor(value: IntegrityHistoryCursor) {
     throw new WorkInputError("INVALID", "Invalid history cursor timestamp.");
   return { occurredAt: new Date(value.occurredAt), auditId: parseWorkId(value.auditId, "audit ID") };
 }
-export async function listIntegrityWorkLinkHistoryPage(
+type IntegrityHistoryReader = Pick<typeof db, "auditEvent">;
+async function readIntegrityHistoryPage(
+  reader: IntegrityHistoryReader,
   organizationId: string, captureId: string,
   cursor?: IntegrityHistoryCursor, pageSize = 100,
 ): Promise<IntegrityHistoryPage> {
@@ -194,7 +196,7 @@ export async function listIntegrityWorkLinkHistoryPage(
   if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > AUDIT_LINK_HISTORY_LIMIT)
     throw new WorkInputError("INVALID", "Invalid history page size.");
   const after = cursor ? validateIntegrityHistoryCursor(cursor) : null;
-  const rows = await db.auditEvent.findMany({
+  const rows = await reader.auditEvent.findMany({
     where: {
       organizationId,
       action: { in: [INTEGRITY_WORK_LINK_ACTION, INTEGRITY_WORK_UNLINK_ACTION] },
@@ -225,6 +227,12 @@ export async function listIntegrityWorkLinkHistoryPage(
       { occurredAt: last.occurredAt.toISOString(), auditId: last.id } : null,
   };
 }
+export async function listIntegrityWorkLinkHistoryPage(
+  organizationId: string, captureId: string,
+  cursor?: IntegrityHistoryCursor, pageSize = 100,
+): Promise<IntegrityHistoryPage> {
+  return readIntegrityHistoryPage(db, organizationId, captureId, cursor, pageSize);
+}
 export async function listIntegrityWorkLinkHistory(
   organizationId: string, captureId: string,
 ) {
@@ -242,21 +250,25 @@ export async function listIntegrityWorkLinkHistory(
 export async function listCompleteIntegrityWorkLinkState(
   organizationId: string, captureId: string,
 ) {
-  const events: IntegrityLinkHistoryEvent[] = [];
-  let cursor: IntegrityHistoryCursor | undefined;
-  const seen = new Set<string>();
-  while (true) {
-    const page = await listIntegrityWorkLinkHistoryPage(
-      organizationId, captureId, cursor, AUDIT_LINK_HISTORY_LIMIT,
-    );
-    events.push(...page.events);
-    if (!page.hasMore) break;
-    if (!page.nextCursor || seen.has(page.nextCursor.auditId))
-      throw new WorkInputError("INVALID", "Integrity history pagination did not advance.");
-    seen.add(page.nextCursor.auditId);
-    cursor = page.nextCursor;
-  }
-  return projectIntegrityLinkHistory(events);
+  if (!organizationId) throw new WorkInputError("FORBIDDEN", "Organization required.");
+  parseWorkId(captureId, "capture ID");
+  return db.$transaction(async tx => {
+    const events: IntegrityLinkHistoryEvent[] = [];
+    let cursor: IntegrityHistoryCursor | undefined;
+    const seen = new Set<string>();
+    while (true) {
+      const page = await readIntegrityHistoryPage(
+        tx, organizationId, captureId, cursor, AUDIT_LINK_HISTORY_LIMIT,
+      );
+      events.push(...page.events);
+      if (!page.hasMore) break;
+      if (!page.nextCursor || seen.has(page.nextCursor.auditId))
+        throw new WorkInputError("INVALID", "Integrity history pagination did not advance.");
+      seen.add(page.nextCursor.auditId);
+      cursor = page.nextCursor;
+    }
+    return projectIntegrityLinkHistory(events);
+  }, { isolationLevel: "RepeatableRead" });
 }
 export async function listIntegrityWorkLinks(
   organizationId: string, captureId: string,
