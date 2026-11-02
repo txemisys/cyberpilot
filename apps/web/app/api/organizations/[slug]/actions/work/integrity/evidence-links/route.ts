@@ -24,13 +24,38 @@ export async function GET(request: NextRequest, { params }: Context) {
     if (!canReadWork(membership.role))
       throw new WorkInputError("FORBIDDEN", "Organization access required.");
     const search = request.nextUrl.searchParams;
-    if ([...search.keys()].some(key => !["captureId", "cursorAt", "cursorId", "limit", "view"].includes(key)) ||
-        search.getAll("captureId").length !== 1)
-      throw new WorkInputError("INVALID", "Exactly one capture ID is required.");
-    const history = await listIntegrityWorkLinkHistory(
-      membership.organization.id, search.get("captureId")!,
+    const allowed = new Set(["captureId", "view", "limit", "cursorAt", "cursorId"]);
+    if ([...search.keys()].some(key => !allowed.has(key)) ||
+        search.getAll("captureId").length !== 1 ||
+        ["view", "limit", "cursorAt", "cursorId"].some(key => search.getAll(key).length > 1))
+      throw new WorkInputError("INVALID", "Invalid history query parameters.");
+    const organizationId = membership.organization.id;
+    const captureId = search.get("captureId")!;
+    const view = search.get("view") ?? "history";
+    if (view === "history" || view === "state") {
+      if (["limit", "cursorAt", "cursorId"].some(key => search.has(key)))
+        throw new WorkInputError("INVALID", "Pagination is only supported for page view.");
+      if (view === "history")
+        return NextResponse.json({
+          history: await listIntegrityWorkLinkHistory(organizationId, captureId),
+        }, { headers });
+      const { active, withdrawn } = await listCompleteIntegrityWorkLinkState(organizationId, captureId);
+      return NextResponse.json({ state: { active, withdrawn } }, { headers });
+    }
+    if (view !== "page") throw new WorkInputError("INVALID", "Invalid history view.");
+    const at = search.get("cursorAt");
+    const id = search.get("cursorId");
+    if ((at === null) !== (id === null))
+      throw new WorkInputError("INVALID", "Both cursor fields are required.");
+    const limit = search.get("limit");
+    if (limit !== null && !/^[1-9][0-9]{0,3}$/.test(limit))
+      throw new WorkInputError("INVALID", "Invalid history page limit.");
+    const page = await listIntegrityWorkLinkHistoryPage(
+      organizationId, captureId,
+      at !== null && id !== null ? { occurredAt: at, auditId: id } : undefined,
+      limit === null ? 100 : Number(limit),
     );
-    return NextResponse.json({ history }, { headers });
+    return NextResponse.json({ page }, { headers });
   } catch (error) { return failure(error); }
 }
 export async function POST(request: NextRequest, { params }: Context) {
