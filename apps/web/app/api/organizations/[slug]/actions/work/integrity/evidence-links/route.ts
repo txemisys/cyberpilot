@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
 import { canReadWork, WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 import {
-  linkIntegrityCaseToWork, listIntegrityWorkLinkHistory, unlinkIntegrityCaseFromWork,
+  linkIntegrityCaseToWork, listIntegrityWorkLinkHistory, listIntegrityWorkLinkHistoryPage,
+  listCompleteIntegrityWorkLinkState, unlinkIntegrityCaseFromWork,
 } from "../../../../../../../../lib/work-integrity-evidence-links";
 
 type Context = { params: Promise<{ slug: string }> };
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest, { params }: Context) {
     if (!canReadWork(membership.role))
       throw new WorkInputError("FORBIDDEN", "Organization access required.");
     const search = request.nextUrl.searchParams;
-    if ([...search.keys()].some(key => key !== "captureId") ||
+    if ([...search.keys()].some(key => !["captureId", "cursorAt", "cursorId", "limit", "view"].includes(key)) ||
         search.getAll("captureId").length !== 1)
       throw new WorkInputError("INVALID", "Exactly one capture ID is required.");
     const history = await listIntegrityWorkLinkHistory(
