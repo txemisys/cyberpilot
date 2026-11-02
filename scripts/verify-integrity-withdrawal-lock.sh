@@ -42,14 +42,11 @@ WHERE "organizationId"='$org'
 COMMIT;
 SQL
 )"
-second_count="$(printf '%s\\n' "$second_result" | grep -E '^[0-9]+"$("${db[@]}" -c "SELECT COUNT(*) FROM \"AuditEvent\" WHERE action='INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK' AND metadata->>'originalAuditId'='$original';")"
-test "$count" = "1" || { echo "ERROR: withdrawal audit event was not committed"; exit 1; }
-echo "PostgreSQL withdrawal lock and immutable audit event verified."
- | tail -n 1)"
+second_count="$(printf '%s\\n' "$second_result" | grep -E '^[0-9]+$' | tail -n 1)"
 test "$second_count" = "1" || {
   echo "ERROR: second transaction did not observe the committed withdrawal"
   exit 1
 }
-count="$("${db[@]}" -c "SELECT COUNT(*) FROM \"AuditEvent\" WHERE action='INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK' AND metadata->>'originalAuditId'='$original';")"
+count="$("${db[@]}" -c "SELECT COUNT(*) FROM \\"AuditEvent\\" WHERE action='INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK' AND metadata->>'originalAuditId'='$original';")"
 test "$count" = "1" || { echo "ERROR: withdrawal audit event was not committed"; exit 1; }
 echo "PostgreSQL withdrawal lock and immutable audit event verified."
