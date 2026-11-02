@@ -164,3 +164,39 @@ export function buildIntegrityReviewWatchHistory(
     },
   };
 }
+
+export type IntegrityWatchSeverityDistribution = {
+  healthy: string[];
+  warning: string[];
+  error: string[];
+  incomplete: string[];
+};
+export function distributeIntegrityWatchStatuses(
+  summary: IntegrityReviewWatchSummary,
+): IntegrityWatchSeverityDistribution {
+  const distribution: IntegrityWatchSeverityDistribution = {
+    healthy: [], warning: [], error: [], incomplete: [],
+  };
+  for (const watch of summary.watches) {
+    if (watch.status === "HEALTHY") distribution.healthy.push(watch.id);
+    else if (watch.status === "WARNINGS") distribution.warning.push(watch.id);
+    else if (watch.status === "ERRORS") distribution.error.push(watch.id);
+    else distribution.incomplete.push(watch.id);
+  }
+  for (const ids of Object.values(distribution)) ids.sort();
+  return distribution;
+}
+export function findRegressedIntegrityWatchpoints(
+  before: IntegrityReviewWatchSummary,
+  after: IntegrityReviewWatchSummary,
+): string[] {
+  if (before.captureId !== after.captureId)
+    throw new WorkInputError("INVALID", "Watch summaries belong to different captures.");
+  const previous = new Map(before.watches.map(watch => [watch.id, watch]));
+  return after.watches.filter(watch => {
+    const old = previous.get(watch.id);
+    if (!old) return false;
+    const severity = { HEALTHY: 0, WARNINGS: 1, ERRORS: 2, INCOMPLETE: 3 };
+    return severity[watch.status] > severity[old.status];
+  }).map(watch => watch.id).sort();
+}
