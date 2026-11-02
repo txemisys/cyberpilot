@@ -261,6 +261,128 @@ describe("diagnostic evidence to work associations", () => {
     expect(mocks.auditFind).not.toHaveBeenCalled();
   });
 
+  it("keeps history cursor tenant scoped after advancing a page", async () => {
+    mocks.auditFind.mockResolvedValueOnce([]);
+    await listIntegrityWorkLinkHistoryPage(
+      "tenant-b", "capture-123",
+      { occurredAt: "2026-11-01T10:00:00.000Z", auditId: "audit-123" }, 25,
+    );
+    expect(mocks.auditFind).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        organizationId: "tenant-b",
+        metadata: { path: ["captureId"], equals: "capture-123" },
+        OR: [
+          { occurredAt: { lt: new Date("2026-11-01T10:00:00.000Z") } },
+          { occurredAt: new Date("2026-11-01T10:00:00.000Z"), id: { lt: "audit-123" } },
+        ],
+      }),
+      take: 26,
+    }));
+  });
+
+  it("does not accept a cursor with a malformed timestamp", async () => {
+    await expect(listIntegrityWorkLinkHistoryPage(
+      "org-123", "capture-123", { occurredAt: "not-a-date", auditId: "audit-123" },
+    )).rejects.toMatchObject({ code: "INVALID" });
+    expect(mocks.auditFind).not.toHaveBeenCalled();
+  });
+
+  it("does not accept a cursor with a malformed audit identifier", async () => {
+    await expect(listIntegrityWorkLinkHistoryPage(
+      "org-123", "capture-123",
+      { occurredAt: "2026-11-01T10:00:00.000Z", auditId: "?" },
+    )).rejects.toMatchObject({ code: "INVALID" });
+    expect(mocks.auditFind).not.toHaveBeenCalled();
+  });
+
+  it("requires an organization for every paged history read", async () => {
+    await expect(listIntegrityWorkLinkHistoryPage(
+      "", "capture-123",
+    )).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(mocks.auditFind).not.toHaveBeenCalled();
+  });
+
+  it("rejects fractional, negative and zero page sizes", async () => {
+    for (const size of [0, -1, 1.5, NaN, Infinity]) {
+      await expect(listIntegrityWorkLinkHistoryPage(
+        "org-123", "capture-123", undefined, size,
+      )).rejects.toMatchObject({ code: "INVALID" });
+    }
+    expect(mocks.auditFind).not.toHaveBeenCalled();
+  });
+
+  it("preserves chronological cursor when a row has invalid metadata", async () => {
+    const rows = [
+      { id: "audit-9", action: INTEGRITY_WORK_LINK_ACTION,
+        resourceId: "work-456", actorUserId: "user-123",
+        occurredAt: new Date("2026-11-01T12:00:00.000Z"),
+        metadata: { captureId: "capture-123", caseKey } },
+      { id: "audit-8", action: INTEGRITY_WORK_LINK_ACTION,
+        resourceId: "work-456", actorUserId: "user-123",
+        occurredAt: new Date("2026-11-01T11:00:00.000Z"),
+        metadata: null },
+    ];
+    mocks.auditFind.mockResolvedValueOnce(rows);
+    const page = await listIntegrityWorkLinkHistoryPage(
+      "org-123", "capture-123", undefined, 1,
+    );
+    expect(page.events.map(event => event.auditId)).toEqual(["audit-9"]);
+    expect(page.hasMore).toBe(true);
+    expect(page.nextCursor).toEqual({
+      occurredAt: "2026-11-01T12:00:00.000Z", auditId: "audit-9",
+    });
+  });
+
+  it("fails closed if database pagination returns the same cursor twice", async () => {
+    const row = {
+      id: "audit-123", action: INTEGRITY_WORK_LINK_ACTION,
+      resourceId: "work-456", actorUserId: "user-123",
+      occurredAt: new Date("2026-11-01T10:00:00.000Z"),
+      metadata: { captureId: "capture-123", caseKey },
+    };
+    mocks.auditFind.mockResolvedValue(Array.from({ length: 1001 }, () => row));
+    await expect(listCompleteIntegrityWorkLinkState(
+      "org-123", "capture-123",
+    )).rejects.toMatchObject({ code: "INVALID" });
+    expect(mocks.auditFind).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns a complete state when the audit history is empty", async () => {
+    const state = await listCompleteIntegrityWorkLinkState("org-123", "capture-123");
+    expect(state).toEqual({ active: [], withdrawn: [], events: [] });
+    expect(mocks.auditFind).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves independent links to the same work item after one withdrawal", () => {
+    const base = {
+      originalAuditId: null, action: "LINK" as const,
+      captureId: "capture-123", caseKey, workItemId: "work-456",
+      actorUserId: "user-123", occurredAt: "2026-11-01T10:00:00.000Z",
+    };
+    const state = projectIntegrityLinkHistory([
+      { ...base, auditId: "withdrawal-1", originalAuditId: "link-1", action: "UNLINK" },
+      { ...base, auditId: "link-2" },
+      { ...base, auditId: "link-1" },
+    ]);
+    expect(state.active.map(item => item.auditId)).toEqual(["link-2"]);
+    expect(state.withdrawn.map(item => item.auditId)).toEqual(["link-1"]);
+    expect(state.events).toHaveLength(3);
+  });
+
+  it("does not let unrelated withdrawal IDs suppress an active link", () => {
+    const base = {
+      auditId: "link-1", originalAuditId: null, action: "LINK" as const,
+      captureId: "capture-123", caseKey, workItemId: "work-456",
+      actorUserId: "user-123", occurredAt: "2026-11-01T10:00:00.000Z",
+    };
+    const state = projectIntegrityLinkHistory([
+      { ...base, auditId: "withdrawal-1", originalAuditId: "other-link", action: "UNLINK" },
+      base,
+    ]);
+    expect(state.active.map(item => item.auditId)).toEqual(["link-1"]);
+    expect(state.withdrawn).toHaveLength(0);
+  });
+
   it("serializes concurrent withdrawals and rejects the second after the first commits", async () => {
     let releaseFirst!: () => void;
     let notifyFirst!: () => void;
