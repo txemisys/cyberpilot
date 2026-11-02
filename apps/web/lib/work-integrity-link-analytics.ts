@@ -164,9 +164,13 @@ export function analyzeIntegrityLinkEvents(
 ): LinkAnalyticsReport {
   const allLinks = new Map<string, IntegrityLinkHistoryEvent>();
   const withdrawals = new Map<string, IntegrityLinkHistoryEvent[]>();
+  const eventIds = new Set<string>();
   const orphanWithdrawalIds: string[] = [];
   const duplicateWithdrawalIds: string[] = [];
   for (const event of events) {
+    if (eventIds.has(event.auditId))
+      throw new WorkInputError("INVALID", "Duplicate audit event identifier.");
+    eventIds.add(event.auditId);
     if (event.action === "LINK") allLinks.set(event.auditId, event);
     else if (event.originalAuditId) {
       const existing = withdrawals.get(event.originalAuditId) ?? [];
