@@ -6,6 +6,8 @@ import {
   listCompleteIntegrityWorkLinkState, unlinkIntegrityCaseFromWork,
 } from "../../../../../../../../lib/work-integrity-evidence-links";
 
+import { analyzeIntegrityLinkEvents, parseLinkAnalyticsQuery } from "../../../../../../../../lib/work-integrity-link-analytics";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 function failure(error: unknown) {
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest, { params }: Context) {
     if (!canReadWork(membership.role))
       throw new WorkInputError("FORBIDDEN", "Organization access required.");
     const search = request.nextUrl.searchParams;
-    const allowed = new Set(["captureId", "view", "limit", "cursorAt", "cursorId"]);
+    const allowed = new Set(["captureId", "view", "limit", "cursorAt", "cursorId", "sort", "offset", "caseKey", "workItemId", "actorUserId", "action", "since", "until"]);
     if ([...search.keys()].some(key => !allowed.has(key)) ||
         search.getAll("captureId").length !== 1 ||
         ["view", "limit", "cursorAt", "cursorId"].some(key => search.getAll(key).length > 1))
@@ -32,6 +34,27 @@ export async function GET(request: NextRequest, { params }: Context) {
     const organizationId = membership.organization.id;
     const captureId = search.get("captureId")!;
     const view = search.get("view") ?? "history";
+    if (view === "analytics") {
+      const raw: Record<string, unknown> = {};
+      for (const key of ["sort", "caseKey", "workItemId", "actorUserId", "action", "since", "until"]) {
+        const value = search.get(key);
+        if (value !== null) raw[key] = value;
+      }
+      for (const key of ["offset", "limit"]) {
+        const value = search.get(key);
+        if (value !== null) {
+          if (!/^(0|[1-9][0-9]*)$/.test(value))
+            throw new WorkInputError("INVALID", "Invalid numeric analytics parameter.");
+          raw[key] = Number(value);
+        }
+      }
+      if (["cursorAt", "cursorId"].some(key => search.has(key)) ||
+          [...search.keys()].some(key => search.getAll(key).length !== 1))
+        throw new WorkInputError("INVALID", "Invalid analytics parameters.");
+      const query = parseLinkAnalyticsQuery(raw);
+      const state = await listCompleteIntegrityWorkLinkState(organizationId, captureId);
+      return NextResponse.json({ analytics: analyzeIntegrityLinkEvents(state.events, query) }, { headers });
+    }
     if (view === "history" || view === "state") {
       if (["limit", "cursorAt", "cursorId"].some(key => search.has(key)))
         throw new WorkInputError("INVALID", "Pagination is only supported for page view.");
