@@ -134,8 +134,9 @@ export function evaluateIntegrityLineageImpact(
 ): IntegrityLineageImpact {
   const edge = graph.edges.find(x => x.auditId === auditId);
   if (!edge) throw new WorkInputError("MISSING", "Association audit event not found.");
-  const before = connectedIntegrityEvidenceComponents(graph);
-  const after = connectedIntegrityEvidenceComponents(graphWithoutEdge(graph, auditId));
+  const activeGraph = { ...graph, edges: graph.edges.filter(x => x.state === "ACTIVE") };
+  const before = connectedIntegrityEvidenceComponents(activeGraph);
+  const after = connectedIntegrityEvidenceComponents(graphWithoutEdge(activeGraph, auditId));
   const relevant = after.filter(component =>
     component.cases.some(x => edge.source === "case:" + x) ||
     component.workItems.some(x => edge.target === "work:" + x));
@@ -151,6 +152,7 @@ export function analyzeIntegrityLineage(
   graph: IntegrityEvidenceGraph,
 ): IntegrityLineageOverview {
   const activeEdges = graph.edges.filter(edge => edge.state === "ACTIVE");
+  const activeGraph = { ...graph, edges: activeEdges };
   const bridges = activeEdges.map(edge =>
     evaluateIntegrityLineageImpact(graph, edge.auditId))
     .filter(impact => impact.disconnectedByRemoval);
@@ -158,7 +160,7 @@ export function analyzeIntegrityLineage(
     captureId: graph.captureId,
     nodeCount: graph.nodes.length, edgeCount: graph.edges.length,
     activeEdgeCount: graph.activeEdges,
-    connectedComponentCount: connectedIntegrityEvidenceComponents(graph).length,
+    connectedComponentCount: connectedIntegrityEvidenceComponents(activeGraph).length,
     bridges: bridges.sort((a, b) => a.auditId.localeCompare(b.auditId)),
     highestDegreeNodes: [...graph.nodes].sort((a, b) =>
       b.activeDegree - a.activeDegree || a.id.localeCompare(b.id)).slice(0, 20),
