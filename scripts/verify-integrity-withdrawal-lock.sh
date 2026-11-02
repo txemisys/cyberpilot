@@ -30,6 +30,26 @@ sleep 0.4
 blocked="$("${db[@]}" -c "SELECT pg_try_advisory_xact_lock(hashtextextended('$original', 0));")"
 test "$blocked" = "f" || { echo "ERROR: concurrent transaction bypassed advisory lock"; exit 1; }
 wait "$first_pid"
+# After the first commit, a second transaction can acquire the lock but
+# must detect the already committed withdrawal and refuse to append another.
+second_result="$("${db[@]}" <<SQL
+BEGIN;
+SELECT pg_advisory_xact_lock(hashtextextended('$original', 0));
+SELECT COUNT(*) FROM "AuditEvent"
+WHERE "organizationId"='$org'
+  AND action='INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK'
+  AND metadata->>'originalAuditId'='$original';
+COMMIT;
+SQL
+)"
+second_count="$(printf '%s\\n' "$second_result" | grep -E '^[0-9]+"$("${db[@]}" -c "SELECT COUNT(*) FROM \"AuditEvent\" WHERE action='INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK' AND metadata->>'originalAuditId'='$original';")"
+test "$count" = "1" || { echo "ERROR: withdrawal audit event was not committed"; exit 1; }
+echo "PostgreSQL withdrawal lock and immutable audit event verified."
+ | tail -n 1)"
+test "$second_count" = "1" || {
+  echo "ERROR: second transaction did not observe the committed withdrawal"
+  exit 1
+}
 count="$("${db[@]}" -c "SELECT COUNT(*) FROM \"AuditEvent\" WHERE action='INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK' AND metadata->>'originalAuditId'='$original';")"
 test "$count" = "1" || { echo "ERROR: withdrawal audit event was not committed"; exit 1; }
 echo "PostgreSQL withdrawal lock and immutable audit event verified."
