@@ -179,11 +179,15 @@ export function decodeIntegrityHistoryRow(
   };
 }
 export function validateIntegrityHistoryCursor(value: IntegrityHistoryCursor) {
-  if (!value || typeof value !== "object" ||
-      !Number.isFinite(Date.parse(value.occurredAt)) ||
-      Number.isNaN(new Date(value.occurredAt).getTime()))
+  if (!value || typeof value !== "object" || Array.isArray(value) ||
+      typeof value.occurredAt !== "string" ||
+      !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/.test(value.occurredAt) ||
+      !Number.isFinite(Date.parse(value.occurredAt)))
     throw new WorkInputError("INVALID", "Invalid history cursor timestamp.");
-  return { occurredAt: new Date(value.occurredAt), auditId: parseWorkId(value.auditId, "audit ID") };
+  return {
+    occurredAt: new Date(value.occurredAt),
+    auditId: parseWorkId(value.auditId, "audit ID"),
+  };
 }
 type IntegrityHistoryReader = Pick<typeof db, "auditEvent">;
 async function readIntegrityHistoryPage(
