@@ -122,7 +122,12 @@ export async function executeIntegrityBatch(
       const latest = fresh.decisions[0]!;
       if (!latest.executable) {
         if (latest.code === "ALREADY_LINKED" || latest.code === "ALREADY_WITHDRAWN") {
-          outcomes.push(skipped(latest));
+          outcomes.push({
+            operationId: item.operationId, status: "FAILED", auditId: null,
+            errorCode: "CONCURRENT_CHANGE",
+            message: "Association state changed after initial planning.",
+          });
+          if (mode === "STOP_ON_ERROR") stoppedEarly = true;
           continue;
         }
         throw new WorkInputError("CONFLICT", latest.message);
