@@ -277,10 +277,10 @@ export function previewIntegrityPlan(
     afterCases.set(item.caseKey, (afterCases.get(item.caseKey) ?? 0) + delta);
     afterWork.set(item.workItemId, (afterWork.get(item.workItemId) ?? 0) + delta);
   }
-  function rows(before: Map<string, number>, after: Map<string, number>, key: string) {
+  function rows(before: Map<string, number>, after: Map<string, number>) {
     return [...new Set([...before.keys(), ...after.keys()])].sort(compare)
       .map(id => ({
-        [key]: id, before: before.get(id) ?? 0,
+        id, before: before.get(id) ?? 0,
         after: after.get(id) ?? 0,
         delta: (after.get(id) ?? 0) - (before.get(id) ?? 0),
       }));
@@ -291,8 +291,8 @@ export function previewIntegrityPlan(
       active: report.counts.active + links - withdrawals,
       withdrawn: report.counts.withdrawn + withdrawals,
     },
-    cases: rows(beforeCases, afterCases, "caseKey") as IntegrityPlanPreview["cases"],
-    workItems: rows(beforeWork, afterWork, "workItemId") as IntegrityPlanPreview["workItems"],
+    cases: rows(beforeCases, afterCases).map(({ id, ...counts }) => ({ caseKey: id, ...counts })),
+    workItems: rows(beforeWork, afterWork).map(({ id, ...counts }) => ({ workItemId: id, ...counts })),
   };
 }
 export function summarizeIntegrityExecution(
