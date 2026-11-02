@@ -373,7 +373,7 @@ describe("diagnostic evidence to work associations", () => {
     await expect(listCompleteIntegrityWorkLinkState(
       "org-123", "capture-123",
     )).rejects.toMatchObject({ code: "INVALID" });
-    expect(mocks.auditFind).toHaveBeenCalledTimes(2);
+    expect(mocks.auditFind).toHaveBeenCalledTimes(1);
   });
 
   it("returns a complete state when the audit history is empty", async () => {
