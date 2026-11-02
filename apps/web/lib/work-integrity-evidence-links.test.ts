@@ -219,4 +219,54 @@ describe("diagnostic evidence to work associations", () => {
     }));
   });
 
+  it("serializes concurrent withdrawals and rejects the second after the first commits", async () => {
+    let releaseFirst!: () => void;
+    let notifyFirst!: () => void;
+    const firstLocked = new Promise<void>(resolve => { notifyFirst = resolve; });
+    const firstMayCommit = new Promise<void>(resolve => { releaseFirst = resolve; });
+    let firstHasLock = false;
+    let withdrawn = false;
+    mocks.transaction.mockImplementation(async (
+      fn: (tx: unknown) => Promise<unknown>,
+    ) => {
+      const tx = {
+        auditEvent: {
+          findFirst: vi.fn(async (query: { where: { action: string } }) => {
+            if (query.where.action === INTEGRITY_WORK_LINK_ACTION)
+              return { id: "audit-123", resourceId: "work-456",
+                metadata: { captureId: "capture-123", caseKey } };
+            return withdrawn ? { id: "withdrawal-123" } : null;
+          }),
+          create: vi.fn(async () => {
+            withdrawn = true;
+            return { id: "withdrawal-123" };
+          }),
+        },
+        $queryRaw: vi.fn(async () => {
+          if (!firstHasLock) {
+            firstHasLock = true;
+            notifyFirst();
+            await firstMayCommit;
+          } else {
+            await firstMayCommit;
+          }
+          return [];
+        }),
+      };
+      return fn(tx);
+    });
+    const first = unlinkIntegrityCaseFromWork(scope, { auditId: "audit-123" });
+    await firstLocked;
+    const second = unlinkIntegrityCaseFromWork(scope, { auditId: "audit-123" });
+    releaseFirst();
+    const results = await Promise.allSettled([first, second]);
+    expect(results[0]).toMatchObject({
+      status: "fulfilled",
+      value: { originalAuditId: "audit-123" },
+    });
+    expect(results[1]).toMatchObject({
+      status: "rejected", reason: { code: "CONFLICT" },
+    });
+  });
+
 });
