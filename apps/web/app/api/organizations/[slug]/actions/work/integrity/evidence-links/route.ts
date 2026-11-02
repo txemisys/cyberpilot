@@ -8,6 +8,8 @@ import {
 
 import { analyzeIntegrityLinkEvents, parseLinkAnalyticsQuery } from "../../../../../../../../lib/work-integrity-link-analytics";
 
+import { buildIntegrityLinkExport, parseIntegrityLinkExportOptions } from "../../../../../../../../lib/work-integrity-link-export";
+
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 function failure(error: unknown) {
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest, { params }: Context) {
     if (!canReadWork(membership.role))
       throw new WorkInputError("FORBIDDEN", "Organization access required.");
     const search = request.nextUrl.searchParams;
-    const allowed = new Set(["captureId", "view", "limit", "cursorAt", "cursorId", "sort", "offset", "caseKey", "workItemId", "actorUserId", "action", "since", "until"]);
+    const allowed = new Set(["captureId", "view", "limit", "cursorAt", "cursorId", "sort", "offset", "caseKey", "workItemId", "actorUserId", "action", "since", "until", "format", "kind", "maxRows"]);
     if ([...search.keys()].some(key => !allowed.has(key)) ||
         search.getAll("captureId").length !== 1 ||
         ["view", "limit", "cursorAt", "cursorId"].some(key => search.getAll(key).length > 1))
@@ -34,6 +36,35 @@ export async function GET(request: NextRequest, { params }: Context) {
     const organizationId = membership.organization.id;
     const captureId = search.get("captureId")!;
     const view = search.get("view") ?? "history";
+    if (view === "export") {
+      if (["cursorAt", "cursorId", "offset", "limit"].some(key => search.has(key)) ||
+          [...search.keys()].some(key => search.getAll(key).length !== 1))
+        throw new WorkInputError("INVALID", "Invalid export query parameters.");
+      const raw: Record<string, unknown> = {};
+      for (const key of ["format", "kind", "caseKey", "workItemId",
+        "actorUserId", "action", "since", "until", "sort"]) {
+        const value = search.get(key);
+        if (value !== null) raw[key] = value;
+      }
+      const maxRows = search.get("maxRows");
+      if (maxRows !== null) {
+        if (!/^[1-9][0-9]*$/.test(maxRows))
+          throw new WorkInputError("INVALID", "Invalid export row limit.");
+        raw.maxRows = Number(maxRows);
+      }
+      const options = parseIntegrityLinkExportOptions(raw);
+      const state = await listCompleteIntegrityWorkLinkState(organizationId, captureId);
+      const result = buildIntegrityLinkExport(state.events, options, captureId);
+      return new NextResponse(result.content, {
+        headers: {
+          ...headers,
+          "Content-Type": result.contentType,
+          "Content-Disposition": `attachment; filename="${result.filename}"`,
+          "X-Export-Rows": String(result.rows),
+          "X-Export-Truncated": String(result.truncated),
+        },
+      });
+    }
     if (view === "analytics") {
       const raw: Record<string, unknown> = {};
       for (const key of ["sort", "caseKey", "workItemId", "actorUserId", "action", "since", "until"]) {
