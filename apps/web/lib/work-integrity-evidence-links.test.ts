@@ -210,13 +210,27 @@ describe("diagnostic evidence to work associations", () => {
     };
     mocks.auditFind.mockResolvedValueOnce(Array.from({ length: 1000 }, () => row));
     const history = await listIntegrityWorkLinkHistory("org-123", "capture-123");
-    expect(history.truncated).toBe(true);
+    expect(history.truncated).toBe(false);
     expect(mocks.auditFind).toHaveBeenCalledWith(expect.objectContaining({
-      take: 1000,
+      take: 1001,
       where: expect.objectContaining({
         metadata: { path: ["captureId"], equals: "capture-123" },
       }),
     }));
+  });
+
+  it("detects an actual overflow without exposing the lookahead event", async () => {
+    const rows = Array.from({ length: 1001 }, (_, i) => ({
+      id: `audit-${i}`, action: INTEGRITY_WORK_LINK_ACTION,
+      resourceId: "work-456", actorUserId: "user-123",
+      occurredAt: new Date("2026-11-01T10:00:00.000Z"),
+      metadata: { captureId: "capture-123", caseKey },
+    }));
+    mocks.auditFind.mockResolvedValueOnce(rows);
+    const history = await listIntegrityWorkLinkHistory("org-123", "capture-123");
+    expect(history.truncated).toBe(true);
+    expect(history.events).toHaveLength(1000);
+    expect(history.events.some(event => event.auditId === "audit-1000")).toBe(false);
   });
 
   it("serializes concurrent withdrawals and rejects the second after the first commits", async () => {
