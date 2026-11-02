@@ -197,7 +197,7 @@ describe("diagnostic evidence to work associations", () => {
       select: { id: true },
     });
     expect(mocks.transaction).toHaveBeenCalledWith(
-      expect.any(Function), { isolationLevel: "Serializable" },
+      expect.any(Function), { isolationLevel: "ReadCommitted" },
     );
   });
 
