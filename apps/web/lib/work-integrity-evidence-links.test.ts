@@ -18,6 +18,7 @@ import {
   projectIntegrityLinkHistory, parseIntegrityWorkLinkInput,
   INTEGRITY_WORK_LINK_ACTION, unlinkIntegrityCaseFromWork,
   parseIntegrityWorkUnlinkInput, INTEGRITY_WORK_UNLINK_ACTION,
+  listCompleteIntegrityWorkLinkState, listIntegrityWorkLinkHistoryPage,
 } from "./work-integrity-evidence-links";
 
 const caseKey = JSON.stringify(["work-123", "MISSING_EVIDENCE", "resource-1"]);
@@ -231,6 +232,33 @@ describe("diagnostic evidence to work associations", () => {
     expect(history.truncated).toBe(true);
     expect(history.events).toHaveLength(1000);
     expect(history.events.some(event => event.auditId === "audit-1000")).toBe(false);
+  });
+
+  it("reconstructs a withdrawn link across distinct history pages", async () => {
+    const row = (id: string, action: string, originalAuditId?: string) => ({
+      id, action, resourceId: "work-456", actorUserId: "user-123",
+      occurredAt: new Date("2026-11-01T10:00:00.000Z"),
+      metadata: { captureId: "capture-123", caseKey, ...(originalAuditId ? { originalAuditId } : {}) },
+    });
+    const first = [
+      row("withdrawal-123", INTEGRITY_WORK_UNLINK_ACTION, "audit-123"),
+      ...Array.from({ length: 999 }, (_, i) => row(`filler-${i}`, INTEGRITY_WORK_LINK_ACTION)),
+      row("lookahead", INTEGRITY_WORK_LINK_ACTION),
+    ];
+    const second = [row("audit-123", INTEGRITY_WORK_LINK_ACTION)];
+    mocks.auditFind.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    const result = await listCompleteIntegrityWorkLinkState("org-123", "capture-123");
+    expect(result.withdrawn.some(event => event.auditId === "audit-123")).toBe(true);
+    expect(result.active.some(event => event.auditId === "audit-123")).toBe(false);
+    expect(mocks.auditFind).toHaveBeenCalledTimes(2);
+    expect(mocks.auditFind.mock.calls[1]?.[0]).toEqual(expect.objectContaining({
+      where: expect.objectContaining({ organizationId: "org-123", OR: expect.any(Array) }),
+    }));
+  });
+  it("rejects invalid page sizes before querying", async () => {
+    await expect(listIntegrityWorkLinkHistoryPage("org-123", "capture-123", undefined, 1001))
+      .rejects.toMatchObject({ code: "INVALID" });
+    expect(mocks.auditFind).not.toHaveBeenCalled();
   });
 
   it("serializes concurrent withdrawals and rejects the second after the first commits", async () => {
