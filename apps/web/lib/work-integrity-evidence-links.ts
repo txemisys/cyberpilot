@@ -148,49 +148,120 @@ export function projectIntegrityLinkHistory(events: readonly IntegrityLinkHistor
     events,
   };
 }
-export async function listIntegrityWorkLinkHistory(
+export type IntegrityHistoryCursor = { occurredAt: string; auditId: string };
+export type IntegrityHistoryPage = {
+  events: IntegrityLinkHistoryEvent[];
+  nextCursor: IntegrityHistoryCursor | null;
+  hasMore: boolean;
+};
+type AuditHistoryRow = {
+  id: string; action: string; resourceId: string | null;
+  actorUserId: string | null; occurredAt: Date; metadata: unknown;
+};
+export function decodeIntegrityHistoryRow(
+  row: AuditHistoryRow, captureId: string,
+): IntegrityLinkHistoryEvent | null {
+  const metadata = row.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const data = metadata as Record<string, unknown>;
+  if (data.captureId !== captureId || typeof data.caseKey !== "string" || !row.resourceId)
+    return null;
+  if (row.action !== INTEGRITY_WORK_LINK_ACTION &&
+      row.action !== INTEGRITY_WORK_UNLINK_ACTION) return null;
+  const isUnlink = row.action === INTEGRITY_WORK_UNLINK_ACTION;
+  if (isUnlink && typeof data.originalAuditId !== "string") return null;
+  return {
+    auditId: row.id,
+    originalAuditId: isUnlink ? data.originalAuditId as string : null,
+    action: isUnlink ? "UNLINK" : "LINK",
+    captureId, caseKey: data.caseKey, workItemId: row.resourceId,
+    actorUserId: row.actorUserId, occurredAt: row.occurredAt.toISOString(),
+  };
+}
+export function validateIntegrityHistoryCursor(value: IntegrityHistoryCursor) {
+  if (!value || typeof value !== "object" ||
+      !Number.isFinite(Date.parse(value.occurredAt)) ||
+      Number.isNaN(new Date(value.occurredAt).getTime()))
+    throw new WorkInputError("INVALID", "Invalid history cursor timestamp.");
+  return { occurredAt: new Date(value.occurredAt), auditId: parseWorkId(value.auditId, "audit ID") };
+}
+export async function listIntegrityWorkLinkHistoryPage(
   organizationId: string, captureId: string,
-) {
+  cursor?: IntegrityHistoryCursor, pageSize = 100,
+): Promise<IntegrityHistoryPage> {
   if (!organizationId) throw new WorkInputError("FORBIDDEN", "Organization required.");
   parseWorkId(captureId, "capture ID");
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > AUDIT_LINK_HISTORY_LIMIT)
+    throw new WorkInputError("INVALID", "Invalid history page size.");
+  const after = cursor ? validateIntegrityHistoryCursor(cursor) : null;
   const rows = await db.auditEvent.findMany({
     where: {
       organizationId,
       action: { in: [INTEGRITY_WORK_LINK_ACTION, INTEGRITY_WORK_UNLINK_ACTION] },
       resourceType: INTEGRITY_WORK_LINK_RESOURCE,
       metadata: { path: ["captureId"], equals: captureId },
+      ...(after ? { OR: [
+        { occurredAt: { lt: after.occurredAt } },
+        { occurredAt: after.occurredAt, id: { lt: after.auditId } },
+      ] } : {}),
     },
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
-    take: AUDIT_LINK_HISTORY_LIMIT + 1,
+    take: pageSize + 1,
     select: {
       id: true, action: true, resourceId: true, actorUserId: true,
       occurredAt: true, metadata: true,
     },
   });
-  const truncated = rows.length > AUDIT_LINK_HISTORY_LIMIT;
-  const visibleRows = rows.slice(0, AUDIT_LINK_HISTORY_LIMIT);
-  const events: IntegrityLinkHistoryEvent[] = visibleRows.flatMap(row => {
-    const metadata = row.metadata;
-    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
-    const data = metadata as Record<string, unknown>;
-    if (data.captureId !== captureId || typeof data.caseKey !== "string" ||
-        !row.resourceId) return [];
-    const isUnlink = row.action === INTEGRITY_WORK_UNLINK_ACTION;
-    return [{
-      auditId: row.id,
-      originalAuditId: isUnlink && typeof data.originalAuditId === "string" ?
-        data.originalAuditId : null,
-      action: isUnlink ? "UNLINK" as const : "LINK" as const,
-      captureId, caseKey: data.caseKey, workItemId: row.resourceId,
-      actorUserId: row.actorUserId, occurredAt: row.occurredAt.toISOString(),
-    }];
-  });
-  return { ...projectIntegrityLinkHistory(events), truncated };
+  const hasMore = rows.length > pageSize;
+  const visible = rows.slice(0, pageSize);
+  const last = visible.at(-1);
+  return {
+    events: visible.flatMap(row => {
+      const event = decodeIntegrityHistoryRow(row, captureId);
+      return event ? [event] : [];
+    }),
+    hasMore,
+    nextCursor: hasMore && last ?
+      { occurredAt: last.occurredAt.toISOString(), auditId: last.id } : null,
+  };
+}
+export async function listIntegrityWorkLinkHistory(
+  organizationId: string, captureId: string,
+) {
+  const page = await listIntegrityWorkLinkHistoryPage(
+    organizationId, captureId, undefined, AUDIT_LINK_HISTORY_LIMIT,
+  );
+  return { ...projectIntegrityLinkHistory(page.events), truncated: page.hasMore };
+}
+
+/**
+ * Reconstruct current state from every audit event, not just the visible history.
+ * A withdrawal can be newer than the corresponding link by arbitrarily many pages.
+ * A repeated cursor indicates a broken ordering contract and fails closed.
+ */
+export async function listCompleteIntegrityWorkLinkState(
+  organizationId: string, captureId: string,
+) {
+  const events: IntegrityLinkHistoryEvent[] = [];
+  let cursor: IntegrityHistoryCursor | undefined;
+  const seen = new Set<string>();
+  while (true) {
+    const page = await listIntegrityWorkLinkHistoryPage(
+      organizationId, captureId, cursor, AUDIT_LINK_HISTORY_LIMIT,
+    );
+    events.push(...page.events);
+    if (!page.hasMore) break;
+    if (!page.nextCursor || seen.has(page.nextCursor.auditId))
+      throw new WorkInputError("INVALID", "Integrity history pagination did not advance.");
+    seen.add(page.nextCursor.auditId);
+    cursor = page.nextCursor;
+  }
+  return projectIntegrityLinkHistory(events);
 }
 export async function listIntegrityWorkLinks(
   organizationId: string, captureId: string,
 ): Promise<IntegrityWorkLink[]> {
-  const history = await listIntegrityWorkLinkHistory(organizationId, captureId);
+  const history = await listCompleteIntegrityWorkLinkState(organizationId, captureId);
   return history.active.map(event => ({
     auditId: event.auditId, captureId: event.captureId, caseKey: event.caseKey,
     workItemId: event.workItemId, actorUserId: event.actorUserId,
