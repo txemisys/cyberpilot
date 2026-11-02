@@ -242,6 +242,18 @@ export function analyzeIntegrityLinkEvents(
     days.set(day, daily);
     actors.set(event.actorUserId ?? "", actor);
   }
+  // Recompute the last activity for every association after collecting all links.
+  // Audit rows are not guaranteed to arrive in chronological order, and a
+  // withdrawal may precede its corresponding creation in the input array.
+  for (const event of events) {
+    if (event.action !== "UNLINK" || !event.originalAuditId) continue;
+    const original = allLinks.get(event.originalAuditId);
+    if (!original) continue;
+    const c = cases.get(original.caseKey);
+    const w = workItems.get(original.workItemId);
+    if (c) c.lastActivityAt = latest(c.lastActivityAt, event.occurredAt);
+    if (w) w.lastActivityAt = latest(w.lastActivityAt, event.occurredAt);
+  }
   const filtered = sortLinkAnalyticsEvents(
     filterLinkAnalyticsEvents(events, query.filter), query.sort,
   );
