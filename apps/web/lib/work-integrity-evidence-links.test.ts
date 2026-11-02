@@ -39,7 +39,7 @@ beforeEach(() => {
   });
   mocks.auditFind.mockResolvedValue([]);
   mocks.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn({
-    auditEvent: { findFirst: mocks.auditFind, create: mocks.auditCreate },
+    auditEvent: { findFirst: mocks.auditFind, findMany: mocks.auditFind, create: mocks.auditCreate },
     $queryRaw: mocks.advisoryLock,
   }));
 });
@@ -259,6 +259,21 @@ describe("diagnostic evidence to work associations", () => {
     await expect(listIntegrityWorkLinkHistoryPage("org-123", "capture-123", undefined, 1001))
       .rejects.toMatchObject({ code: "INVALID" });
     expect(mocks.auditFind).not.toHaveBeenCalled();
+  });
+
+  it("reconstructs active links under a repeatable-read database snapshot", async () => {
+    const link = {
+      id: "audit-123", action: INTEGRITY_WORK_LINK_ACTION,
+      resourceId: "work-456", actorUserId: "user-123",
+      occurredAt: new Date("2026-11-01T10:00:00.000Z"),
+      metadata: { captureId: "capture-123", caseKey },
+    };
+    mocks.auditFind.mockResolvedValueOnce([link]);
+    const result = await listCompleteIntegrityWorkLinkState("org-123", "capture-123");
+    expect(result.active.map(item => item.auditId)).toEqual(["audit-123"]);
+    expect(mocks.transaction).toHaveBeenCalledWith(
+      expect.any(Function), { isolationLevel: "RepeatableRead" },
+    );
   });
 
   it("keeps history cursor tenant scoped after advancing a page", async () => {
