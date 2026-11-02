@@ -276,6 +276,20 @@ describe("diagnostic evidence to work associations", () => {
     );
   });
 
+  it("rejects noncanonical cursor timestamps before accessing audit data", async () => {
+    for (const timestamp of [
+      "2026-11-01", "2026-11-01T10:00:00Z",
+      "2026-11-01T10:00:00.000+00:00",
+      "2026-11-01T10:00:00.000Zgarbage",
+    ]) {
+      await expect(listIntegrityWorkLinkHistoryPage(
+        "org-123", "capture-123",
+        { occurredAt: timestamp, auditId: "audit-123" },
+      )).rejects.toMatchObject({ code: "INVALID" });
+    }
+    expect(mocks.auditFind).not.toHaveBeenCalled();
+  });
+
   it("keeps history cursor tenant scoped after advancing a page", async () => {
     mocks.auditFind.mockResolvedValueOnce([]);
     await listIntegrityWorkLinkHistoryPage(
