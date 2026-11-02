@@ -42,7 +42,12 @@ WHERE "organizationId"='$org'
 COMMIT;
 SQL
 )"
-second_count="$("${db[@]}" <<SQL
+second_count="$(printf '%s\n' "$second_result" | grep -E '^[0-9]+$' | tail -n 1)"
+test "$second_count" = "1" || {
+  echo "ERROR: second transaction did not observe committed withdrawal"
+  exit 1
+}
+count="$("${db[@]}" <<SQL
 SELECT COUNT(*) FROM "AuditEvent"
 WHERE action='INTEGRITY_CAPTURE_CASE_UNLINKED_FROM_WORK'
   AND metadata->>'originalAuditId'='$original';
