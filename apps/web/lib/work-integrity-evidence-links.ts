@@ -161,13 +161,15 @@ export async function listIntegrityWorkLinkHistory(
       metadata: { path: ["captureId"], equals: captureId },
     },
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
-    take: AUDIT_LINK_HISTORY_LIMIT,
+    take: AUDIT_LINK_HISTORY_LIMIT + 1,
     select: {
       id: true, action: true, resourceId: true, actorUserId: true,
       occurredAt: true, metadata: true,
     },
   });
-  const events: IntegrityLinkHistoryEvent[] = rows.flatMap(row => {
+  const truncated = rows.length > AUDIT_LINK_HISTORY_LIMIT;
+  const visibleRows = rows.slice(0, AUDIT_LINK_HISTORY_LIMIT);
+  const events: IntegrityLinkHistoryEvent[] = visibleRows.flatMap(row => {
     const metadata = row.metadata;
     if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
     const data = metadata as Record<string, unknown>;
@@ -183,7 +185,7 @@ export async function listIntegrityWorkLinkHistory(
       actorUserId: row.actorUserId, occurredAt: row.occurredAt.toISOString(),
     }];
   });
-  return { ...projectIntegrityLinkHistory(events), truncated: rows.length === AUDIT_LINK_HISTORY_LIMIT };
+  return { ...projectIntegrityLinkHistory(events), truncated };
 }
 export async function listIntegrityWorkLinks(
   organizationId: string, captureId: string,
