@@ -168,6 +168,10 @@ jobs:
               "updatedAt" = NOW();
           SQL
 
+      - name: Verify PostgreSQL integrity withdrawal concurrency lock
+        shell: bash
+        run: bash scripts/verify-integrity-withdrawal-lock.sh
+
       - name: Exercise local backup and restore commands
         shell: bash
         run: |
