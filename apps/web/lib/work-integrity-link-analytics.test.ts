@@ -57,6 +57,14 @@ describe("integrity association analytics", () => {
       totalLinks: 2, activeLinks: 1, withdrawnLinks: 1,
     });
   });
+  it("attributes a newer withdrawal to its original case even when it appears first", () => {
+    const report = analyzeIntegrityLinkEvents([
+      unlink("withdrawal-1", "link-1", "2026-11-04T10:00:00.000Z"),
+      link("link-1", "case-original", "work-original"),
+    ]);
+    expect(report.cases[0]?.lastActivityAt).toBe("2026-11-04T10:00:00.000Z");
+    expect(report.workItems[0]?.lastActivityAt).toBe("2026-11-04T10:00:00.000Z");
+  });
   it("reports orphan withdrawals that cannot be matched to a link", () => {
     const report = analyzeIntegrityLinkEvents([unlink("withdrawal-1", "missing")]);
     expect(report.summary.orphanWithdrawals).toBe(1);
