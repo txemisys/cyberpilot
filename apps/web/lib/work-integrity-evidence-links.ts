@@ -100,9 +100,11 @@ export async function unlinkIntegrityCaseFromWork(
     if (typeof data.captureId !== "string" || typeof data.caseKey !== "string" ||
         !original.resourceId)
       throw new WorkInputError("INVALID", "Invalid association identity.");
-    // PostgreSQL transaction-scoped advisory lock serializes withdrawals
-    // of the same association, including concurrent requests.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${original.id}, 0))`;
+    // A transaction-scoped advisory lock serializes withdrawals of this link.
+    // ReadCommitted is required: a waiter must obtain a fresh statement snapshot
+    // after the previous holder commits, otherwise Serializable can retain a
+    // pre-lock snapshot and fail to see the withdrawal it must reject.
+    await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${original.id}, 0))`;
     const prior = await tx.auditEvent.findFirst({
       where: {
         organizationId: scope.organizationId,
@@ -130,7 +132,7 @@ export async function unlinkIntegrityCaseFromWork(
       select: { id: true },
     });
     return { auditId: audit.id, originalAuditId: original.id };
-  }, { isolationLevel: "Serializable" });
+  }, { isolationLevel: "ReadCommitted" });
 }
 export type IntegrityLinkHistoryEvent = {
   auditId: string; originalAuditId: string | null;
