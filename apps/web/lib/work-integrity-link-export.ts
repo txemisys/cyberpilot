@@ -135,10 +135,11 @@ export function buildIntegrityLinkExport(
 ): IntegrityLinkExportResult {
   if (!/^[a-zA-Z0-9_-]{5,100}$/.test(captureId))
     throw new WorkInputError("INVALID", "Invalid export capture ID.");
-  const report = analyzeIntegrityLinkEvents(events);
+  const filteredEvents = filterLinkAnalyticsEvents(events, options.query.filter);
+  const report = analyzeIntegrityLinkEvents(filteredEvents);
   const selected = options.kind === "events" ?
     eventRows(sortLinkAnalyticsEvents(
-      filterLinkAnalyticsEvents(events, options.query.filter), options.query.sort,
+      filteredEvents, options.query.sort,
     )) :
     options.kind === "cases" ? caseRows(report) :
     options.kind === "work" ? workRows(report) :
