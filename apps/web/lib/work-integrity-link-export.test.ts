@@ -108,6 +108,21 @@ describe("integrity link export", () => {
     expect(JSON.parse(result.content).rows.map((row: { auditId: string }) => row.auditId))
       .toEqual(["link-2"]);
   });
+  it.each(["cases", "work", "actors", "days"] as const)(
+    "applies case filters to %s aggregate exports", kind => {
+      const result = buildIntegrityLinkExport(
+        [link("link-1", "case-1"), link("link-2", "case-2")],
+        parseIntegrityLinkExportOptions({ kind, format: "json", caseKey: "case-2" }),
+        "capture-1",
+      );
+      const rows = JSON.parse(result.content).rows;
+      expect(rows).toHaveLength(1);
+      if (kind === "cases") expect(rows[0].caseKey).toBe("case-2");
+      if (kind === "work") expect(rows[0].totalLinks).toBe(1);
+      if (kind === "actors") expect(rows[0].linksCreated).toBe(1);
+      if (kind === "days") expect(rows[0].linksCreated).toBe(1);
+    },
+  );
   it("produces a header-only CSV for empty history", () => {
     const result = buildIntegrityLinkExport(
       [], parseIntegrityLinkExportOptions({}), "capture-1",
