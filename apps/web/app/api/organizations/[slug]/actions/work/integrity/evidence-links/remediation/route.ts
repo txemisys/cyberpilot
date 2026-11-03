@@ -1,3 +1,6 @@
+import { parseIntegrityReviewBatchPolicy, evaluateIntegrityReviewBatch, parseIntegrityReviewBatchQuery, queryIntegrityReviewBatch } from "../../../../../../../../../lib/work-integrity-remediation-review-batch";
+import { parseIntegrityReviewLineagePolicy, buildIntegrityReviewLineage, parseIntegrityReviewLineageQuery, queryIntegrityReviewLineage } from "../../../../../../../../../lib/work-integrity-remediation-review-lineage";
+import { parseIntegrityReviewDossierPolicy, buildIntegrityReviewDossier, parseIntegrityReviewDossierQuery, queryIntegrityReviewDossier } from "../../../../../../../../../lib/work-integrity-remediation-review-dossier";
 import { parseIntegrityReviewEvidenceAssociations, reconcileIntegrityReviewEvidence, parseIntegrityReviewEvidenceQuery, queryIntegrityReviewEvidence } from "../../../../../../../../../lib/work-integrity-remediation-review-evidence";
 import { parseIntegrityReviewDeadlinePolicy, evaluateIntegrityReviewDeadlines, parseIntegrityReviewDeadlineQuery, queryIntegrityReviewDeadlines } from "../../../../../../../../../lib/work-integrity-remediation-review-deadlines";
 import { parseIntegrityReviewEscalationPolicy, buildIntegrityReviewEscalations, parseIntegrityReviewEscalationQuery, queryIntegrityReviewEscalations } from "../../../../../../../../../lib/work-integrity-remediation-review-escalations";
@@ -219,6 +222,12 @@ function parseRequest(value: unknown) {
     executionCapacityReviewDeadlineQuery: raw.executionCapacityReviewDeadlineQuery,
     executionCapacityReviewEscalationPolicy: raw.executionCapacityReviewEscalationPolicy,
     executionCapacityReviewEscalationQuery: raw.executionCapacityReviewEscalationQuery,
+    executionCapacityReviewBatchPolicy: raw.executionCapacityReviewBatchPolicy,
+    executionCapacityReviewBatchQuery: raw.executionCapacityReviewBatchQuery,
+    executionCapacityReviewLineagePolicy: raw.executionCapacityReviewLineagePolicy,
+    executionCapacityReviewLineageQuery: raw.executionCapacityReviewLineageQuery,
+    executionCapacityReviewDossierPolicy: raw.executionCapacityReviewDossierPolicy,
+    executionCapacityReviewDossierQuery: raw.executionCapacityReviewDossierQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -322,7 +331,7 @@ export async function POST(request: NextRequest, { params }: Context) {
       if (parsed.executionCapacityAttributionQuery !== undefined && (executionCapacityPortfolio === null || executionCapacityInterventions === null)) throw new WorkInputError("INVALID", "Attribution requires intervention portfolio.");
       const executionCapacityAttribution = executionCapacityPortfolio === null || executionCapacityInterventions === null ? null : attributeIntegrityCapacityInterventions(executionCapacityInterventions, executionCapacityPortfolio);
       const executionCapacityAttributionPage = parsed.executionCapacityAttributionQuery === undefined || executionCapacityAttribution === null ? null : queryIntegrityCapacityInterventionAttribution(executionCapacityAttribution, parseIntegrityCapacityInterventionAttributionQuery(parsed.executionCapacityAttributionQuery));
-      const decisionInputsPresent = parsed.executionCapacityDecisionPolicy !== undefined || parsed.executionCapacityDecisionQuery !== undefined || parsed.executionCapacitySensitivityVariations !== undefined || parsed.executionCapacitySensitivityGrid !== undefined || parsed.executionCapacitySensitivityQuery !== undefined || parsed.executionCapacityDecisionExport !== undefined || parsed.executionCapacityComparePolicy !== undefined || parsed.executionCapacityComparisonQuery !== undefined || parsed.executionCapacityGovernancePolicy !== undefined || parsed.executionCapacityGovernanceQuery !== undefined || parsed.executionCapacityReviewQuery !== undefined || parsed.executionCapacityReviewEvents !== undefined || parsed.executionCapacityReviewReplayPolicy !== undefined || parsed.executionCapacityReviewReplayQuery !== undefined || parsed.executionCapacityReviewGatePolicy !== undefined || parsed.executionCapacityReviewGateQuery !== undefined || parsed.executionCapacityReviewCheckpoints !== undefined || parsed.executionCapacityReviewCheckpointQuery !== undefined || parsed.executionCapacityReviewEvidenceAssociations !== undefined || parsed.executionCapacityReviewEvidenceQuery !== undefined || parsed.executionCapacityReviewDeadlinePolicy !== undefined || parsed.executionCapacityReviewDeadlineQuery !== undefined || parsed.executionCapacityReviewEscalationPolicy !== undefined || parsed.executionCapacityReviewEscalationQuery !== undefined;
+      const decisionInputsPresent = parsed.executionCapacityDecisionPolicy !== undefined || parsed.executionCapacityDecisionQuery !== undefined || parsed.executionCapacitySensitivityVariations !== undefined || parsed.executionCapacitySensitivityGrid !== undefined || parsed.executionCapacitySensitivityQuery !== undefined || parsed.executionCapacityDecisionExport !== undefined || parsed.executionCapacityComparePolicy !== undefined || parsed.executionCapacityComparisonQuery !== undefined || parsed.executionCapacityGovernancePolicy !== undefined || parsed.executionCapacityGovernanceQuery !== undefined || parsed.executionCapacityReviewQuery !== undefined || parsed.executionCapacityReviewEvents !== undefined || parsed.executionCapacityReviewReplayPolicy !== undefined || parsed.executionCapacityReviewReplayQuery !== undefined || parsed.executionCapacityReviewGatePolicy !== undefined || parsed.executionCapacityReviewGateQuery !== undefined || parsed.executionCapacityReviewCheckpoints !== undefined || parsed.executionCapacityReviewCheckpointQuery !== undefined || parsed.executionCapacityReviewEvidenceAssociations !== undefined || parsed.executionCapacityReviewEvidenceQuery !== undefined || parsed.executionCapacityReviewDeadlinePolicy !== undefined || parsed.executionCapacityReviewDeadlineQuery !== undefined || parsed.executionCapacityReviewEscalationPolicy !== undefined || parsed.executionCapacityReviewEscalationQuery !== undefined || parsed.executionCapacityReviewBatchPolicy !== undefined || parsed.executionCapacityReviewBatchQuery !== undefined || parsed.executionCapacityReviewLineagePolicy !== undefined || parsed.executionCapacityReviewLineageQuery !== undefined || parsed.executionCapacityReviewDossierPolicy !== undefined || parsed.executionCapacityReviewDossierQuery !== undefined;
       if (decisionInputsPresent && executionCapacityPortfolio === null) throw new WorkInputError("INVALID", "Capacity decisions require a portfolio.");
       if (parsed.executionCapacitySensitivityVariations !== undefined && parsed.executionCapacitySensitivityGrid !== undefined) throw new WorkInputError("INVALID", "Choose variations or a sensitivity grid.");
       if (parsed.executionCapacitySensitivityQuery !== undefined && parsed.executionCapacitySensitivityVariations === undefined && parsed.executionCapacitySensitivityGrid === undefined) throw new WorkInputError("INVALID", "Sensitivity query requires variations or a grid.");
@@ -359,6 +368,12 @@ export async function POST(request: NextRequest, { params }: Context) {
       const executionCapacityReviewDeadlinePage = parsed.executionCapacityReviewDeadlineQuery === undefined || executionCapacityReviewDeadlines === null ? null : queryIntegrityReviewDeadlines(executionCapacityReviewDeadlines, parseIntegrityReviewDeadlineQuery(parsed.executionCapacityReviewDeadlineQuery));
       const executionCapacityReviewEscalations = executionCapacityReviewQueue === null || executionCapacityReviewDeadlines === null ? null : buildIntegrityReviewEscalations(executionCapacityReviewQueue, executionCapacityReviewDeadlines, executionCapacityReviewEvidence, executionCapacityReviewGate, parseIntegrityReviewEscalationPolicy(parsed.executionCapacityReviewEscalationPolicy));
       const executionCapacityReviewEscalationPage = parsed.executionCapacityReviewEscalationQuery === undefined || executionCapacityReviewEscalations === null ? null : queryIntegrityReviewEscalations(executionCapacityReviewEscalations, parseIntegrityReviewEscalationQuery(parsed.executionCapacityReviewEscalationQuery));
+      const executionCapacityReviewBatch = executionCapacityReviewQueue === null || executionCapacityReviewEvents === null || executionCapacityReviewReplay === null ? null : evaluateIntegrityReviewBatch(executionCapacityReviewQueue, executionCapacityReviewEvents, executionCapacityReviewReplay, executionCapacityReviewEvidence, parseIntegrityReviewBatchPolicy(parsed.executionCapacityReviewBatchPolicy));
+      const executionCapacityReviewBatchPage = parsed.executionCapacityReviewBatchQuery === undefined || executionCapacityReviewBatch === null ? null : queryIntegrityReviewBatch(executionCapacityReviewBatch, parseIntegrityReviewBatchQuery(parsed.executionCapacityReviewBatchQuery));
+      const executionCapacityReviewLineage = executionCapacityReviewQueue === null || executionCapacityReviewEvents === null || executionCapacityReviewReplay === null ? null : buildIntegrityReviewLineage(executionCapacityReviewQueue, executionCapacityReviewEvents, executionCapacityReviewReplay, executionCapacityReviewEvidence, executionCapacityReviewBatch, parseIntegrityReviewLineagePolicy(parsed.executionCapacityReviewLineagePolicy));
+      const executionCapacityReviewLineagePage = parsed.executionCapacityReviewLineageQuery === undefined || executionCapacityReviewLineage === null ? null : queryIntegrityReviewLineage(executionCapacityReviewLineage, parseIntegrityReviewLineageQuery(parsed.executionCapacityReviewLineageQuery));
+      const executionCapacityReviewDossier = executionCapacityReviewQueue === null ? null : buildIntegrityReviewDossier(executionCapacityReviewQueue, executionCapacityReviewReplay, executionCapacityReviewGate, executionCapacityReviewEvidence, executionCapacityReviewDeadlines, executionCapacityReviewBatch, executionCapacityReviewLineage, parseIntegrityReviewDossierPolicy(parsed.executionCapacityReviewDossierPolicy));
+      const executionCapacityReviewDossierPage = parsed.executionCapacityReviewDossierQuery === undefined || executionCapacityReviewDossier === null ? null : queryIntegrityReviewDossier(executionCapacityReviewDossier, parseIntegrityReviewDossierQuery(parsed.executionCapacityReviewDossierQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -416,7 +431,10 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityReviewHistory, executionCapacityReviewHistoryPage,
           executionCapacityReviewEvidence, executionCapacityReviewEvidencePage,
           executionCapacityReviewDeadlines, executionCapacityReviewDeadlinePage,
-          executionCapacityReviewEscalations, executionCapacityReviewEscalationPage }, { headers });
+          executionCapacityReviewEscalations, executionCapacityReviewEscalationPage,
+          executionCapacityReviewBatch, executionCapacityReviewBatchPage,
+          executionCapacityReviewLineage, executionCapacityReviewLineagePage,
+          executionCapacityReviewDossier, executionCapacityReviewDossierPage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -457,7 +475,10 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityReviewHistory, executionCapacityReviewHistoryPage,
           executionCapacityReviewEvidence, executionCapacityReviewEvidencePage,
           executionCapacityReviewDeadlines, executionCapacityReviewDeadlinePage,
-          executionCapacityReviewEscalations, executionCapacityReviewEscalationPage }, { headers });
+          executionCapacityReviewEscalations, executionCapacityReviewEscalationPage,
+          executionCapacityReviewBatch, executionCapacityReviewBatchPage,
+          executionCapacityReviewLineage, executionCapacityReviewLineagePage,
+          executionCapacityReviewDossier, executionCapacityReviewDossierPage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -497,6 +518,9 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityReviewEvidence, executionCapacityReviewEvidencePage,
           executionCapacityReviewDeadlines, executionCapacityReviewDeadlinePage,
           executionCapacityReviewEscalations, executionCapacityReviewEscalationPage,
+          executionCapacityReviewBatch, executionCapacityReviewBatchPage,
+          executionCapacityReviewLineage, executionCapacityReviewLineagePage,
+          executionCapacityReviewDossier, executionCapacityReviewDossierPage,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
