@@ -67,6 +67,18 @@ const kinds: IntegrityRemediationGateRule["kind"][] = [
   "REQUIRE_NO_WITHDRAWAL_RELINKS", "REQUIRE_ACTION_LIMIT",
   "REQUIRE_CASE_LIMIT", "REQUIRE_WORK_LIMIT",
 ];
+const supportedActions = new Set<IntegrityRemediationCandidate["action"]>([
+  "LINK_REQUIRED_WORK",
+  "RELINK_WITHDRAWN_WORK",
+  "CREATE_WORK_ASSIGNMENT",
+  "REVIEW_AUDIT_ERROR",
+  "REVIEW_AUDIT_WARNING",
+  "REVIEW_UNCOVERED_CASE",
+  "REVIEW_UNREFERENCED_WORK",
+  "REVIEW_SHARED_DEPENDENCY",
+  "REVIEW_WITHDRAWN_ONLY_CASE",
+  "REVIEW_POLICY_CONFLICT",
+]);
 const thresholdKinds = new Set<IntegrityRemediationGateRule["kind"]>([
   "MAX_OPEN", "MAX_URGENT", "MAX_BLOCKED", "MAX_ADVISORY",
   "MAX_RISK_POINTS", "REQUIRE_ACTION_LIMIT", "REQUIRE_CASE_LIMIT",
@@ -135,6 +147,8 @@ export function parseIntegrityRemediationGatePolicy(
       throw new WorkInputError("INVALID", "Case limit requires case.");
     if (kind === "REQUIRE_WORK_LIMIT" && row.workItemId === undefined)
       throw new WorkInputError("INVALID", "Work limit requires work ID.");
+    if (row.action !== undefined && !supportedActions.has(row.action as IntegrityRemediationCandidate["action"]))
+      throw new WorkInputError("INVALID", "Unsupported remediation action.");
     if (row.action !== undefined && kind !== "REQUIRE_ACTION_LIMIT")
       throw new WorkInputError("INVALID", "Unexpected gate action.");
     if (row.caseKey !== undefined && kind !== "REQUIRE_CASE_LIMIT")
