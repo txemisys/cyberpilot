@@ -294,7 +294,7 @@ describe.skipIf(!databaseAvailable)(
       } finally {
         await db.auditEvent.update({
           where: { id: audit.id },
-          data: { metadata: original ?? {} },
+          data: { metadata: JSON.parse(JSON.stringify(original ?? {})) },
         });
       }
       expect((await inspectPersistedReviewLedger(
