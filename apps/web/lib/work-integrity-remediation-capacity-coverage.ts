@@ -103,8 +103,19 @@ export function buildIntegrityCapacityCoverage(
   if (queue.captureId !== plan.captureId ||
       (forecast && forecast.captureId !== plan.captureId))
     throw new WorkInputError("INVALID", "Capacity coverage capture mismatch.");
+  const queueIds = new Set(queue.items.map(x => x.candidateId));
+  if (queueIds.size !== queue.items.length)
+    throw new WorkInputError("INVALID", "Duplicate capacity coverage candidates.");
   const assigned = new Map(plan.assignments.map(x =>
     [x.candidateId, x]));
+  if (assigned.size !== plan.assignments.length ||
+      [...assigned.keys()].some(id => !queueIds.has(id)))
+    throw new WorkInputError("INVALID", "Capacity assignments do not match queue.");
+  if (plan.unassigned.some(x => !queueIds.has(x.candidateId) ||
+      assigned.has(x.candidateId)))
+    throw new WorkInputError("INVALID", "Unassigned capacity records conflict.");
+  if (assigned.size + plan.unassigned.length !== queue.items.length)
+    throw new WorkInputError("INVALID", "Capacity coverage is incomplete.");
   const forecastTasks = new Map(forecast?.tasks.map(x =>
     [x.candidateId, x]) ?? []);
   const dimensionKeys: Record<
