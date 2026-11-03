@@ -323,6 +323,17 @@ describe.skipIf(!databaseAvailable)(
       expect(batch).toMatchObject({
         submitted: 2, created: 1, skippedExisting: 1,
       });
+      const registered = await db.integrityReviewTask.findFirstOrThrow({
+        where: { organizationId, captureId, externalTaskId: "test-case-two" },
+      });
+      expect(await db.auditEvent.count({
+        where: {
+          organizationId, resourceId: registered.id,
+          action: "integrity.review.created",
+        },
+      })).toBe(1);
+      expect((await inspectPersistedReviewLedger(
+        scope, registered.id)).consistent).toBe(true);
       const dashboard = await loadPersistentReviewDashboard(scope, {
         captureId,
       });
