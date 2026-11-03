@@ -33,7 +33,7 @@ const sections: IntegrityExecutionCapacityExportSection[] = [
   "FORECAST_DAYS", "FORECAST_ACTORS",
 ];
 const defaults: IntegrityExecutionCapacityExportOptions = {
-  format: "CSV", sections: [...sections],
+  format: "CSV", sections: ["ASSIGNMENTS", "UNASSIGNED", "MEMBERS"],
   includeMetadata: true, includeEmptySections: false,
   maximumRows: 100000,
 };
@@ -46,7 +46,7 @@ export function parseIntegrityExecutionCapacityExportOptions(
   value: unknown,
 ): IntegrityExecutionCapacityExportOptions {
   if (value === undefined) return {
-    ...defaults, sections: [...sections],
+    ...defaults, sections: [...defaults.sections],
   };
   const raw = object(value);
   if (Object.keys(raw).some(x => ![
@@ -57,7 +57,7 @@ export function parseIntegrityExecutionCapacityExportOptions(
   const format = raw.format ?? defaults.format;
   if (format !== "CSV" && format !== "JSON" && format !== "JSONL")
     throw new WorkInputError("INVALID", "Unknown capacity export format.");
-  const selected = raw.sections === undefined ? sections :
+  const selected = raw.sections === undefined ? defaults.sections :
     raw.sections;
   if (!Array.isArray(selected) || selected.length > sections.length ||
       selected.some(x => !sections.includes(
