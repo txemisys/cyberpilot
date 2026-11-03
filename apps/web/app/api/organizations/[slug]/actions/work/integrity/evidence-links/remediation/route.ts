@@ -1,3 +1,4 @@
+import { prioritizeIntegrityExecutionRemediation, parseIntegrityExecutionRemediationQueuePolicy, parseIntegrityExecutionRemediationQueueQuery, queryIntegrityExecutionRemediationQueue } from "../../../../../../../../../lib/work-integrity-remediation-execution-queue";
 import { buildIntegrityExecutionReadinessHistory, parseIntegrityExecutionReadinessHistoryQuery, queryIntegrityExecutionReadinessHistory } from "../../../../../../../../../lib/work-integrity-remediation-readiness-history";
 import { evaluateIntegrityExecutionReadiness, parseIntegrityExecutionReadinessPolicy, parseIntegrityExecutionReadinessQuery, queryIntegrityExecutionReadiness } from "../../../../../../../../../lib/work-integrity-remediation-execution-readiness";
 import { evaluateIntegrityExecutionControls, parseIntegrityExecutionControlPolicy } from "../../../../../../../../../lib/work-integrity-remediation-execution-controls";
@@ -92,6 +93,7 @@ function parseRequest(value: unknown) {
     "executionReviewQuery", "executionPerformanceQuery",
     "executionEvidenceQuery", "executionReadinessPolicy", "executionReadinessQuery",
     "executionReadinessCheckpoints", "executionReadinessHistoryQuery",
+    "executionQueuePolicy", "executionQueueQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -141,6 +143,8 @@ function parseRequest(value: unknown) {
     executionReadinessQuery: raw.executionReadinessQuery,
     executionReadinessCheckpoints: raw.executionReadinessCheckpoints,
     executionReadinessHistoryQuery: raw.executionReadinessHistoryQuery,
+    executionQueuePolicy: raw.executionQueuePolicy,
+    executionQueueQuery: raw.executionQueueQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -211,6 +215,8 @@ export async function POST(request: NextRequest, { params }: Context) {
       const executionReadinessHistory = parsed.executionReadinessCheckpoints === undefined ? null : buildIntegrityExecutionReadinessHistory(workspace.plan, decisions, executionEvents, state.events, parsed.executionReadinessCheckpoints as string[], parseIntegrityExecutionReadinessPolicy(parsed.executionReadinessPolicy));
       if (parsed.executionReadinessHistoryQuery !== undefined && executionReadinessHistory === null) throw new WorkInputError("INVALID", "Readiness history query requires checkpoints.");
       const executionReadinessHistoryPage = parsed.executionReadinessHistoryQuery === undefined || executionReadinessHistory === null ? null : queryIntegrityExecutionReadinessHistory(executionReadinessHistory, parseIntegrityExecutionReadinessHistoryQuery(parsed.executionReadinessHistoryQuery));
+      const executionQueue = prioritizeIntegrityExecutionRemediation(executionReadiness, executionReadinessHistory, new Date().toISOString(), parseIntegrityExecutionRemediationQueuePolicy(parsed.executionQueuePolicy));
+      const executionQueuePage = parsed.executionQueueQuery === undefined ? null : queryIntegrityExecutionRemediationQueue(executionQueue, parseIntegrityExecutionRemediationQueueQuery(parsed.executionQueueQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -246,7 +252,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionAudit, executionMatrix, executionReviewPage, executionHistory,
           executionPerformance, executionPerformancePage,
           executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage,
-          executionReadinessHistory, executionReadinessHistoryPage }, { headers });
+          executionReadinessHistory, executionReadinessHistoryPage,
+          executionQueue, executionQueuePage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -265,7 +272,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionAudit, executionMatrix, executionReviewPage, executionHistory,
           executionPerformance, executionPerformancePage,
           executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage,
-          executionReadinessHistory, executionReadinessHistoryPage }, { headers });
+          executionReadinessHistory, executionReadinessHistoryPage,
+          executionQueue, executionQueuePage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -283,6 +291,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         executionPerformance, executionPerformancePage,
         executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage,
           executionReadinessHistory, executionReadinessHistoryPage,
+          executionQueue, executionQueuePage,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
