@@ -147,6 +147,89 @@ export function buildProviderHistory(
   }
   return result;
 }
+
+/**
+ * Compact operational follow-up candidates from discrete observations.
+ * These are not incident durations: a provider may have changed state
+ * at any point between two checks.
+ */
+export type ProviderFollowUp = {
+  evidenceId: string;
+  latestCheckId: string;
+  latestOutcome: string;
+  latestCheckedAt: string;
+  lastPassingCheckId: string | null;
+  lastPassingAt: string | null;
+  consecutiveNonPassingChecks: number;
+  firstNonPassingAt: string | null;
+  needsInvestigation: boolean;
+  priority: "PROVIDER_FAILURE" | "CONTROL_FAILURE" |
+    "INCONCLUSIVE" | "NONE";
+  reason: string;
+};
+export function buildProviderFollowUps(
+  points: ProviderHistoryPoint[],
+): ProviderFollowUp[] {
+  const groups = new Map<string, ProviderHistoryPoint[]>();
+  for (const point of points) {
+    const group = groups.get(point.evidenceId) ?? [];
+    group.push(point);
+    groups.set(point.evidenceId, group);
+  }
+  const results: ProviderFollowUp[] = [];
+  for (const [evidenceId, records] of groups) {
+    const ordered = [...records].sort((a, b) =>
+      a.checkedAt.localeCompare(b.checkedAt) || a.id.localeCompare(b.id));
+    const latest = ordered.at(-1);
+    if (!latest) continue;
+    let lastPass: ProviderHistoryPoint | null = null;
+    let consecutiveNonPassingChecks = 0;
+    let firstNonPassingAt: string | null = null;
+    for (const point of ordered) {
+      if (point.outcome === "PASS") {
+        lastPass = point;
+        consecutiveNonPassingChecks = 0;
+        firstNonPassingAt = null;
+      } else {
+        if (consecutiveNonPassingChecks === 0)
+          firstNonPassingAt = point.checkedAt;
+        consecutiveNonPassingChecks++;
+      }
+    }
+    let priority: ProviderFollowUp["priority"] = "NONE";
+    let reason = "Latest check passed at the recorded time.";
+    if (latest.outcome === "FAIL") {
+      priority = "CONTROL_FAILURE";
+      reason = "Latest provider check explicitly reports the control failed.";
+    } else if (latest.outcome === "PROVIDER_ERROR") {
+      priority = "PROVIDER_FAILURE";
+      reason = "Provider availability or authorization prevented verification.";
+    } else if (latest.outcome !== "PASS") {
+      priority = "INCONCLUSIVE";
+      reason = "Latest provider observation cannot establish the control.";
+    }
+    results.push({
+      evidenceId, latestCheckId: latest.id,
+      latestOutcome: latest.outcome,
+      latestCheckedAt: latest.checkedAt,
+      lastPassingCheckId: lastPass?.id ?? null,
+      lastPassingAt: lastPass?.checkedAt ?? null,
+      consecutiveNonPassingChecks,
+      firstNonPassingAt,
+      needsInvestigation: priority !== "NONE",
+      priority, reason,
+    });
+  }
+  return results.sort((a, b) => {
+    const weight = {
+      CONTROL_FAILURE: 0, PROVIDER_FAILURE: 1,
+      INCONCLUSIVE: 2, NONE: 3,
+    };
+    return weight[a.priority] - weight[b.priority] ||
+      a.evidenceId.localeCompare(b.evidenceId);
+  });
+}
+
 export async function inspectProviderHistory(
   scope: ReviewScope, value: unknown,
 ) {
@@ -240,6 +323,7 @@ export async function inspectProviderHistory(
     points,
     transitions,
     latestOnPage: [...latestByEvidence.values()],
+    followUpsOnPage: buildProviderFollowUps(points),
     limitations: [
       "Transitions compare discrete provider observations, not continuous monitoring.",
       "A change between checks does not identify when the control changed.",
