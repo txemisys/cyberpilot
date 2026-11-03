@@ -7,6 +7,7 @@ import {
   listPersistentReviewEvents,
   applyPersistentReviewCommand,
 } from "../../../../../../../../lib/work-integrity-persistent-review";
+import { inspectPersistedReviewLedger } from "../../../../../../../../lib/work-integrity-persistent-review-ledger";
 import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
 
 type Context = { params: Promise<{ slug: string }> };
@@ -71,6 +72,15 @@ export async function GET(request: NextRequest, { params }: Context) {
     const { slug } = await params;
     const scope = await scopeFor(slug);
     const raw = queryObject(request);
+    if (raw.view === "ledger") {
+      if (Object.keys(raw).some(x => !["view", "taskId"].includes(x)))
+        throw new WorkInputError("INVALID", "Unknown ledger query field.");
+      if (typeof raw.taskId !== "string")
+        throw new WorkInputError("INVALID", "Review task ID required.");
+      return NextResponse.json({
+        ledger: await inspectPersistedReviewLedger(scope, raw.taskId),
+      }, { headers });
+    }
     if (raw.view === "events") {
       const keys = Object.keys(raw);
       if (keys.some(x => !["view", "taskId", "offset", "limit"].includes(x)))
