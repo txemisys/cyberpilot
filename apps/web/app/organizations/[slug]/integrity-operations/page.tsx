@@ -3,6 +3,7 @@ import { requireOrganizationAccess } from "../../../../lib/organizations";
 import { IntegrityOperationsWorkspace } from "../../../../components/integrity-operations-workspace";
 import { IntegrityEventOperations } from "../../../../components/integrity-event-operations";
 import { IntegrityOperationsReports } from "../../../../components/integrity-operations-reports";
+import { IntegrityOperationalAssurance } from "../../../../components/integrity-operational-assurance";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -21,6 +22,7 @@ export default async function IntegrityOperationsPage({ params }: Props) {
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: 24 }}>
         <IntegrityEventOperations slug={slug} canManage={canManage} />
         <IntegrityOperationsReports slug={slug} canManage={canManage} />
+        <IntegrityOperationalAssurance slug={slug} canManage={canManage} />
       </div>
     </>
   );
