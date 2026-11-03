@@ -7,6 +7,8 @@ import {
   listReviewWorkAssociations,
 } from "./work-integrity-review-work-links";
 import type { ReviewScope } from "./work-integrity-persistent-review";
+import { loadCaptureReviewLineage } from "./work-integrity-capture-lineage";
+import { inspectCaptureReviewWorkConsistency } from "./work-integrity-review-work-reconciliation";
 
 /** Real PostgreSQL test; skipped only when DATABASE_URL is unavailable. */
 describe.skipIf(!process.env.DATABASE_URL)(
@@ -200,6 +202,29 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(inspection.revisions).toHaveLength(3);
       await expect(inspectReviewWorkAssociation(other, linkId))
         .rejects.toMatchObject({ code: "MISSING" });
+    });
+    it("reports explicit capture-to-work lineage without inferring verification", async () => {
+      const result = await loadCaptureReviewLineage(scope, { captureId });
+      expect(result.capture.id).toBe(captureId);
+      expect(result.total).toBe(1);
+      expect(result.rows[0]?.review.id).toBe(taskId);
+      expect(result.rows[0]?.work[0]?.workItemId).toBe(workItemId);
+      expect(result.rows[0]?.linkage.independentlyVerified).toBe(false);
+      expect(result.rows[0]?.evidence.gate).toBe("NO_EVIDENCE");
+      expect(result.summary.activeWorkLinks).toBe(1);
+      expect(result.summary.noEvidence).toBe(1);
+      await expect(loadCaptureReviewLineage(other, { captureId }))
+        .rejects.toMatchObject({ code: "MISSING" });
+    });
+    it("reports consistent association chronology through the capture API", async () => {
+      const report = await inspectCaptureReviewWorkConsistency(
+        scope, { captureId });
+      expect(report.total).toBe(1);
+      expect(report.summary.consistentLinks).toBe(1);
+      expect(report.summary.inconsistentLinks).toBe(0);
+      await expect(inspectCaptureReviewWorkConsistency(
+        other, { captureId },
+      )).rejects.toMatchObject({ code: "MISSING" });
     });
     it("detects an audit gap", async () => {
       const audit = await db.auditEvent.findFirstOrThrow({
