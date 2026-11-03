@@ -159,6 +159,36 @@ async function triageSingle(
     });
     if (!task)
       throw new WorkInputError("MISSING", "Review task not found.");
+    // Replays must be detected before checking a revision that the
+    // original assignment may itself have advanced.
+    const key = "triage:" + command.idempotencyKey;
+    const previous = await tx.auditEvent.findFirst({
+      where: {
+        organizationId: scope.organizationId,
+        action: "integrity.triage." + command.action.toLowerCase(),
+        resourceType: "IntegrityReviewTask",
+        resourceId: task.id,
+        metadata: { path: ["idempotencyKey"], equals: key },
+      },
+      orderBy: { occurredAt: "desc" },
+    });
+    if (previous) {
+      const metadata = previous.metadata as Record<string, unknown> | null;
+      if (metadata?.note !== command.note ||
+          metadata?.revisionBefore !== command.expectedRevision ||
+          (command.action === "ASSIGN" &&
+            metadata?.nextOwner !== command.recipientUserId))
+        throw new WorkInputError("CONFLICT", "Triage idempotency key reused.");
+      return {
+        taskId: task.id, action: command.action,
+        status: "REPLAYED" as const,
+        revisionBefore: command.expectedRevision,
+        revisionAfter: typeof metadata?.revisionAfter === "number" ?
+          metadata.revisionAfter : task.revision,
+        notificationIds: [],
+        errorCode: null, message: "Existing triage command found.",
+      };
+    }
     if (task.revision !== command.expectedRevision)
       throw new WorkInputError("CONFLICT", "Review revision changed.");
     if (isTerminal(task.disposition))
@@ -203,27 +233,6 @@ async function triageSingle(
       throw new WorkInputError("CONFLICT", "Review is already unassigned.");
     if (command.action === "CLEAR_DUE_REMINDER" && !task.ownerUserId)
       throw new WorkInputError("CONFLICT", "Review has no assignee.");
-    const key = "triage:" + command.idempotencyKey;
-    const previous = await tx.auditEvent.findFirst({
-      where: {
-        organizationId: scope.organizationId,
-        action: "integrity.triage." + command.action.toLowerCase(),
-        resourceType: "IntegrityReviewTask",
-        resourceId: task.id,
-        metadata: { path: ["idempotencyKey"], equals: key },
-      },
-      orderBy: { occurredAt: "desc" },
-    });
-    if (previous) {
-      return {
-        taskId: task.id, action: command.action,
-        status: "REPLAYED" as const,
-        revisionBefore: task.revision,
-        revisionAfter: task.revision,
-        notificationIds: [],
-        errorCode: null, message: "Existing triage command found.",
-      };
-    }
     if (dryRun) return {
       taskId: task.id, action: command.action,
       status: "PREVIEW" as const,
