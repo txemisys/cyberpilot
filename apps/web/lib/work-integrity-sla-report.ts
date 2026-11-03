@@ -190,21 +190,28 @@ export function computeSlaReport(
   for (const task of input.tasks) {
     const response = firstResponse(input.events, task.id);
     add("TASK", task.id, task.id, "FIRST_RESPONSE",
-      task.createdAt, response, query.responseMinutes, task.disposition);
+      task.createdAt, response ?? task.completedAt,
+      query.responseMinutes, task.disposition);
     const finished = task.completedAt;
     add("TASK", task.id, task.id, "RESOLUTION",
       task.createdAt, finished, query.resolutionMinutes, task.disposition);
   }
   for (const notification of input.notifications) {
     if (!taskSet.has(notification.taskId)) continue;
-    const end = notification.readAt ?? notification.dismissedAt;
+    const end = notification.readAt && notification.dismissedAt ?
+      (notification.readAt < notification.dismissedAt ?
+        notification.readAt : notification.dismissedAt) :
+      (notification.readAt ?? notification.dismissedAt);
     add("NOTIFICATION", notification.id, notification.taskId,
       "READ", notification.createdAt, end,
       query.notificationReadMinutes, notification.kind);
   }
   for (const escalation of input.escalations) {
     if (!taskSet.has(escalation.taskId)) continue;
-    const end = escalation.acknowledgedAt ?? escalation.resolvedAt;
+    const end = escalation.acknowledgedAt && escalation.resolvedAt ?
+      (escalation.acknowledgedAt < escalation.resolvedAt ?
+        escalation.acknowledgedAt : escalation.resolvedAt) :
+      (escalation.acknowledgedAt ?? escalation.resolvedAt);
     add("ESCALATION", escalation.id, escalation.taskId,
       "ACKNOWLEDGEMENT", escalation.openedAt, end,
       query.escalationAckMinutes, escalation.state);
