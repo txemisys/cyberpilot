@@ -44,7 +44,8 @@ export async function GET(request: NextRequest, { params }: Context) {
     const state = await listCompleteIntegrityWorkLinkState(
       membership.organization.id, captureId);
     const result = inspectIntegrityLineage(captureId, state.events, {
-      from, to, origin, depth,
+      ...(from ? { from } : {}), ...(to ? { to } : {}),
+      ...(origin ? { origin } : {}), ...(depth !== undefined ? { depth } : {}),
     });
     return NextResponse.json({ result }, { headers });
   } catch (error) { return failure(error); }
