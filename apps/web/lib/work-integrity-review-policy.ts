@@ -81,11 +81,11 @@ export function parseIntegrityReviewPolicy(value: unknown): IntegrityReviewPolic
   if (raw.ignoredFindingCodes !== undefined)
     policy.ignoredFindingCodes = strings(raw.ignoredFindingCodes, "ignored codes", 50);
   if (raw.maxActivePerCase !== undefined)
-    policy.maxActivePerCase = optionalCount(raw.maxActivePerCase, "case limit", 100000);
+    policy.maxActivePerCase = optionalCount(raw.maxActivePerCase, "case limit", 100000)!;
   if (raw.maxActivePerWorkItem !== undefined)
-    policy.maxActivePerWorkItem = optionalCount(raw.maxActivePerWorkItem, "work limit", 100000);
+    policy.maxActivePerWorkItem = optionalCount(raw.maxActivePerWorkItem, "work limit", 100000)!;
   if (raw.maxAgeDays !== undefined)
-    policy.maxAgeDays = optionalCount(raw.maxAgeDays, "maximum age", 36500);
+    policy.maxAgeDays = optionalCount(raw.maxAgeDays, "maximum age", 36500)!;
   return policy;
 }
 function violation(
