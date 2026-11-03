@@ -260,10 +260,11 @@ export function forecastIntegrityExecutionCapacity(
       lastCompletionDate: completedTasks.map(x => x.finishDate)
         .filter((x): x is string => x !== null).sort().at(-1) ?? null,
       utilizationPercent: workingDays ?
-        Math.round(100 * days.reduce((sum, day) => sum +
-          (day.workingDay ? day.pointsScheduled : 0), 0) /
-          Math.max(1, workingDays * policy.pointsPerDay *
-            assignmentsByActor.size)) : 0,
+        Math.round(100 * actorTasks.reduce((sum, task) =>
+          sum + (task.finishDay === null ?
+            Math.min(task.effortPoints, workingDays * policy.pointsPerDay) :
+            task.effortPoints), 0) /
+          (workingDays * policy.pointsPerDay)) : 0,
     };
   });
   const scheduled = tasks.filter(x => x.status === "SCHEDULED");
