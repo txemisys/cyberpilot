@@ -369,7 +369,7 @@ export function parseIntegrityRemediationExecutionQuery(
     throw new WorkInputError("INVALID", "Invalid execution pagination.");
   return {
     ...(selectedStates !== undefined ? {
-      states: selectedStates as IntegrityRemediationExecutionQuery["states"],
+      states: selectedStates as NonNullable<IntegrityRemediationExecutionQuery["states"]>,
     } : {}),
     ...(raw.candidateIds !== undefined ? {
       candidateIds: list(raw.candidateIds, "execution candidate IDs", 1000),
