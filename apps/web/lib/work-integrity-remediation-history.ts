@@ -303,10 +303,9 @@ export function parseIntegrityRemediationHistoryQuery(
   if (raw.urgentOnly !== undefined && typeof raw.urgentOnly !== "boolean")
     throw new WorkInputError("INVALID", "Invalid urgent flag.");
   return {
-    actions: optionalIds(raw.actions, "actions") as
-      IntegrityRemediationCandidate["action"][] | undefined,
-    caseKeys: optionalIds(raw.caseKeys, "case keys"),
-    workItemIds: optionalIds(raw.workItemIds, "work IDs"),
+    ...(raw.actions !== undefined ? { actions: optionalIds(raw.actions, "actions") as IntegrityRemediationCandidate["action"][] } : {}),
+    ...(raw.caseKeys !== undefined ? { caseKeys: optionalIds(raw.caseKeys, "case keys")! } : {}),
+    ...(raw.workItemIds !== undefined ? { workItemIds: optionalIds(raw.workItemIds, "work IDs")! } : {}),
     currentOnly: raw.currentOnly === true,
     urgentOnly: raw.urgentOnly === true,
     minimumObservations: optionalInt(
