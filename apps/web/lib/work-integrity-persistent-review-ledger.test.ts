@@ -11,14 +11,14 @@ const task = {
   captureId: "review-capture-12345",
   disposition: "ACKNOWLEDGED" as ReviewDisposition,
   revision: 2,
-  ownerUserId: actor,
-  completedAt: null,
+  ownerUserId: actor as string | null,
+  completedAt: null as Date | null,
   resolutionRefs: [],
 };
 const event = {
   id: "review-event-12345",
   action: "ACKNOWLEDGE" as ReviewAction,
-  actorUserId: actor,
+  actorUserId: actor as string | null,
   revisionBefore: 1,
   revisionAfter: 2,
   before: "OPEN" as ReviewDisposition,
