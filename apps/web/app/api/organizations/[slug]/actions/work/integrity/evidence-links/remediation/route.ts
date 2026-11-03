@@ -1,3 +1,4 @@
+import { planIntegrityExecutionCapacity, parseIntegrityExecutionCapacityMembers, parseIntegrityExecutionCapacityPolicy, parseIntegrityExecutionCapacityQuery, queryIntegrityExecutionCapacity } from "../../../../../../../../../lib/work-integrity-remediation-execution-capacity";
 import { prioritizeIntegrityExecutionRemediation, parseIntegrityExecutionRemediationQueuePolicy, parseIntegrityExecutionRemediationQueueQuery, queryIntegrityExecutionRemediationQueue } from "../../../../../../../../../lib/work-integrity-remediation-execution-queue";
 import { buildIntegrityExecutionReadinessHistory, parseIntegrityExecutionReadinessHistoryQuery, queryIntegrityExecutionReadinessHistory } from "../../../../../../../../../lib/work-integrity-remediation-readiness-history";
 import { evaluateIntegrityExecutionReadiness, parseIntegrityExecutionReadinessPolicy, parseIntegrityExecutionReadinessQuery, queryIntegrityExecutionReadiness } from "../../../../../../../../../lib/work-integrity-remediation-execution-readiness";
@@ -94,6 +95,7 @@ function parseRequest(value: unknown) {
     "executionEvidenceQuery", "executionReadinessPolicy", "executionReadinessQuery",
     "executionReadinessCheckpoints", "executionReadinessHistoryQuery",
     "executionQueuePolicy", "executionQueueQuery",
+    "executionCapacityMembers", "executionCapacityPolicy", "executionCapacityQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -145,6 +147,9 @@ function parseRequest(value: unknown) {
     executionReadinessHistoryQuery: raw.executionReadinessHistoryQuery,
     executionQueuePolicy: raw.executionQueuePolicy,
     executionQueueQuery: raw.executionQueueQuery,
+    executionCapacityMembers: raw.executionCapacityMembers,
+    executionCapacityPolicy: raw.executionCapacityPolicy,
+    executionCapacityQuery: raw.executionCapacityQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -217,6 +222,9 @@ export async function POST(request: NextRequest, { params }: Context) {
       const executionReadinessHistoryPage = parsed.executionReadinessHistoryQuery === undefined || executionReadinessHistory === null ? null : queryIntegrityExecutionReadinessHistory(executionReadinessHistory, parseIntegrityExecutionReadinessHistoryQuery(parsed.executionReadinessHistoryQuery));
       const executionQueue = prioritizeIntegrityExecutionRemediation(executionReadiness, executionReadinessHistory, new Date().toISOString(), parseIntegrityExecutionRemediationQueuePolicy(parsed.executionQueuePolicy));
       const executionQueuePage = parsed.executionQueueQuery === undefined ? null : queryIntegrityExecutionRemediationQueue(executionQueue, parseIntegrityExecutionRemediationQueueQuery(parsed.executionQueueQuery));
+      if (parsed.executionCapacityMembers === undefined && (parsed.executionCapacityPolicy !== undefined || parsed.executionCapacityQuery !== undefined)) throw new WorkInputError("INVALID", "Capacity options require capacity members.");
+      const executionCapacity = parsed.executionCapacityMembers === undefined ? null : planIntegrityExecutionCapacity(executionQueue, parseIntegrityExecutionCapacityMembers(parsed.executionCapacityMembers), new Date().toISOString(), parseIntegrityExecutionCapacityPolicy(parsed.executionCapacityPolicy));
+      const executionCapacityPage = parsed.executionCapacityQuery === undefined || executionCapacity === null ? null : queryIntegrityExecutionCapacity(executionCapacity, parseIntegrityExecutionCapacityQuery(parsed.executionCapacityQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -253,7 +261,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionPerformance, executionPerformancePage,
           executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage,
           executionReadinessHistory, executionReadinessHistoryPage,
-          executionQueue, executionQueuePage }, { headers });
+          executionQueue, executionQueuePage,
+          executionCapacity, executionCapacityPage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -273,7 +282,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionPerformance, executionPerformancePage,
           executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage,
           executionReadinessHistory, executionReadinessHistoryPage,
-          executionQueue, executionQueuePage }, { headers });
+          executionQueue, executionQueuePage,
+          executionCapacity, executionCapacityPage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -292,6 +302,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage,
           executionReadinessHistory, executionReadinessHistoryPage,
           executionQueue, executionQueuePage,
+          executionCapacity, executionCapacityPage,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
