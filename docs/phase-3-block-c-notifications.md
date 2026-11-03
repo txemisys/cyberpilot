@@ -41,3 +41,12 @@ Las pruebas unitarias cubren entradas inválidas, política, máquina de estados
 ### Limitaciones
 
 Las métricas son operativas y no equivalen a mejoras del CyberScore. La cola muestra el último resultado del proveedor como contexto, sin afirmar vigencia técnica del gate. El despacho automático periódico y los canales externos no se han implementado. Los lotes de triage son transaccionales por comando, no como grupo. El cierre completo del Bloque C exige validación de experiencia visual, pruebas de usuario y la política de notificaciones por evento.
+
+## Tercer incremento: notificaciones derivadas de eventos e inspección
+
+- `POST .../event-notifications`: reconciliación explícita por captura de eventos persistidos de resolución humana y verificaciones reales de proveedor, con previsualización por defecto, páginas limitadas, topes de fuentes y destinatarios, revalidación transaccional de organización, evento y membresía, deduplicación por origen y destinatario y auditoría de cada publicación.
+- `GET .../notification-inspection`: inspección de procedencia y coherencia por página, con comprobación de existencia de tarea, destinatario, evento de revisión, resultado de proveedor o escalado; auditoría de creación, tipo, dedupe, destinatario, timestamps y revisiones; digest SHA-256 de los resultados.
+- `IntegrityEventOperations`: interfaz para previsualizar, ejecutar el despacho in-app y consultar los resultados de integridad, integrada en el workspace.
+- Pruebas de planificación determinista, seguridad multitenant, reintentos, consistencia de auditoría y persistencia PostgreSQL.
+
+La reconciliación **no se ejecuta automáticamente**: debe activarla un administrador. El tipo histórico `PROVIDER_RECOVERED` representa un resultado PASS en un evento concreto; **no prueba que existiera un fallo anterior ni que la postura actual sea segura**. La inspección es de integridad operacional y tampoco sustituye a la verificación técnica independiente. No se envían mensajes externos.
