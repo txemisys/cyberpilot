@@ -6,6 +6,7 @@ import {
   getPersistentReview, listPersistentReviews,
   listPersistentReviewEvents, type ReviewScope,
 } from "./work-integrity-persistent-review";
+import { inspectPersistedReviewLedger } from "./work-integrity-persistent-review-ledger";
 import {
   registerPersistentReviewBatch,
   loadPersistentReviewDashboard,
@@ -256,6 +257,54 @@ describe.skipIf(!databaseAvailable)(
       const task = await getPersistentReview(scope, createdTaskId);
       expect(task.resolutionRefs).toEqual([evidence.id]);
       expect(task.completedAt).not.toBeNull();
+    });
+    it("replays the actual PostgreSQL ledger with command and audit reconciliation", async () => {
+      const ledger = await inspectPersistedReviewLedger(scope, createdTaskId);
+      expect(ledger.consistent).toBe(true);
+      expect(ledger.eventCount).toBe(3);
+      expect(ledger.commandCount).toBe(3);
+      expect(ledger.auditCount).toBe(3);
+      expect(ledger.expectedRevision).toBe(4);
+      expect(ledger.expectedDisposition).toBe("RESOLVED");
+    });
+    it("detects persisted audit corruption and recovers after repair", async () => {
+      const audit = await db.auditEvent.findFirstOrThrow({
+        where: {
+          organizationId, resourceId: createdTaskId,
+          action: "integrity.review.resolve",
+        },
+      });
+      const original = audit.metadata;
+      try {
+        await db.auditEvent.update({
+          where: { id: audit.id },
+          data: {
+            metadata: {
+              eventId: "corrupted-event-id",
+              revisionBefore: 3,
+              revisionAfter: 4,
+            },
+          },
+        });
+        const damaged = await inspectPersistedReviewLedger(
+          scope, createdTaskId);
+        expect(damaged.consistent).toBe(false);
+        expect(damaged.findings.some(x =>
+          x.code === "AUDIT_MISSING")).toBe(true);
+      } finally {
+        await db.auditEvent.update({
+          where: { id: audit.id },
+          data: { metadata: original ?? {} },
+        });
+      }
+      expect((await inspectPersistedReviewLedger(
+        scope, createdTaskId)).consistent).toBe(true);
+    });
+    it("does not reveal a foreign organization's ledger", async () => {
+      await expect(inspectPersistedReviewLedger(
+        otherScope, createdTaskId)).rejects.toMatchObject({
+        code: "MISSING",
+      });
     });
     it("registers batches without duplicating existing tasks", async () => {
       const batch = await registerPersistentReviewBatch(scope, {
