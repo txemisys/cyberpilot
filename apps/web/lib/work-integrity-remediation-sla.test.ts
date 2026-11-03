@@ -153,4 +153,32 @@ describe("integrity remediation escalation", () => {
     expect(compareIntegrityEscalationReports(before, after)
       .introduced.length).toBeGreaterThan(0);
   });
+  it("does not mistake accepting a proposal for verified completion", () => {
+    const plan = buildIntegrityRemediationWorkspace(input, []).plan;
+    const candidate = plan.candidates[0]!;
+    const decisions = [{
+      candidateId: candidate.id, decision: "ACCEPT" as const,
+      reason: "Approved for work", reviewerId: "reviewer",
+      reviewedAt: start,
+    }];
+    const sla = evaluateIntegrityRemediationSla(
+      plan, decisions, start, later, slaPolicy);
+    const row = sla.entries.find(x => x.candidateId === candidate.id);
+    expect(row?.status).not.toBe("RESOLVED");
+    expect(row?.resolutionAt).toBeNull();
+  });
+  it("rejects unissued alert acknowledgements as proof of acknowledgement", () => {
+    const plan = buildIntegrityRemediationWorkspace(input, []).plan;
+    const sla = evaluateIntegrityRemediationSla(
+      plan, [], start, later, slaPolicy);
+    const first = evaluateIntegrityEscalations(sla, escalationPolicy);
+    const acknowledgements = parseIntegrityEscalationAcknowledgements(
+      first.alerts.map(x => ({
+        alertId: x.id, acknowledgedBy: "reviewer",
+        acknowledgedAt: later, note: "Acknowledged",
+      })));
+    const unissued = evaluateIntegrityEscalations(
+      sla, escalationPolicy, [], acknowledgements);
+    expect(unissued.totals.acknowledged).toBe(0);
+  });
 });
