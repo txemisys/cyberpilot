@@ -373,12 +373,13 @@ export async function readIntegrityOperationsManifest(
           },
         }) : Promise.resolve([]),
     ]);
-  const truncated = [
+  const sourceCounts: Array<[string, number]> = [
     ["review events", reviewEvents.length],
     ["notifications", notifications.length],
     ["escalations", escalations.length],
     ["provider checks", checks.length],
-  ].filter(([, count]) => count >= cap)
+  ];
+  const truncated = sourceCounts.filter(([, count]) => count >= cap)
     .map(([name]) => "The " + name + " query reached its 3,000-record limit.");
   const entries = mapManifestRecords({
     tasks, reviewEvents, notifications, escalations, checks,
