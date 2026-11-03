@@ -54,6 +54,11 @@ import {
   parseIntegrityExecutionPerformanceQuery,
   queryIntegrityExecutionPerformance,
 } from "../../../../../../../../../lib/work-integrity-remediation-execution-performance";
+import {
+  reconcileIntegrityExecutionEvidence,
+  parseIntegrityExecutionEvidenceQuery,
+  queryIntegrityExecutionEvidence,
+} from "../../../../../../../../../lib/work-integrity-remediation-evidence-provenance";
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
   "Cache-Control": "private, no-store",
@@ -82,6 +87,7 @@ function parseRequest(value: unknown) {
     "acknowledgements", "slaQuery", "escalationQuery",
     "executionEvents", "executionQuery", "executionCheckpoints",
     "executionReviewQuery", "executionPerformanceQuery",
+    "executionEvidenceQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -105,7 +111,9 @@ function parseRequest(value: unknown) {
     "gatePolicy", "decisions", "decisionPolicy", "capacity", "exportRequest",
     "slaPolicy", "createdAt", "evaluatedAt", "escalationPolicy",
     "acknowledgements", "slaQuery", "escalationQuery",
-    "executionEvents", "verifiedEvidenceRefs", "executionQuery",
+    "executionEvents", "executionQuery", "executionCheckpoints",
+    "executionReviewQuery", "executionPerformanceQuery",
+    "executionEvidenceQuery",
   ].some(key => raw[key] !== undefined))
     throw new WorkInputError("INVALID", "Workspace options require workspace view.");
   const weights = parseIntegrityPortfolioRiskWeights(raw.weights);
@@ -124,6 +132,7 @@ function parseRequest(value: unknown) {
     executionCheckpoints: raw.executionCheckpoints,
     executionReviewQuery: raw.executionReviewQuery,
     executionPerformanceQuery: raw.executionPerformanceQuery,
+    executionEvidenceQuery: raw.executionEvidenceQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -182,6 +191,12 @@ export async function POST(request: NextRequest, { params }: Context) {
           parseIntegrityRemediationExecutionQuery(parsed.executionQuery));
       const executionAudit = buildIntegrityExecutionReviewAudit(
         execution, executionEvents);
+      const executionEvidence = reconcileIntegrityExecutionEvidence(
+        workspace.plan, execution, executionAudit,
+        executionEvents, state.events);
+      const executionEvidencePage = parsed.executionEvidenceQuery === undefined
+        ? null : queryIntegrityExecutionEvidence(executionEvidence,
+          parseIntegrityExecutionEvidenceQuery(parsed.executionEvidenceQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -215,7 +230,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           throw new WorkInputError("INVALID", "SLA parameters require SLA policy.");
         return NextResponse.json({ workspace, audit, execution, executionPage,
           executionAudit, executionMatrix, executionReviewPage, executionHistory,
-          executionPerformance, executionPerformancePage }, { headers });
+          executionPerformance, executionPerformancePage,
+          executionEvidence, executionEvidencePage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
