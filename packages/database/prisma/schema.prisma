@@ -239,6 +239,7 @@ model Organization {
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
   integrityReviewCommands   IntegrityReviewCommand[]
+  integrityEvidenceAssessments IntegrityEvidenceAssessment[]
 }
 
 model Membership {
@@ -411,6 +412,7 @@ model SecurityEvidence {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   workLinks WorkEvidenceLink[]
+  integrityAssessments IntegrityEvidenceAssessment[]
 
   @@unique([organizationId, source, domain, controlId, scope])
   @@index([organizationId, domain, state])
@@ -724,6 +726,7 @@ model IntegrityReviewTask {
   capture IntegrityCaseCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
   events IntegrityReviewEvent[]
   commands IntegrityReviewCommand[]
+  evidenceAssessments IntegrityEvidenceAssessment[]
 
   @@unique([organizationId, captureId, externalTaskId])
   @@index([organizationId, disposition, updatedAt])
@@ -782,4 +785,43 @@ model RequestRateLimit {
 
   @@unique([scope, subjectHash, windowStart])
   @@index([expiresAt])
+}
+
+/**
+ * Human review of a specific evidence observation, not an assertion that
+ * the underlying control is independently verified by a provider.
+ */
+enum IntegrityEvidenceDecision {
+  ACCEPTED
+  REJECTED
+  INCONCLUSIVE
+}
+
+model IntegrityEvidenceAssessment {
+  id String @id @default(cuid())
+  organizationId String
+  taskId String
+  evidenceId String
+  assessorUserId String?
+  decision IntegrityEvidenceDecision
+  rationale String
+  observationDigest String @db.VarChar(64)
+  observedAt DateTime?
+  source String
+  controlId String
+  evidenceState String
+  evidenceUpdatedAt DateTime
+  revision Int
+  idempotencyKey String
+  requestDigest String @db.VarChar(64)
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  evidence SecurityEvidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, assessorUserId, idempotencyKey])
+  @@unique([taskId, revision])
+  @@index([organizationId, taskId, createdAt])
+  @@index([organizationId, evidenceId, createdAt])
 }
