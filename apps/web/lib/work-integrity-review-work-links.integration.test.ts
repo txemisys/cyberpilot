@@ -75,15 +75,18 @@ describe.skipIf(!process.env.DATABASE_URL)(
         data: {
           organizationId,
           title: "Review link finding",
+          key: "review-link-" + suffix,
+          ruleId: "review-link-control",
+          description: "Test finding",
           severity: "HIGH",
-          source: "integration-test",
-          controlId: "review-link-control",
         },
       });
       const remediation = await db.remediation.create({
         data: {
           organizationId, findingId: finding.id,
           title: "Review link remediation",
+          playbookId: "integration-test", mode: "GUIDED",
+          summary: "Review link test", steps: [], verification: {},
         },
       });
       const work = await db.remediationWorkItem.create({
@@ -98,9 +101,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
         data: {
           organizationId: otherOrganizationId,
           title: "Other finding",
+          key: "review-link-other-" + suffix,
+          ruleId: "other-review-link-control",
+          description: "Other test finding",
           severity: "HIGH",
-          source: "integration-test",
-          controlId: "other-review-link-control",
         },
       });
       const otherRemediation = await db.remediation.create({
@@ -108,6 +112,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
           organizationId: otherOrganizationId,
           findingId: otherFinding.id,
           title: "Other remediation",
+          playbookId: "integration-test", mode: "GUIDED",
+          summary: "Other review link test", steps: [], verification: {},
         },
       });
       const otherWork = await db.remediationWorkItem.create({
