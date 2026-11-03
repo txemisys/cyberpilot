@@ -1,3 +1,6 @@
+import { compareIntegrityCapacityDecisionPolicies, parseIntegrityCapacityDecisionComparisonQuery, queryIntegrityCapacityDecisionComparison } from "../../../../../../../../../lib/work-integrity-remediation-capacity-decision-comparison";
+import { evaluateIntegrityCapacityGovernance, parseIntegrityCapacityGovernancePolicy, parseIntegrityCapacityGovernanceQuery, queryIntegrityCapacityGovernance } from "../../../../../../../../../lib/work-integrity-remediation-capacity-governance";
+import { buildIntegrityCapacityReviewQueue, parseIntegrityCapacityReviewQuery, queryIntegrityCapacityReviewQueue } from "../../../../../../../../../lib/work-integrity-remediation-capacity-review-queue";
 import { decideIntegrityCapacityPortfolio, parseIntegrityCapacityDecisionPolicy, parseIntegrityCapacityDecisionQuery, queryIntegrityCapacityDecision, auditIntegrityCapacityDecision } from "../../../../../../../../../lib/work-integrity-remediation-capacity-decision";
 import { analyzeIntegrityCapacitySensitivity, parseIntegrityCapacitySensitivityVariations, parseIntegrityCapacitySensitivityQuery, queryIntegrityCapacitySensitivity, parseIntegrityCapacitySensitivityGridPolicy, evaluateIntegrityCapacitySensitivityGrid } from "../../../../../../../../../lib/work-integrity-remediation-capacity-sensitivity";
 import { exportIntegrityCapacityDecision, parseIntegrityCapacityDecisionExportOptions } from "../../../../../../../../../lib/work-integrity-remediation-capacity-decision-export";
@@ -192,6 +195,11 @@ function parseRequest(value: unknown) {
     executionCapacitySensitivityGrid: raw.executionCapacitySensitivityGrid,
     executionCapacitySensitivityQuery: raw.executionCapacitySensitivityQuery,
     executionCapacityDecisionExport: raw.executionCapacityDecisionExport,
+    executionCapacityComparePolicy: raw.executionCapacityComparePolicy,
+    executionCapacityComparisonQuery: raw.executionCapacityComparisonQuery,
+    executionCapacityGovernancePolicy: raw.executionCapacityGovernancePolicy,
+    executionCapacityGovernanceQuery: raw.executionCapacityGovernanceQuery,
+    executionCapacityReviewQuery: raw.executionCapacityReviewQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -295,7 +303,7 @@ export async function POST(request: NextRequest, { params }: Context) {
       if (parsed.executionCapacityAttributionQuery !== undefined && (executionCapacityPortfolio === null || executionCapacityInterventions === null)) throw new WorkInputError("INVALID", "Attribution requires intervention portfolio.");
       const executionCapacityAttribution = executionCapacityPortfolio === null || executionCapacityInterventions === null ? null : attributeIntegrityCapacityInterventions(executionCapacityInterventions, executionCapacityPortfolio);
       const executionCapacityAttributionPage = parsed.executionCapacityAttributionQuery === undefined || executionCapacityAttribution === null ? null : queryIntegrityCapacityInterventionAttribution(executionCapacityAttribution, parseIntegrityCapacityInterventionAttributionQuery(parsed.executionCapacityAttributionQuery));
-      const decisionInputsPresent = parsed.executionCapacityDecisionPolicy !== undefined || parsed.executionCapacityDecisionQuery !== undefined || parsed.executionCapacitySensitivityVariations !== undefined || parsed.executionCapacitySensitivityGrid !== undefined || parsed.executionCapacitySensitivityQuery !== undefined || parsed.executionCapacityDecisionExport !== undefined;
+      const decisionInputsPresent = parsed.executionCapacityDecisionPolicy !== undefined || parsed.executionCapacityDecisionQuery !== undefined || parsed.executionCapacitySensitivityVariations !== undefined || parsed.executionCapacitySensitivityGrid !== undefined || parsed.executionCapacitySensitivityQuery !== undefined || parsed.executionCapacityDecisionExport !== undefined || parsed.executionCapacityComparePolicy !== undefined || parsed.executionCapacityComparisonQuery !== undefined || parsed.executionCapacityGovernancePolicy !== undefined || parsed.executionCapacityGovernanceQuery !== undefined || parsed.executionCapacityReviewQuery !== undefined;
       if (decisionInputsPresent && executionCapacityPortfolio === null) throw new WorkInputError("INVALID", "Capacity decisions require a portfolio.");
       if (parsed.executionCapacitySensitivityVariations !== undefined && parsed.executionCapacitySensitivityGrid !== undefined) throw new WorkInputError("INVALID", "Choose variations or a sensitivity grid.");
       if (parsed.executionCapacitySensitivityQuery !== undefined && parsed.executionCapacitySensitivityVariations === undefined && parsed.executionCapacitySensitivityGrid === undefined) throw new WorkInputError("INVALID", "Sensitivity query requires variations or a grid.");
@@ -306,6 +314,13 @@ export async function POST(request: NextRequest, { params }: Context) {
       const executionCapacitySensitivity = executionCapacityPortfolio === null || executionCapacityDecisionPolicy === null ? null : parsed.executionCapacitySensitivityVariations !== undefined ? analyzeIntegrityCapacitySensitivity(executionCapacityPortfolio, executionCapacityDecisionPolicy, parseIntegrityCapacitySensitivityVariations(parsed.executionCapacitySensitivityVariations)) : parsed.executionCapacitySensitivityGrid !== undefined ? evaluateIntegrityCapacitySensitivityGrid(executionCapacityPortfolio, executionCapacityDecisionPolicy, parseIntegrityCapacitySensitivityGridPolicy(parsed.executionCapacitySensitivityGrid)) : null;
       const executionCapacitySensitivityPage = parsed.executionCapacitySensitivityQuery === undefined || executionCapacitySensitivity === null ? null : queryIntegrityCapacitySensitivity(executionCapacitySensitivity, parseIntegrityCapacitySensitivityQuery(parsed.executionCapacitySensitivityQuery));
       const executionCapacityDecisionExport = parsed.executionCapacityDecisionExport === undefined || executionCapacityDecision === null ? null : exportIntegrityCapacityDecision(executionCapacityDecision, executionCapacitySensitivity, executionCapacityDecisionAudit, parseIntegrityCapacityDecisionExportOptions(parsed.executionCapacityDecisionExport));
+      if (parsed.executionCapacityComparisonQuery !== undefined && parsed.executionCapacityComparePolicy === undefined) throw new WorkInputError("INVALID", "Comparison query requires comparison policy.");
+      const executionCapacityComparison = executionCapacityPortfolio === null || executionCapacityDecisionPolicy === null || parsed.executionCapacityComparePolicy === undefined ? null : compareIntegrityCapacityDecisionPolicies(executionCapacityPortfolio, executionCapacityDecisionPolicy, parseIntegrityCapacityDecisionPolicy(parsed.executionCapacityComparePolicy));
+      const executionCapacityComparisonPage = parsed.executionCapacityComparisonQuery === undefined || executionCapacityComparison === null ? null : queryIntegrityCapacityDecisionComparison(executionCapacityComparison, parseIntegrityCapacityDecisionComparisonQuery(parsed.executionCapacityComparisonQuery));
+      const executionCapacityGovernance = executionCapacityPortfolio === null || executionCapacityDecision === null ? null : evaluateIntegrityCapacityGovernance(executionCapacityPortfolio, executionCapacityDecision, executionCapacitySensitivity, executionCapacityDecisionAudit, executionCapacityComparison, parseIntegrityCapacityGovernancePolicy(parsed.executionCapacityGovernancePolicy));
+      const executionCapacityGovernancePage = parsed.executionCapacityGovernanceQuery === undefined || executionCapacityGovernance === null ? null : queryIntegrityCapacityGovernance(executionCapacityGovernance, parseIntegrityCapacityGovernanceQuery(parsed.executionCapacityGovernanceQuery));
+      const executionCapacityReviewQueue = executionCapacityGovernance === null || executionCapacityDecision === null || executionCapacityPortfolio === null ? null : buildIntegrityCapacityReviewQueue(executionCapacityGovernance, executionCapacityDecision, executionCapacityPortfolio);
+      const executionCapacityReviewPage = parsed.executionCapacityReviewQuery === undefined || executionCapacityReviewQueue === null ? null : queryIntegrityCapacityReviewQueue(executionCapacityReviewQueue, parseIntegrityCapacityReviewQuery(parsed.executionCapacityReviewQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -354,7 +369,10 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityAttribution, executionCapacityAttributionPage,
           executionCapacityDecision, executionCapacityDecisionPage,
           executionCapacityDecisionAudit, executionCapacitySensitivity,
-          executionCapacitySensitivityPage, executionCapacityDecisionExport }, { headers });
+          executionCapacitySensitivityPage, executionCapacityDecisionExport,
+          executionCapacityComparison, executionCapacityComparisonPage,
+          executionCapacityGovernance, executionCapacityGovernancePage,
+          executionCapacityReviewQueue, executionCapacityReviewPage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -386,7 +404,10 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityAttribution, executionCapacityAttributionPage,
           executionCapacityDecision, executionCapacityDecisionPage,
           executionCapacityDecisionAudit, executionCapacitySensitivity,
-          executionCapacitySensitivityPage, executionCapacityDecisionExport }, { headers });
+          executionCapacitySensitivityPage, executionCapacityDecisionExport,
+          executionCapacityComparison, executionCapacityComparisonPage,
+          executionCapacityGovernance, executionCapacityGovernancePage,
+          executionCapacityReviewQueue, executionCapacityReviewPage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -417,6 +438,9 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityDecision, executionCapacityDecisionPage,
           executionCapacityDecisionAudit, executionCapacitySensitivity,
           executionCapacitySensitivityPage, executionCapacityDecisionExport,
+          executionCapacityComparison, executionCapacityComparisonPage,
+          executionCapacityGovernance, executionCapacityGovernancePage,
+          executionCapacityReviewQueue, executionCapacityReviewPage,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
