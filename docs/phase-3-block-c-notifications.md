@@ -69,3 +69,13 @@ El manifiesto describe estados operativos mutables, por lo que el digest permite
 - Los indicadores de lectura se refieren únicamente al estado almacenado en la aplicación, no a la atención humana ni a una entrega externa.
 - Los umbrales son de diagnóstico y no equivalen a acuerdos contractuales de servicio.
 - No se modifican datos, decisiones de revisión, resultados de proveedor ni CyberScore.
+
+## Sexto incremento: simulación de políticas y antigüedad de bandeja
+
+- `GET .../escalation-simulation`: simulador administrativo **solo lectura** que evalúa la política de escalado con umbrales por severidad, repetición, nivel máximo y horizonte futuro configurable (hasta 720 horas). Rechaza escalados propuestos para revisiones cerradas, sin propietario, con escalado activo o que hayan alcanzado el nivel máximo; devuelve motivos, fechas, huellas SHA-256, límites y paginación.
+- `GET .../notification-aging`: diagnóstico de antigüedad de notificaciones persistidas, con filtros de edad, estado, captura, agrupación por tipo/tarea/destinatario seudonimizado/rango de edad, indicadores de concentración y anomalías temporales. Los agregados describen **únicamente la página consultada**.
+- `IntegrityPolicyDiagnostics`: interfaz para ajustar umbrales, simular resultados y consultar la antigüedad de la bandeja, integrada en operaciones.
+- Ambas rutas exigen permisos administrativos y restringen todas las consultas a la organización autenticada. No se persisten decisiones simuladas ni se emiten mensajes.
+- Pruebas unitarias de elegibilidad, bloqueos, fechas, digests, límites y clasificación de edades.
+
+La simulación futura presupone que el estado de la revisión y sus escalados no cambia; no es una predicción de resultados reales ni una programación automática. Los hashes de destinatarios son seudónimos y no deben considerarse anonimización irreversible.
