@@ -1,7 +1,7 @@
 import { WorkInputError } from "./remediation-work-input";
 import type { IntegrityCapacityReviewQueue } from "./work-integrity-remediation-capacity-review-queue";
 import type {
-  IntegrityReviewEvent, IntegrityReviewReplay, IntegrityReviewTaskState,
+  IntegrityReviewEvent, IntegrityReviewReplay,
 } from "./work-integrity-remediation-review-event-replay";
 import type { IntegrityReviewEvidenceReport } from "./work-integrity-remediation-review-evidence";
 
