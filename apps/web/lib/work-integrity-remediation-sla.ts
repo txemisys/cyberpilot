@@ -299,8 +299,8 @@ function decideStatus(
     return "REJECTED";
   if (decision?.decision === "DEFER" && policy.pauseOnDeferral)
     return "DEFERRED";
-  if (decision?.decision === "ACCEPT" && item.executable)
-    return "RESOLVED";
+  // Accepting a proposed action is not evidence that the work was completed.
+  // Resolution must be established from a subsequent evidence snapshot.
   if (now > escalationDueAt) return "ESCALATION_OVERDUE";
   if (now > resolutionDueAt) return "RESOLUTION_OVERDUE";
   if (!decision && now > responseDueAt) return "RESPONSE_OVERDUE";
