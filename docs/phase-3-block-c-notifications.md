@@ -29,3 +29,15 @@ La consulta de bandeja siempre filtra por `recipientUserId` del usuario autentic
 Las pruebas unitarias cubren entradas inválidas, política, máquina de estados, destinatarios y claves. Las pruebas PostgreSQL cubren persistencia, idempotencia, aislamiento entre organizaciones, revisión concurrente, estados y despacho.
 
 **Pendiente:** interfaz visual integrada en el workspace, experiencia de usuario completa, notificaciones basadas en eventos de revisión y un scheduler autorizado si se desea envío automático. Los checks del PR deben aprobarse antes de fusionar.
+
+## Segundo incremento: operaciones y experiencia de usuario
+
+- `/organizations/{slug}/integrity-operations`: interfaz autenticada enlazada desde el centro de acciones, con bandeja, filtros, cola de revisiones, acciones de triage y ciclo de escalados. Los roles no administradores tienen vista de lectura.
+- `GET .../operations-queue`: tareas por organización y captura, vencimientos, buckets, indicadores de trabajo vinculado, comprobaciones de proveedor, escalados y notificaciones. La paginación se realiza en base de datos y los filtros de bucket y ordenación se aplican **solo a la página consultada**.
+- `POST .../review-triage`: lote de hasta 50 comandos, previsualización por defecto, asignar/desasignar, recordatorio interno y notificación a propietario/administradores, aislamiento de tenant, auditoría y protección de reintentos. La asignación **no incrementa la revisión de la máquina de estados**, para preservar el ledger de eventos de revisión; se compara el propietario previo.
+- `GET .../review-triage?taskId=...`: historial paginado de acciones de triage.
+- `GET .../operations-metrics`: serie temporal UTC diaria/semanal de revisiones, notificaciones, escalados y verificaciones del proveedor, digest reproducible, rango limitado a 366 días y tope de 20.000 registros por categoría señalado en la respuesta.
+
+### Limitaciones
+
+Las métricas son operativas y no equivalen a mejoras del CyberScore. La cola muestra el último resultado del proveedor como contexto, sin afirmar vigencia técnica del gate. El despacho automático periódico y los canales externos no se han implementado. Los lotes de triage son transaccionales por comando, no como grupo. El cierre completo del Bloque C exige validación de experiencia visual, pruebas de usuario y la política de notificaciones por evento.
