@@ -195,7 +195,7 @@ export function IntegrityOperationsWorkspace({
     }
     const revision = await jsonRequest<{
       task: { revision: number };
-    }>(base + "/reviews?taskId=" + encodeURIComponent(row.taskId));
+    }>(base + "/reviews?view=detail&taskId=" + encodeURIComponent(row.taskId));
     await perform(row.taskId, "review-triage", "POST", {
       dryRun: false,
       commands: [{
