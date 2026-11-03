@@ -249,7 +249,9 @@ export async function POST(request: NextRequest, { params }: Context) {
             parsed.escalationQuery !== undefined)
           throw new WorkInputError("INVALID", "Escalation options require policy.");
         return NextResponse.json({ workspace, audit, sla, slaPage, execution, executionPage,
-          executionAudit, executionMatrix, executionReviewPage, executionHistory }, { headers });
+          executionAudit, executionMatrix, executionReviewPage, executionHistory,
+          executionPerformance, executionPerformancePage,
+          executionEvidence, executionEvidencePage, executionControls }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -264,6 +266,8 @@ export async function POST(request: NextRequest, { params }: Context) {
         workspace, audit, sla, slaPage, execution, executionPage, escalations,
         escalationPage, deliveryManifest,
         executionAudit, executionMatrix, executionReviewPage, executionHistory,
+        executionPerformance, executionPerformancePage,
+        executionEvidence, executionEvidencePage, executionControls,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
