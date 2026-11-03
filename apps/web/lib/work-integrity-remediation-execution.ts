@@ -199,6 +199,8 @@ export function buildIntegrityRemediationExecutionLedger(
   const known = new Map(plan.candidates.map(x => [x.id, x]));
   const decisionsByCandidate = new Map(decisions.map(x =>
     [x.candidateId, x.decision]));
+  const approvalsByCandidate = new Map(decisions.map(x =>
+    [x.candidateId, x]));
   const seenIds = new Set<string>();
   const attempts = new Map<string, IntegrityRemediationExecutionAttempt>();
   const findings: IntegrityRemediationExecutionFinding[] = [];
@@ -229,6 +231,12 @@ export function buildIntegrityRemediationExecutionLedger(
       if (decisionsByCandidate.get(event.candidateId) !== "ACCEPT") {
         findings.push(finding(event, "UNAPPROVED_EXECUTION",
           "Execution cannot start without an accepted remediation decision."));
+        continue;
+      }
+      const approval = approvalsByCandidate.get(event.candidateId);
+      if (approval && approval.reviewedAt > event.occurredAt) {
+        findings.push(finding(event, "STALE_DECISION",
+          "Remediation approval was recorded after execution began."));
         continue;
       }
       if (accepted.has(event.candidateId)) {
