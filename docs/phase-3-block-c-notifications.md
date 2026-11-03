@@ -50,3 +50,13 @@ Las métricas son operativas y no equivalen a mejoras del CyberScore. La cola mu
 - Pruebas de planificación determinista, seguridad multitenant, reintentos, consistencia de auditoría y persistencia PostgreSQL.
 
 La reconciliación **no se ejecuta automáticamente**: debe activarla un administrador. El tipo histórico `PROVIDER_RECOVERED` representa un resultado PASS en un evento concreto; **no prueba que existiera un fallo anterior ni que la postura actual sea segura**. La inspección es de integridad operacional y tampoco sustituye a la verificación técnica independiente. No se envían mensajes externos.
+
+## Cuarto incremento: manifiestos e indicadores de entrega
+
+- `GET .../operations-manifest`: manifiesto operativo por captura, con paginación de 20 tareas por defecto (máximo 50), cinco categorías de registros, orden determinista, digest SHA-256 por tarea y página, sin cuerpos de notificaciones ni payloads de proveedor. Los IDs de destinatario y asuntos del proveedor se representan como hashes.
+- `GET .../delivery-diagnostics`: diagnósticos de la bandeja interna con agrupación por tipo, tarea o destinatario seudonimizado, antigüedad de mensajes sin leer, medianas de lectura, revisiones anómalas, límites de hasta 20.000 registros y aviso de truncamiento.
+- `IntegrityOperationsReports`: controles para generar manifiestos y analizar la bandeja desde el workspace, disponibles únicamente para administradores.
+- Los dos informes se restringen a la organización autenticada; no constituyen prueba de entrega fuera de la aplicación ni acreditación de seguridad.
+- Pruebas de determinismo de digests, minimización de datos, agrupación, validación estricta y truncamiento.
+
+El manifiesto describe estados operativos mutables, por lo que el digest permite detectar diferencias entre dos lecturas, **no** demuestra inmutabilidad criptográfica de la base de datos. Los límites por categoría son explícitos y un resultado truncado no debe interpretarse como completo.
