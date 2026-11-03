@@ -298,7 +298,10 @@ export function evaluateIntegrityEscalations(
       const key = alertId(entry.candidateId, rule.id);
       const ack = acknowledged.get(key);
       const old = previousAlerts.get(key);
-      if (ack && old && ack.acknowledgedAt >= old.generatedAt) {
+      // An acknowledgement must refer to an alert actually issued earlier.
+      // A user-supplied ID alone must not silence a new alert.
+      if (ack && old && ack.acknowledgedAt >= old.generatedAt &&
+          ack.acknowledgedAt <= sla.evaluatedAt) {
         suppressed.push({
           candidateId: entry.candidateId, ruleId: rule.id,
           reason: "ACKNOWLEDGED",
@@ -333,10 +336,18 @@ export function evaluateIntegrityEscalations(
         overdueMinutes: overdue(entry), generatedAt: sla.evaluatedAt,
         channels: [...rule.channels], recipients: [...rule.recipients],
         summary: summary(entry, rule.level),
-        acknowledged: ack !== undefined,
-        acknowledgedBy: ack?.acknowledgedBy ?? null,
-        acknowledgedAt: ack?.acknowledgedAt ?? null,
-        acknowledgementNote: ack?.note ?? null,
+        acknowledged: ack !== undefined && old !== undefined &&
+          ack.acknowledgedAt >= old.generatedAt &&
+          ack.acknowledgedAt <= sla.evaluatedAt,
+        acknowledgedBy: ack && old &&
+          ack.acknowledgedAt >= old.generatedAt &&
+          ack.acknowledgedAt <= sla.evaluatedAt ? ack.acknowledgedBy : null,
+        acknowledgedAt: ack && old &&
+          ack.acknowledgedAt >= old.generatedAt &&
+          ack.acknowledgedAt <= sla.evaluatedAt ? ack.acknowledgedAt : null,
+        acknowledgementNote: ack && old &&
+          ack.acknowledgedAt >= old.generatedAt &&
+          ack.acknowledgedAt <= sla.evaluatedAt ? ack.note : null,
       });
     }
   }
