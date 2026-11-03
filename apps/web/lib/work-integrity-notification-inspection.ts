@@ -331,7 +331,7 @@ export async function inspectIntegrityNotifications(
   for (const audit of audits) {
     if (!audit.resourceId) continue;
     const bucket = auditsByNotification.get(audit.resourceId) ?? [];
-    bucket.push(audit);
+    bucket.push({ ...audit, resourceId: audit.resourceId });
     auditsByNotification.set(audit.resourceId, bucket);
   }
   const taskSet = new Set(tasks.map(task => task.id));
