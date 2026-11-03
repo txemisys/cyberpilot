@@ -149,13 +149,13 @@ export async function recordEvidenceAssessment(
       const task = await tx.integrityReviewTask.findFirst({
         where: { id: input.taskId, organizationId: scope.organizationId },
         select: {
-          id: true, disposition: true, revision: true,
+          id: true, disposition: true, revision: true, assessmentRevision: true,
           captureId: true,
         },
       });
       if (!task)
         throw new WorkInputError("MISSING", "Review task not found.");
-      if (task.revision !== input.expectedRevision)
+      if (task.assessmentRevision !== input.expectedRevision)
         throw new WorkInputError("CONFLICT", "Review revision changed.");
       const evidence = await tx.securityEvidence.findFirst({
         where: { id: input.evidenceId, organizationId: scope.organizationId },
@@ -175,15 +175,15 @@ export async function recordEvidenceAssessment(
         taskDisposition: task.disposition,
       });
       const snapshot = observationSnapshot(evidence);
-      // Bump the task revision to serialize assessment with state transitions.
-      // This is not a transition to RESOLVED and cannot close a finding.
+      // The assessment sequence is separate from the review state-event ledger.
+      // No review transition, finding closure or security verification occurs.
       const claimed = await tx.integrityReviewTask.updateMany({
         where: {
           id: task.id, organizationId: scope.organizationId,
-          revision: input.expectedRevision,
+          assessmentRevision: input.expectedRevision,
           disposition: task.disposition,
         },
-        data: { revision: { increment: 1 } },
+        data: { assessmentRevision: { increment: 1 } },
       });
       if (claimed.count !== 1)
         throw new WorkInputError("CONFLICT", "Concurrent review update.");
@@ -201,7 +201,7 @@ export async function recordEvidenceAssessment(
           controlId: evidence.controlId,
           evidenceState: evidence.state,
           evidenceUpdatedAt: evidence.updatedAt,
-          revision: task.revision + 1,
+          revision: task.assessmentRevision + 1,
           idempotencyKey: input.idempotencyKey,
           requestDigest,
         },
@@ -245,7 +245,7 @@ export async function listEvidenceAssessments(
   const query = parseAssessmentQuery(value);
   const task = await db.integrityReviewTask.findFirst({
     where: { id: query.taskId, organizationId: scope.organizationId },
-    select: { id: true, revision: true, disposition: true },
+    select: { id: true, revision: true, assessmentRevision: true, disposition: true },
   });
   if (!task)
     throw new WorkInputError("MISSING", "Review task not found.");
