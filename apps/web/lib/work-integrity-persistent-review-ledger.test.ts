@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ReviewAction, ReviewDisposition } from "./work-integrity-persistent-review";
 import {
   verifyPersistedReviewLedger,
 } from "./work-integrity-persistent-review-ledger";
@@ -8,7 +9,7 @@ const task = {
   id: "review-task-12345",
   organizationId: "review-org-12345",
   captureId: "review-capture-12345",
-  disposition: "ACKNOWLEDGED" as const,
+  disposition: "ACKNOWLEDGED" as ReviewDisposition,
   revision: 2,
   ownerUserId: actor,
   completedAt: null,
@@ -16,12 +17,12 @@ const task = {
 };
 const event = {
   id: "review-event-12345",
-  action: "ACKNOWLEDGE" as const,
+  action: "ACKNOWLEDGE" as ReviewAction,
   actorUserId: actor,
   revisionBefore: 1,
   revisionAfter: 2,
-  before: "OPEN" as const,
-  after: "ACKNOWLEDGED" as const,
+  before: "OPEN" as ReviewDisposition,
+  after: "ACKNOWLEDGED" as ReviewDisposition,
   evidenceRefs: [],
 };
 const command = {
