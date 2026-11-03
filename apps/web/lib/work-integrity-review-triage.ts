@@ -246,16 +246,17 @@ async function triageSingle(
         where: {
           id: task.id, organizationId: scope.organizationId,
           revision: task.revision,
+          ownerUserId: task.ownerUserId,
         },
         data: {
           ownerUserId: command.action === "UNASSIGN" ?
             null : command.recipientUserId!,
-          revision: { increment: 1 },
         },
       });
       if (changed.count !== 1)
         throw new WorkInputError("CONFLICT", "Concurrent assignment change.");
-      revisionAfter++;
+      // Review revision is reserved for disposition events. Ownership
+      // changes use a conditional owner CAS and a separate audit record.
     }
     const notificationIds: string[] = [];
     if (command.action === "CLEAR_DUE_REMINDER") {
