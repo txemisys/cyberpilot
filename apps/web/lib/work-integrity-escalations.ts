@@ -1,7 +1,8 @@
 import { db } from "@cyberpilot/database";
 import { canManageWork, canReadWork, parseWorkId, WorkInputError } from "./remediation-work-input";
 import type { ReviewScope } from "./work-integrity-persistent-review";
-import type { IntegrityEscalationState } from "@cyberpilot/database";
+export type IntegrityEscalationState =
+  | "OPEN" | "ACKNOWLEDGED" | "RESOLVED" | "CANCELLED";
 
 export type EscalationPolicy = {
   warningHours: number;
