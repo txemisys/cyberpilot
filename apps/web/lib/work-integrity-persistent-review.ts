@@ -246,10 +246,13 @@ export async function createPersistentReview(
   const value = parseReviewCreate(input);
   const capture = await db.integrityCaseCapture.findFirst({
     where: { id: value.captureId, organizationId: scope.organizationId },
-    select: { id: true },
+    select: { id: true, complete: true },
   });
   if (!capture)
     throw new WorkInputError("MISSING", "Capture not found.");
+  if (!capture.complete)
+    throw new WorkInputError("CONFLICT",
+      "Review registration requires a complete capture.");
   try {
     return await db.$transaction(async tx => {
       const created = await tx.integrityReviewTask.create({
@@ -472,10 +475,12 @@ export async function applyPersistentReviewCommand(
     }, { isolationLevel: "Serializable" });
     return { replayed: false, result: response };
   } catch (error) {
-    if (isUnique(error) || isRetryable(error)) {
+    if (isUnique(error) || isRetryable(error) ||
+        (error instanceof WorkInputError && error.code === "CONFLICT")) {
       const duplicate = await findCommand(scope,
         command.idempotencyKey, digest, command.taskId);
       if (duplicate) return { replayed: true, result: duplicate };
+      if (error instanceof WorkInputError) throw error;
       throw new WorkInputError("CONFLICT",
         "Concurrent review command. Reload and retry with a new key.");
     }
