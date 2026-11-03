@@ -42,6 +42,13 @@ import {
   parseIntegrityRemediationExecutionQuery,
   queryIntegrityRemediationExecution,
 } from "../../../../../../../../../lib/work-integrity-remediation-execution";
+import {
+  buildIntegrityExecutionReviewHistory,
+  buildIntegrityExecutionReviewAudit,
+  buildIntegrityExecutionReviewMatrix,
+  parseIntegrityExecutionReviewQuery,
+  queryIntegrityExecutionReview,
+} from "../../../../../../../../../lib/work-integrity-remediation-execution-review";
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
   "Cache-Control": "private, no-store",
@@ -68,7 +75,8 @@ function parseRequest(value: unknown) {
     "gatePolicy", "decisions", "decisionPolicy", "capacity", "exportRequest",
     "slaPolicy", "createdAt", "evaluatedAt", "escalationPolicy",
     "acknowledgements", "slaQuery", "escalationQuery",
-    "executionEvents", "executionQuery",
+    "executionEvents", "executionQuery", "executionCheckpoints",
+    "executionReviewQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -108,6 +116,8 @@ function parseRequest(value: unknown) {
     slaQuery: raw.slaQuery, escalationQuery: raw.escalationQuery,
     executionEvents: raw.executionEvents,
     executionQuery: raw.executionQuery,
+    executionCheckpoints: raw.executionCheckpoints,
+    executionReviewQuery: raw.executionReviewQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -164,6 +174,17 @@ export async function POST(request: NextRequest, { params }: Context) {
       const executionPage = parsed.executionQuery === undefined ? null :
         queryIntegrityRemediationExecution(execution,
           parseIntegrityRemediationExecutionQuery(parsed.executionQuery));
+      const executionAudit = buildIntegrityExecutionReviewAudit(
+        execution, executionEvents);
+      const executionMatrix = buildIntegrityExecutionReviewMatrix(
+        execution, workspace.plan);
+      const executionReviewPage = parsed.executionReviewQuery === undefined
+        ? null : queryIntegrityExecutionReview(executionAudit,
+          parseIntegrityExecutionReviewQuery(parsed.executionReviewQuery));
+      const executionHistory = parsed.executionCheckpoints === undefined
+        ? null : buildIntegrityExecutionReviewHistory(
+          workspace.plan, decisions, executionEvents,
+          parsed.executionCheckpoints as string[]);
       if (parsed.escalationPolicy !== undefined &&
           parsed.slaPolicy === undefined)
         throw new WorkInputError("INVALID", "Escalation policy requires SLA policy.");
@@ -173,7 +194,8 @@ export async function POST(request: NextRequest, { params }: Context) {
             parsed.acknowledgements !== undefined ||
             parsed.slaQuery !== undefined || parsed.escalationQuery !== undefined)
           throw new WorkInputError("INVALID", "SLA parameters require SLA policy.");
-        return NextResponse.json({ workspace, audit, execution, executionPage }, { headers });
+        return NextResponse.json({ workspace, audit, execution, executionPage,
+          executionAudit, executionMatrix, executionReviewPage, executionHistory }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -188,7 +210,8 @@ export async function POST(request: NextRequest, { params }: Context) {
         if (parsed.acknowledgements !== undefined ||
             parsed.escalationQuery !== undefined)
           throw new WorkInputError("INVALID", "Escalation options require policy.");
-        return NextResponse.json({ workspace, audit, sla, slaPage, execution, executionPage }, { headers });
+        return NextResponse.json({ workspace, audit, sla, slaPage, execution, executionPage,
+          executionAudit, executionMatrix, executionReviewPage, executionHistory }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -202,6 +225,7 @@ export async function POST(request: NextRequest, { params }: Context) {
       return NextResponse.json({
         workspace, audit, sla, slaPage, execution, executionPage, escalations,
         escalationPage, deliveryManifest,
+        executionAudit, executionMatrix, executionReviewPage, executionHistory,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
