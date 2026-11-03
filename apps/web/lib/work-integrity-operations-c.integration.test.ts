@@ -129,13 +129,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
         dryRun: false, commands: [command],
       }, now);
       expect(first.applied).toBe(1);
-      expect(first.results[0]?.revisionAfter).toBe(2);
+      expect(first.results[0]?.revisionAfter).toBe(1);
       expect(first.results[0]?.notificationIds).toHaveLength(1);
       const task = await db.integrityReviewTask.findUniqueOrThrow({
         where: { id: taskId },
       });
       expect(task.ownerUserId).toBe(memberId);
-      expect(task.revision).toBe(2);
+      expect(task.revision).toBe(1);
       const replay = await triageReviewBatch(scope, {
         dryRun: false, commands: [command],
       }, now);
@@ -151,7 +151,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       const result = await triageReviewBatch(scope, {
         dryRun: false,
         commands: [{
-          taskId, action: "NOTIFY_OWNER", expectedRevision: 2,
+          taskId, action: "NOTIFY_OWNER", expectedRevision: 1,
           note: "Please review the overdue evidence and update the case.",
           idempotencyKey: "notify-owner-" + suffix,
         }],
@@ -175,14 +175,14 @@ describe.skipIf(!process.env.DATABASE_URL)(
       await expect(triageReviewBatch(member, {
         dryRun: false,
         commands: [{
-          taskId, action: "UNASSIGN", expectedRevision: 2,
+          taskId, action: "UNASSIGN", expectedRevision: 1,
           note, idempotencyKey: "member-denied-" + suffix,
         }],
       }, now)).rejects.toMatchObject({ code: "FORBIDDEN" });
       const result = await triageReviewBatch(other, {
         dryRun: false,
         commands: [{
-          taskId, action: "UNASSIGN", expectedRevision: 2,
+          taskId, action: "UNASSIGN", expectedRevision: 1,
           note, idempotencyKey: "outsider-denied-" + suffix,
         }],
       }, now);
