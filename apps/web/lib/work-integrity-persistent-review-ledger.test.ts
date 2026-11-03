@@ -135,4 +135,38 @@ describe("persisted review ledger verification", () => {
     expect(check().limitations.join(" ")).toContain(
       "not independently verify");
   });
+  it("requires a registration audit when inspecting persisted history", () => {
+    const report = verifyPersistedReviewLedger(
+      task, [event], [command], [audit],
+      new Date("2026-11-03T10:00:00.000Z"), [],
+    );
+    expect(report.consistent).toBe(false);
+    expect(report.findings.some(x =>
+      x.code === "CREATION_AUDIT_MISSING")).toBe(true);
+  });
+  it("accepts the authenticated capture registration audit", () => {
+    const report = verifyPersistedReviewLedger(
+      task, [event], [command], [audit],
+      new Date("2026-11-03T10:00:00.000Z"), [{
+        action: "integrity.review.created",
+        actorUserId: actor,
+        metadata: { captureId: task.captureId },
+      }],
+    );
+    expect(report.consistent).toBe(true);
+  });
+  it("detects duplicate task registration audits", () => {
+    const creation = {
+      action: "integrity.review.created",
+      actorUserId: actor,
+      metadata: { captureId: task.captureId },
+    };
+    const report = verifyPersistedReviewLedger(
+      task, [event], [command], [audit],
+      new Date("2026-11-03T10:00:00.000Z"), [creation, creation],
+    );
+    expect(report.findings.some(x =>
+      x.code === "CREATION_AUDIT_DUPLICATE")).toBe(true);
+  });
+
 });
