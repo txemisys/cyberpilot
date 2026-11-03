@@ -200,7 +200,7 @@ export async function readGoogleWorkspaceUser(
     },
     redirect: "error",
     cache: "no-store",
-    signal: options?.signal,
+    ...(options?.signal ? { signal: options.signal } : {}),
   });
   const receivedAt = new Date();
   const raw = await response.text();
