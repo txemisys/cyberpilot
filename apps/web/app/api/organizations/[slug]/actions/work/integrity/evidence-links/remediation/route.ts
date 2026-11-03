@@ -13,6 +13,14 @@ import {
   buildIntegrityRemediationHistory, parseIntegrityRemediationHistoryQuery,
   queryIntegrityRemediationHistory, summarizeIntegrityRemediationHistory,
 } from "../../../../../../../../../lib/work-integrity-remediation-history";
+import {
+  buildIntegrityRemediationWorkspace,
+  parseIntegrityRemediationDecisions,
+  parseIntegrityRemediationDecisionPolicy,
+  auditIntegrityRemediationDecisions,
+} from "../../../../../../../../../lib/work-integrity-remediation-workspace";
+import { parseIntegrityRemediationGatePolicy } from "../../../../../../../../../lib/work-integrity-remediation-gates";
+import { parseIntegrityRemediationCapacity } from "../../../../../../../../../lib/work-integrity-remediation-capacity";
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
   "Cache-Control": "private, no-store",
@@ -36,6 +44,7 @@ function parseRequest(value: unknown) {
   const raw = value as Record<string, unknown>;
   if (Object.keys(raw).some(x => ![
     "portfolio", "view", "weights", "query", "checkpoints",
+    "gatePolicy", "decisions", "decisionPolicy", "capacity", "exportRequest",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -44,7 +53,7 @@ function parseRequest(value: unknown) {
   const view = raw.view ?? "plan";
   if (typeof view !== "string")
     throw new WorkInputError("INVALID", "Invalid remediation view.");
-  if (!["plan", "candidates", "history", "history-summary", "history-page"]
+  if (!["plan", "candidates", "history", "history-summary", "history-page", "workspace"]
     .includes(view))
     throw new WorkInputError("INVALID", "Invalid remediation view.");
   if (raw.checkpoints !== undefined && ![
@@ -55,10 +64,17 @@ function parseRequest(value: unknown) {
     "candidates", "history-page",
   ].includes(view))
     throw new WorkInputError("INVALID", "Query requires paginated view.");
+  if (view !== "workspace" && [
+    "gatePolicy", "decisions", "decisionPolicy", "capacity", "exportRequest",
+  ].some(key => raw[key] !== undefined))
+    throw new WorkInputError("INVALID", "Workspace options require workspace view.");
   const weights = parseIntegrityPortfolioRiskWeights(raw.weights);
   return {
     input: { ...input, policies }, view, weights,
     query: raw.query, checkpoints: raw.checkpoints,
+    gatePolicy: raw.gatePolicy, decisions: raw.decisions,
+    decisionPolicy: raw.decisionPolicy, capacity: raw.capacity,
+    exportRequest: raw.exportRequest,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -83,6 +99,30 @@ export async function POST(request: NextRequest, { params }: Context) {
     const parsed = parseRequest(input);
     const state = await listCompleteIntegrityWorkLinkState(
       membership.organization.id, parsed.input.captureId);
+    if (parsed.view === "workspace") {
+      const decisions = parseIntegrityRemediationDecisions(parsed.decisions ?? []);
+      const workspace = buildIntegrityRemediationWorkspace(
+        parsed.input, state.events, {
+          weights: parsed.weights,
+          ...(parsed.checkpoints !== undefined ? {
+            checkpoints: parsed.checkpoints as string[],
+          } : {}),
+          ...(parsed.gatePolicy !== undefined ? {
+            gatePolicy: parseIntegrityRemediationGatePolicy(parsed.gatePolicy),
+          } : {}),
+          decisions,
+          ...(parsed.capacity !== undefined ? {
+            capacity: parseIntegrityRemediationCapacity(parsed.capacity),
+          } : {}),
+          ...(parsed.exportRequest !== undefined ? {
+            exportRequest: parsed.exportRequest,
+          } : {}),
+        });
+      const audit = auditIntegrityRemediationDecisions(
+        workspace.plan, decisions,
+        parseIntegrityRemediationDecisionPolicy(parsed.decisionPolicy));
+      return NextResponse.json({ workspace, audit }, { headers });
+    }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
       if (!Array.isArray(parsed.checkpoints))
         throw new WorkInputError("INVALID", "History checkpoints required.");
