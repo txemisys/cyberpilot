@@ -281,6 +281,61 @@ describe.skipIf(!databaseAvailable)(
       expect(dashboard.totals.resolved).toBe(1);
       expect(dashboard.totals.outstanding).toBe(1);
     });
+    it("serializes competing commands at the same revision", async () => {
+      const task = await createPersistentReview(scope, {
+        captureId, externalTaskId: "competing-review",
+        title: "Competing command test", severity: "WARNING",
+      });
+      const commands = [
+        {
+          taskId: task.id, action: "ACKNOWLEDGE",
+          expectedRevision: 1,
+          idempotencyKey: "concurrent-acknowledge-001",
+        },
+        {
+          taskId: task.id, action: "ACKNOWLEDGE",
+          expectedRevision: 1,
+          idempotencyKey: "concurrent-acknowledge-002",
+        },
+      ];
+      const settled = await Promise.allSettled(
+        commands.map(command =>
+          applyPersistentReviewCommand(scope, command)));
+      const successful = settled.filter(x =>
+        x.status === "fulfilled");
+      expect(successful).toHaveLength(1);
+      expect((await getPersistentReview(scope, task.id)).revision).toBe(2);
+      expect(await db.integrityReviewEvent.count({
+        where: { organizationId, taskId: task.id },
+      })).toBe(1);
+      expect(await db.integrityReviewCommand.count({
+        where: { organizationId, taskId: task.id },
+      })).toBe(1);
+    });
+    it("coalesces concurrent requests sharing an idempotency key", async () => {
+      const task = await createPersistentReview(scope, {
+        captureId, externalTaskId: "same-key-review",
+        title: "Duplicate command test", severity: "INFO",
+      });
+      const payload = {
+        taskId: task.id, action: "ACKNOWLEDGE",
+        expectedRevision: 1,
+        idempotencyKey: "concurrent-same-key-001",
+      };
+      const settled = await Promise.allSettled([
+        applyPersistentReviewCommand(scope, payload),
+        applyPersistentReviewCommand(scope, payload),
+      ]);
+      expect(settled.some(x => x.status === "fulfilled")).toBe(true);
+      expect(await db.integrityReviewEvent.count({
+        where: { organizationId, taskId: task.id },
+      })).toBe(1);
+      const replay = await applyPersistentReviewCommand(scope, payload);
+      expect(replay.replayed).toBe(true);
+      expect(await db.integrityReviewCommand.count({
+        where: { organizationId, taskId: task.id },
+      })).toBe(1);
+    });
     it("rejects duplicate IDs in strict batch mode", async () => {
       await expect(registerPersistentReviewBatch(scope, {
         captureId, rejectExisting: true,
