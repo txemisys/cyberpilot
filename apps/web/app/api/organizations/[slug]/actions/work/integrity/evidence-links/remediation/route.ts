@@ -35,6 +35,13 @@ import {
   queryIntegrityEscalations,
   buildIntegrityEscalationDeliveryManifest,
 } from "../../../../../../../../../lib/work-integrity-remediation-escalation";
+import {
+  parseIntegrityRemediationExecutionEvents,
+  buildIntegrityRemediationExecutionLedger,
+  verifyIntegrityRemediationExecutionEvidence,
+  parseIntegrityRemediationExecutionQuery,
+  queryIntegrityRemediationExecution,
+} from "../../../../../../../../../lib/work-integrity-remediation-execution";
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
   "Cache-Control": "private, no-store",
@@ -61,6 +68,7 @@ function parseRequest(value: unknown) {
     "gatePolicy", "decisions", "decisionPolicy", "capacity", "exportRequest",
     "slaPolicy", "createdAt", "evaluatedAt", "escalationPolicy",
     "acknowledgements", "slaQuery", "escalationQuery",
+    "executionEvents", "verifiedEvidenceRefs", "executionQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -73,7 +81,7 @@ function parseRequest(value: unknown) {
     .includes(view))
     throw new WorkInputError("INVALID", "Invalid remediation view.");
   if (raw.checkpoints !== undefined && ![
-    "history", "history-summary", "history-page",
+    "history", "history-summary", "history-page", "workspace",
   ].includes(view))
     throw new WorkInputError("INVALID", "Checkpoints require history view.");
   if (raw.query !== undefined && ![
@@ -84,6 +92,7 @@ function parseRequest(value: unknown) {
     "gatePolicy", "decisions", "decisionPolicy", "capacity", "exportRequest",
     "slaPolicy", "createdAt", "evaluatedAt", "escalationPolicy",
     "acknowledgements", "slaQuery", "escalationQuery",
+    "executionEvents", "verifiedEvidenceRefs", "executionQuery",
   ].some(key => raw[key] !== undefined))
     throw new WorkInputError("INVALID", "Workspace options require workspace view.");
   const weights = parseIntegrityPortfolioRiskWeights(raw.weights);
@@ -97,6 +106,9 @@ function parseRequest(value: unknown) {
     evaluatedAt: raw.evaluatedAt, escalationPolicy: raw.escalationPolicy,
     acknowledgements: raw.acknowledgements,
     slaQuery: raw.slaQuery, escalationQuery: raw.escalationQuery,
+    executionEvents: raw.executionEvents,
+    verifiedEvidenceRefs: raw.verifiedEvidenceRefs,
+    executionQuery: raw.executionQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -143,6 +155,19 @@ export async function POST(request: NextRequest, { params }: Context) {
       const audit = auditIntegrityRemediationDecisions(
         workspace.plan, decisions,
         parseIntegrityRemediationDecisionPolicy(parsed.decisionPolicy));
+      const executionEvents = parseIntegrityRemediationExecutionEvents(
+        parsed.executionEvents ?? []);
+      const executionLedger = buildIntegrityRemediationExecutionLedger(
+        workspace.plan, decisions, executionEvents);
+      if (parsed.verifiedEvidenceRefs !== undefined &&
+          (!Array.isArray(parsed.verifiedEvidenceRefs) ||
+            parsed.verifiedEvidenceRefs.some(x => typeof x !== "string")))
+        throw new WorkInputError("INVALID", "Invalid verified evidence references.");
+      const execution = verifyIntegrityRemediationExecutionEvidence(
+        executionLedger, (parsed.verifiedEvidenceRefs ?? []) as string[]);
+      const executionPage = parsed.executionQuery === undefined ? null :
+        queryIntegrityRemediationExecution(execution,
+          parseIntegrityRemediationExecutionQuery(parsed.executionQuery));
       if (parsed.escalationPolicy !== undefined &&
           parsed.slaPolicy === undefined)
         throw new WorkInputError("INVALID", "Escalation policy requires SLA policy.");
@@ -152,7 +177,7 @@ export async function POST(request: NextRequest, { params }: Context) {
             parsed.acknowledgements !== undefined ||
             parsed.slaQuery !== undefined || parsed.escalationQuery !== undefined)
           throw new WorkInputError("INVALID", "SLA parameters require SLA policy.");
-        return NextResponse.json({ workspace, audit }, { headers });
+        return NextResponse.json({ workspace, audit, execution, executionPage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -167,7 +192,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         if (parsed.acknowledgements !== undefined ||
             parsed.escalationQuery !== undefined)
           throw new WorkInputError("INVALID", "Escalation options require policy.");
-        return NextResponse.json({ workspace, audit, sla, slaPage }, { headers });
+        return NextResponse.json({ workspace, audit, sla, slaPage, execution, executionPage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -179,7 +204,7 @@ export async function POST(request: NextRequest, { params }: Context) {
       const deliveryManifest = buildIntegrityEscalationDeliveryManifest(
         escalations);
       return NextResponse.json({
-        workspace, audit, sla, slaPage, escalations,
+        workspace, audit, sla, slaPage, execution, executionPage, escalations,
         escalationPage, deliveryManifest,
       }, { headers });
     }
