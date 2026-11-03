@@ -38,3 +38,4 @@ FOREIGN KEY ("taskId") REFERENCES "IntegrityReviewTask"("id") ON DELETE CASCADE 
 ALTER TABLE "IntegrityEvidenceAssessment"
 ADD CONSTRAINT "IntegrityEvidenceAssessment_evidenceId_fkey"
 FOREIGN KEY ("evidenceId") REFERENCES "SecurityEvidence"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+\nALTER TABLE "IntegrityReviewTask" ADD COLUMN "assessmentRevision" INTEGER NOT NULL DEFAULT 0;\n
