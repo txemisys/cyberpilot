@@ -60,3 +60,12 @@ La reconciliación **no se ejecuta automáticamente**: debe activarla un adminis
 - Pruebas de determinismo de digests, minimización de datos, agrupación, validación estricta y truncamiento.
 
 El manifiesto describe estados operativos mutables, por lo que el digest permite detectar diferencias entre dos lecturas, **no** demuestra inmutabilidad criptográfica de la base de datos. Los límites por categoría son explícitos y un resultado truncado no debe interpretarse como completo.
+
+## Quinto incremento: investigación SLA y coherencia del workflow
+
+- `GET .../sla-report`: investigación administrativa y acotada por organización/captura, con umbrales configurables para primera respuesta, resolución, lectura interna y reconocimiento de escalado; distingue incumplimientos activos e históricos, expone digest y advierte si las consultas están truncadas.
+- `GET .../workflow-consistency`: auditoría de revisiones, secuencias de eventos, estados terminales, fechas de creación/lectura, cierre de escalados y orden temporal; devuelve hallazgos tipados por tarea, digest por tarea y página, paginación y señalización de cobertura parcial.
+- `IntegrityOperationalAssurance`: interfaz administrativa para ambos informes, con filtros y navegación por páginas.
+- Los indicadores de lectura se refieren únicamente al estado almacenado en la aplicación, no a la atención humana ni a una entrega externa.
+- Los umbrales son de diagnóstico y no equivalen a acuerdos contractuales de servicio.
+- No se modifican datos, decisiones de revisión, resultados de proveedor ni CyberScore.
