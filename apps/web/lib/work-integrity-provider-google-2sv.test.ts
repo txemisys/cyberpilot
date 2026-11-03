@@ -103,7 +103,7 @@ describe("Google Directory 2SV interpretation", () => {
     expect(result.outcome).toBe("PASS");
     expect(result.responseDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(result.observedAt).toEqual(read.receivedAt);
-    expect(result.metadata.customerId).toBe(customerId);
+    expect('customerId' in result.metadata && result.metadata.customerId).toBe(customerId);
   });
   it.each([401, 403, 404, 429, 500, 503])(
     "does not treat provider HTTP %s as a passing observation", status => {
