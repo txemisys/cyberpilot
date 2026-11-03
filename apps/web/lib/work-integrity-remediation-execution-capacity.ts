@@ -287,7 +287,7 @@ export function planIntegrityExecutionCapacity(
       unassigned.push({
         candidateId: item.candidateId, caseKey: item.caseKey,
         workItemId: item.workItemId, score: item.score,
-        effortPoints: points, reason,
+        effortPoints: points, reason: code,
         eligibleMemberIds: qualified.map(x => x.member.actorUserId),
       });
     };
