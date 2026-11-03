@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
+import { requireOrganizationAccess } from "../../../../../../../../../lib/organizations";
 import {
   registerPersistentReviewBatch,
   loadPersistentReviewDashboard,
-} from "../../../../../../../../lib/work-integrity-persistent-review-operations";
-import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
+} from "../../../../../../../../../lib/work-integrity-persistent-review-operations";
+import { WorkInputError } from "../../../../../../../../../lib/remediation-work-input";
 
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
