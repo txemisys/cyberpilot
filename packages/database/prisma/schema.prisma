@@ -240,6 +240,7 @@ model Organization {
   integrityReviewEvents     IntegrityReviewEvent[]
   integrityReviewCommands   IntegrityReviewCommand[]
   integrityEvidenceAssessments IntegrityEvidenceAssessment[]
+  integrityReviewWorkLinks IntegrityReviewWorkLink[]
 }
 
 model Membership {
@@ -503,6 +504,7 @@ model RemediationWorkItem {
   events RemediationWorkEvent[]
   checklist WorkChecklistEntry[]
   evidenceLinks WorkEvidenceLink[]
+  integrityReviewLinks IntegrityReviewWorkLink[]
   handoffs WorkHandoff[]
 
   @@unique([organizationId, remediationId])
@@ -727,6 +729,7 @@ model IntegrityReviewTask {
   events IntegrityReviewEvent[]
   commands IntegrityReviewCommand[]
   evidenceAssessments IntegrityEvidenceAssessment[]
+  workLinks IntegrityReviewWorkLink[]
   assessmentRevision Int @default(0)
 
   @@unique([organizationId, captureId, externalTaskId])
@@ -825,4 +828,30 @@ model IntegrityEvidenceAssessment {
   @@unique([taskId, revision])
   @@index([organizationId, taskId, createdAt])
   @@index([organizationId, evidenceId, createdAt])
+}
+
+/**
+ * Explicit operational association between an integrity review and a work item.
+ * A link is not a claim that the work remediated or independently verified a case.
+ */
+model IntegrityReviewWorkLink {
+  id String @id @default(cuid())
+  organizationId String
+  taskId String
+  workItemId String
+  rationale String
+  linkedByUserId String?
+  linkedAt DateTime @default(now())
+  unlinkedAt DateTime?
+  unlinkedByUserId String?
+  unlinkReason String?
+  revision Int @default(1)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, taskId, workItemId])
+  @@index([organizationId, taskId, unlinkedAt])
+  @@index([organizationId, workItemId, unlinkedAt])
 }
