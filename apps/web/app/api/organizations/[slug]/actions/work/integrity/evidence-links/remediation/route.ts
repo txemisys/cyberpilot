@@ -1,3 +1,4 @@
+import { attributeIntegrityCapacityInterventions, parseIntegrityCapacityInterventionAttributionQuery, queryIntegrityCapacityInterventionAttribution } from "../../../../../../../../../lib/work-integrity-remediation-capacity-attribution";
 import { simulateIntegrityCapacityInterventions, parseIntegrityCapacityInterventions, parseIntegrityCapacityInterventionQuery, queryIntegrityCapacityInterventions } from "../../../../../../../../../lib/work-integrity-remediation-capacity-interventions";
 import { evaluateIntegrityCapacityPortfolio, parseIntegrityCapacityPortfolioPolicy, parseIntegrityCapacityPortfolioQuery, queryIntegrityCapacityPortfolio } from "../../../../../../../../../lib/work-integrity-remediation-capacity-portfolio";
 import { buildIntegrityCapacityCoverage, parseIntegrityCapacityCoverageQuery, queryIntegrityCapacityCoverage } from "../../../../../../../../../lib/work-integrity-remediation-capacity-coverage";
@@ -110,6 +111,7 @@ function parseRequest(value: unknown) {
     "executionCapacityCoverageQuery",
     "executionCapacityInterventions", "executionCapacityInterventionQuery",
     "executionCapacityPortfolioPolicy", "executionCapacityPortfolioQuery",
+    "executionCapacityAttributionQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -177,6 +179,7 @@ function parseRequest(value: unknown) {
     executionCapacityInterventionQuery: raw.executionCapacityInterventionQuery,
     executionCapacityPortfolioPolicy: raw.executionCapacityPortfolioPolicy,
     executionCapacityPortfolioQuery: raw.executionCapacityPortfolioQuery,
+    executionCapacityAttributionQuery: raw.executionCapacityAttributionQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -277,6 +280,9 @@ export async function POST(request: NextRequest, { params }: Context) {
       const executionCapacityInterventionPage = parsed.executionCapacityInterventionQuery === undefined || executionCapacityInterventions === null ? null : queryIntegrityCapacityInterventions(executionCapacityInterventions, parseIntegrityCapacityInterventionQuery(parsed.executionCapacityInterventionQuery));
       const executionCapacityPortfolio = capacityInterventions === null || interventionMembers === null || interventionCapacityPolicy === null || interventionForecastPolicy === null || parsed.executionCapacityPortfolioPolicy === undefined ? null : evaluateIntegrityCapacityPortfolio(executionQueue, interventionMembers, new Date().toISOString(), interventionCapacityPolicy, interventionForecastPolicy, capacityInterventions, parseIntegrityCapacityPortfolioPolicy(parsed.executionCapacityPortfolioPolicy));
       const executionCapacityPortfolioPage = parsed.executionCapacityPortfolioQuery === undefined || executionCapacityPortfolio === null ? null : queryIntegrityCapacityPortfolio(executionCapacityPortfolio, parseIntegrityCapacityPortfolioQuery(parsed.executionCapacityPortfolioQuery));
+      if (parsed.executionCapacityAttributionQuery !== undefined && (executionCapacityPortfolio === null || executionCapacityInterventions === null)) throw new WorkInputError("INVALID", "Attribution requires intervention portfolio.");
+      const executionCapacityAttribution = executionCapacityPortfolio === null || executionCapacityInterventions === null ? null : attributeIntegrityCapacityInterventions(executionCapacityInterventions, executionCapacityPortfolio);
+      const executionCapacityAttributionPage = parsed.executionCapacityAttributionQuery === undefined || executionCapacityAttribution === null ? null : queryIntegrityCapacityInterventionAttribution(executionCapacityAttribution, parseIntegrityCapacityInterventionAttributionQuery(parsed.executionCapacityAttributionQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -321,7 +327,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityBottlenecks, executionCapacityBottleneckPage,
           executionCapacityCoverage, executionCapacityCoveragePage,
           executionCapacityInterventions, executionCapacityInterventionPage,
-          executionCapacityPortfolio, executionCapacityPortfolioPage }, { headers });
+          executionCapacityPortfolio, executionCapacityPortfolioPage,
+          executionCapacityAttribution, executionCapacityAttributionPage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -349,7 +356,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityBottlenecks, executionCapacityBottleneckPage,
           executionCapacityCoverage, executionCapacityCoveragePage,
           executionCapacityInterventions, executionCapacityInterventionPage,
-          executionCapacityPortfolio, executionCapacityPortfolioPage }, { headers });
+          executionCapacityPortfolio, executionCapacityPortfolioPage,
+          executionCapacityAttribution, executionCapacityAttributionPage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -376,6 +384,7 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityCoverage, executionCapacityCoveragePage,
           executionCapacityInterventions, executionCapacityInterventionPage,
           executionCapacityPortfolio, executionCapacityPortfolioPage,
+          executionCapacityAttribution, executionCapacityAttributionPage,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
