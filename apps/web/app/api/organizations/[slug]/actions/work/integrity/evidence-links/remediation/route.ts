@@ -1,3 +1,4 @@
+import { forecastIntegrityExecutionCapacity, parseIntegrityExecutionCapacityForecastPolicy, parseIntegrityExecutionCapacityForecastQuery, queryIntegrityExecutionCapacityForecast } from "../../../../../../../../../lib/work-integrity-remediation-execution-capacity-forecast";
 import { planIntegrityExecutionCapacity, parseIntegrityExecutionCapacityMembers, parseIntegrityExecutionCapacityPolicy, parseIntegrityExecutionCapacityQuery, queryIntegrityExecutionCapacity } from "../../../../../../../../../lib/work-integrity-remediation-execution-capacity";
 import { prioritizeIntegrityExecutionRemediation, parseIntegrityExecutionRemediationQueuePolicy, parseIntegrityExecutionRemediationQueueQuery, queryIntegrityExecutionRemediationQueue } from "../../../../../../../../../lib/work-integrity-remediation-execution-queue";
 import { buildIntegrityExecutionReadinessHistory, parseIntegrityExecutionReadinessHistoryQuery, queryIntegrityExecutionReadinessHistory } from "../../../../../../../../../lib/work-integrity-remediation-readiness-history";
@@ -96,6 +97,7 @@ function parseRequest(value: unknown) {
     "executionReadinessCheckpoints", "executionReadinessHistoryQuery",
     "executionQueuePolicy", "executionQueueQuery",
     "executionCapacityMembers", "executionCapacityPolicy", "executionCapacityQuery",
+    "executionCapacityForecastPolicy", "executionCapacityForecastQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -150,6 +152,8 @@ function parseRequest(value: unknown) {
     executionCapacityMembers: raw.executionCapacityMembers,
     executionCapacityPolicy: raw.executionCapacityPolicy,
     executionCapacityQuery: raw.executionCapacityQuery,
+    executionCapacityForecastPolicy: raw.executionCapacityForecastPolicy,
+    executionCapacityForecastQuery: raw.executionCapacityForecastQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -225,6 +229,9 @@ export async function POST(request: NextRequest, { params }: Context) {
       if (parsed.executionCapacityMembers === undefined && (parsed.executionCapacityPolicy !== undefined || parsed.executionCapacityQuery !== undefined)) throw new WorkInputError("INVALID", "Capacity options require capacity members.");
       const executionCapacity = parsed.executionCapacityMembers === undefined ? null : planIntegrityExecutionCapacity(executionQueue, parseIntegrityExecutionCapacityMembers(parsed.executionCapacityMembers), new Date().toISOString(), parseIntegrityExecutionCapacityPolicy(parsed.executionCapacityPolicy));
       const executionCapacityPage = parsed.executionCapacityQuery === undefined || executionCapacity === null ? null : queryIntegrityExecutionCapacity(executionCapacity, parseIntegrityExecutionCapacityQuery(parsed.executionCapacityQuery));
+      if (executionCapacity === null && (parsed.executionCapacityForecastPolicy !== undefined || parsed.executionCapacityForecastQuery !== undefined)) throw new WorkInputError("INVALID", "Forecast requires capacity members.");
+      const executionCapacityForecast = executionCapacity === null ? null : forecastIntegrityExecutionCapacity(executionCapacity, executionQueue, new Date().toISOString(), parseIntegrityExecutionCapacityForecastPolicy(parsed.executionCapacityForecastPolicy));
+      const executionCapacityForecastPage = parsed.executionCapacityForecastQuery === undefined || executionCapacityForecast === null ? null : queryIntegrityExecutionCapacityForecast(executionCapacityForecast, parseIntegrityExecutionCapacityForecastQuery(parsed.executionCapacityForecastQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -262,7 +269,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage,
           executionReadinessHistory, executionReadinessHistoryPage,
           executionQueue, executionQueuePage,
-          executionCapacity, executionCapacityPage }, { headers });
+          executionCapacity, executionCapacityPage,
+          executionCapacityForecast, executionCapacityForecastPage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -283,7 +291,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage,
           executionReadinessHistory, executionReadinessHistoryPage,
           executionQueue, executionQueuePage,
-          executionCapacity, executionCapacityPage }, { headers });
+          executionCapacity, executionCapacityPage,
+          executionCapacityForecast, executionCapacityForecastPage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -303,6 +312,7 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionReadinessHistory, executionReadinessHistoryPage,
           executionQueue, executionQueuePage,
           executionCapacity, executionCapacityPage,
+          executionCapacityForecast, executionCapacityForecastPage,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
