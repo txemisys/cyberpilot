@@ -509,19 +509,18 @@ function latestChange(candidate: IntegrityRemediationExecutionCandidate) {
 }
 export function buildIntegrityExecutionReviewMatrix(
   ledger: IntegrityRemediationExecutionLedger,
+  plan: IntegrityRemediationPlan,
 ): IntegrityExecutionReviewMatrix {
+  if (ledger.captureId !== plan.captureId)
+    throw new WorkInputError("INVALID", "Execution matrix capture mismatch.");
+  const candidatesById = new Map(plan.candidates.map(x => [x.id, x]));
   const cases = new Map<string, IntegrityRemediationExecutionCandidate[]>();
   const workItems = new Map<string, IntegrityRemediationExecutionCandidate[]>();
   const unassignedCandidateIds: string[] = [];
   for (const candidate of ledger.candidates) {
-    const association = candidate.attempts.length;
-    void association;
-    const planCase = (candidate as IntegrityRemediationExecutionCandidate & {
-      caseKey?: string | null;
-    }).caseKey;
-    const planWork = (candidate as IntegrityRemediationExecutionCandidate & {
-      workItemId?: string | null;
-    }).workItemId;
+    const planned = candidatesById.get(candidate.candidateId);
+    const planCase = planned?.caseKey ?? null;
+    const planWork = planned?.workItemId ?? null;
     if (planCase) {
       const rows = cases.get(planCase) ?? [];
       rows.push(candidate);
