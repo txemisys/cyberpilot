@@ -165,7 +165,10 @@ export async function registerPersistentReviewBatch(
         "Review task IDs already registered for this capture.");
     const existingIds = new Set(existing.map(x => x.externalTaskId));
     const fresh = input.tasks.filter(x => !existingIds.has(x.externalTaskId));
-    const created = await tx.integrityReviewTask.createMany({
+    // createManyAndReturn provides the exact inserted IDs even when another
+    // writer concurrently inserts an external ID. Audit each new task
+    // atomically, not only the aggregate batch.
+    const inserted = await tx.integrityReviewTask.createManyAndReturn({
       data: fresh.map(task => ({
         organizationId: scope.organizationId,
         captureId: input.captureId,
@@ -174,7 +177,29 @@ export async function registerPersistentReviewBatch(
         required: task.required,
       })),
       skipDuplicates: !input.rejectExisting,
+      select: {
+        id: true, externalTaskId: true, required: true,
+      },
     });
+    if (inserted.length) {
+      await tx.auditEvent.createMany({
+        data: inserted.map(task => ({
+          organizationId: scope.organizationId,
+          actorType: "USER" as const,
+          actorUserId: scope.userId,
+          action: "integrity.review.created",
+          resourceType: "IntegrityReviewTask",
+          resourceId: task.id,
+          metadata: {
+            captureId: input.captureId,
+            externalTaskId: task.externalTaskId,
+            required: task.required,
+            registration: "batch",
+          },
+        })),
+      });
+    }
+    const created = { count: inserted.length };
     await tx.auditEvent.create({
       data: {
         organizationId: scope.organizationId,
