@@ -66,7 +66,7 @@ export function parseAssessment(value: unknown): AssessmentInput {
   return {
     taskId: parseWorkId(raw.taskId, "review task ID"),
     evidenceId: parseWorkId(raw.evidenceId, "evidence ID"),
-    expectedRevision: integer(raw.expectedRevision, "expected revision", 1, 2147483646),
+    expectedRevision: integer(raw.expectedRevision, "expected revision", 0, 2147483646),
     decision: raw.decision as EvidenceDecision,
     rationale: text(raw.rationale, "rationale", 12, 4000),
     idempotencyKey: text(raw.idempotencyKey, "idempotency key", 8, 160),
