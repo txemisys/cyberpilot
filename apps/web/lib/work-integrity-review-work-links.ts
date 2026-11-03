@@ -329,10 +329,10 @@ export async function inspectReviewWorkAssociation(
         "integrity.review.work.relink",
       ] },
     },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
     select: {
       id: true, actorUserId: true,
-      action: true, metadata: true, createdAt: true,
+      action: true, metadata: true, occurredAt: true,
     },
   });
   const revisions = audits.map(audit => {
@@ -344,7 +344,7 @@ export async function inspectReviewWorkAssociation(
       auditId: audit.id,
       action: audit.action,
       actorUserId: audit.actorUserId,
-      createdAt: audit.createdAt,
+      createdAt: audit.occurredAt,
       beforeRevision: data.beforeRevision,
       afterRevision: data.afterRevision,
       taskId: data.taskId,
