@@ -165,6 +165,7 @@ model User {
   assignedHandoffs WorkHandoff[] @relation("HandoffRecipient")
   decidedHandoffs WorkHandoff[] @relation("HandoffDecider")
   createdIntegrityCaptures IntegrityCaseCapture[] @relation("IntegrityCaptureCreator")
+  integrityReviewEvents IntegrityReviewEvent[] @relation("IntegrityReviewEventActor")
 }
 
 model Session {
@@ -235,6 +236,9 @@ model Organization {
   workEvidenceLinks         WorkEvidenceLink[]
   workHandoffs              WorkHandoff[]
   integrityCaseCaptures     IntegrityCaseCapture[]
+  integrityReviewTasks      IntegrityReviewTask[]
+  integrityReviewEvents     IntegrityReviewEvent[]
+  integrityReviewCommands   IntegrityReviewCommand[]
 }
 
 model Membership {
@@ -674,10 +678,96 @@ model IntegrityCaseCapture {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User?        @relation("IntegrityCaptureCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewTasks IntegrityReviewTask[]
 
   @@unique([organizationId, source, capturedAt])
   @@index([organizationId, capturedAt])
   @@index([organizationId, source, capturedAt])
+}
+
+
+enum IntegrityReviewDisposition {
+  OPEN
+  ACKNOWLEDGED
+  IN_REVIEW
+  RESOLVED
+  WAIVED
+  REOPENED
+}
+
+enum IntegrityReviewAction {
+  ACKNOWLEDGE
+  START_REVIEW
+  RESOLVE
+  WAIVE
+  REOPEN
+}
+
+model IntegrityReviewTask {
+  id               String @id @default(cuid())
+  organizationId   String
+  captureId        String
+  externalTaskId   String
+  title            String
+  severity         String
+  required         Boolean @default(true)
+  disposition      IntegrityReviewDisposition @default(OPEN)
+  revision         Int @default(1)
+  ownerUserId      String?
+  resolutionReason String?
+  resolutionRefs   Json?
+  completedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  capture IntegrityCaseCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  events IntegrityReviewEvent[]
+  commands IntegrityReviewCommand[]
+
+  @@unique([organizationId, captureId, externalTaskId])
+  @@index([organizationId, disposition, updatedAt])
+  @@index([organizationId, captureId, createdAt])
+}
+
+model IntegrityReviewEvent {
+  id             String @id @default(cuid())
+  organizationId String
+  taskId         String
+  actorUserId    String?
+  action         IntegrityReviewAction
+  revisionBefore Int
+  revisionAfter  Int
+  before         IntegrityReviewDisposition
+  after          IntegrityReviewDisposition
+  reason         String?
+  evidenceRefs   Json?
+  occurredAt     DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor User? @relation("IntegrityReviewEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, revisionAfter])
+  @@index([organizationId, taskId, occurredAt])
+  @@index([organizationId, actorUserId, occurredAt])
+}
+
+model IntegrityReviewCommand {
+  id             String @id @default(cuid())
+  organizationId String
+  taskId         String
+  actorUserId    String
+  idempotencyKey String
+  payloadDigest  String @db.VarChar(64)
+  response       Json
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, actorUserId, idempotencyKey])
+  @@index([organizationId, taskId, createdAt])
 }
 
 model RequestRateLimit {
