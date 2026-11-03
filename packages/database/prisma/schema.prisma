@@ -241,6 +241,7 @@ model Organization {
   integrityReviewCommands   IntegrityReviewCommand[]
   integrityEvidenceAssessments IntegrityEvidenceAssessment[]
   integrityReviewWorkLinks IntegrityReviewWorkLink[]
+  integrityProviderChecks IntegrityProviderCheck[]
 }
 
 model Membership {
@@ -414,6 +415,7 @@ model SecurityEvidence {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   workLinks WorkEvidenceLink[]
   integrityAssessments IntegrityEvidenceAssessment[]
+  integrityProviderChecks IntegrityProviderCheck[]
 
   @@unique([organizationId, source, domain, controlId, scope])
   @@index([organizationId, domain, state])
@@ -730,6 +732,7 @@ model IntegrityReviewTask {
   commands IntegrityReviewCommand[]
   evidenceAssessments IntegrityEvidenceAssessment[]
   workLinks IntegrityReviewWorkLink[]
+  providerChecks IntegrityProviderCheck[]
   assessmentRevision Int @default(0)
 
   @@unique([organizationId, captureId, externalTaskId])
@@ -854,4 +857,36 @@ model IntegrityReviewWorkLink {
   @@unique([organizationId, taskId, workItemId])
   @@index([organizationId, taskId, unlinkedAt])
   @@index([organizationId, workItemId, unlinkedAt])
+}
+
+/**
+ * Append-only result of an actual remote provider read. This is separate
+ * from human assessments, and does not mutate remediation or CyberScore.
+ */
+model IntegrityProviderCheck {
+  id String @id @default(cuid())
+  organizationId String
+  taskId String
+  evidenceId String
+  provider String
+  subject String
+  controlId String
+  outcome String
+  providerObservedAt DateTime?
+  checkedAt DateTime @default(now())
+  requestedByUserId String?
+  requestKey String
+  requestDigest String @db.VarChar(64)
+  observationDigest String @db.VarChar(64)
+  responseDigest String @db.VarChar(64)
+  responseMetadata Json
+  failureCode String?
+  failureMessage String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  evidence SecurityEvidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, requestedByUserId, requestKey])
+  @@index([organizationId, taskId, checkedAt])
+  @@index([organizationId, evidenceId, checkedAt])
+  @@index([organizationId, provider, checkedAt])
 }
