@@ -1,3 +1,4 @@
+import { evaluateIntegrityExecutionReadiness, parseIntegrityExecutionReadinessPolicy, parseIntegrityExecutionReadinessQuery, queryIntegrityExecutionReadiness } from "../../../../../../../../../lib/work-integrity-remediation-execution-readiness";
 import { evaluateIntegrityExecutionControls, parseIntegrityExecutionControlPolicy } from "../../../../../../../../../lib/work-integrity-remediation-execution-controls";
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../../lib/organizations";
@@ -88,7 +89,7 @@ function parseRequest(value: unknown) {
     "acknowledgements", "slaQuery", "escalationQuery",
     "executionEvents", "executionQuery", "executionCheckpoints",
     "executionReviewQuery", "executionPerformanceQuery",
-    "executionEvidenceQuery",
+    "executionEvidenceQuery", "executionReadinessPolicy", "executionReadinessQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -134,6 +135,8 @@ function parseRequest(value: unknown) {
     executionReviewQuery: raw.executionReviewQuery,
     executionPerformanceQuery: raw.executionPerformanceQuery,
     executionEvidenceQuery: raw.executionEvidenceQuery,
+    executionReadinessPolicy: raw.executionReadinessPolicy,
+    executionReadinessQuery: raw.executionReadinessQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -199,6 +202,8 @@ export async function POST(request: NextRequest, { params }: Context) {
         ? null : queryIntegrityExecutionEvidence(executionEvidence,
           parseIntegrityExecutionEvidenceQuery(parsed.executionEvidenceQuery));
       const executionControls = evaluateIntegrityExecutionControls(workspace.plan, decisions, executionEvents, execution, executionAudit, new Date().toISOString(), parseIntegrityExecutionControlPolicy(undefined));
+      const executionReadiness = evaluateIntegrityExecutionReadiness(workspace.plan, execution, executionControls, executionEvidence, parseIntegrityExecutionReadinessPolicy(parsed.executionReadinessPolicy));
+      const executionReadinessPage = parsed.executionReadinessQuery === undefined ? null : queryIntegrityExecutionReadiness(executionReadiness, parseIntegrityExecutionReadinessQuery(parsed.executionReadinessQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -233,7 +238,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         return NextResponse.json({ workspace, audit, execution, executionPage,
           executionAudit, executionMatrix, executionReviewPage, executionHistory,
           executionPerformance, executionPerformancePage,
-          executionEvidence, executionEvidencePage, executionControls }, { headers });
+          executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -251,7 +256,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         return NextResponse.json({ workspace, audit, sla, slaPage, execution, executionPage,
           executionAudit, executionMatrix, executionReviewPage, executionHistory,
           executionPerformance, executionPerformancePage,
-          executionEvidence, executionEvidencePage, executionControls }, { headers });
+          executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -267,7 +272,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         escalationPage, deliveryManifest,
         executionAudit, executionMatrix, executionReviewPage, executionHistory,
         executionPerformance, executionPerformancePage,
-        executionEvidence, executionEvidencePage, executionControls,
+        executionEvidence, executionEvidencePage, executionControls, executionReadiness, executionReadinessPage,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
