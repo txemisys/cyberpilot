@@ -243,8 +243,8 @@ export function evaluateIntegrityExecutionReadiness(
     };
   });
   const byBlocker = Object.fromEntries(blockerCodes.map(code =>
-    [code, candidates.filter(x => x.blockers.includes(code)).length]))
-    as Record<IntegrityExecutionReadinessBlocker, number>;
+    [code, candidates.filter(x => x.blockers.includes(code)).length])) as
+    Record<IntegrityExecutionReadinessBlocker, number>;
   const count = candidates.length;
   const ready = candidates.filter(x => x.ready).length;
   return {
