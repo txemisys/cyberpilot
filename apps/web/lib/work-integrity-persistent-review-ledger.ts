@@ -20,7 +20,9 @@ export type PersistedReviewLedgerFinding = {
     | "AUDIT_DUPLICATE" | "AUDIT_ACTOR_MISMATCH"
     | "AUDIT_REVISION_MISMATCH" | "RESOLUTION_EVIDENCE_MISSING"
     | "RESOLUTION_EVIDENCE_INVALID" | "COMPLETION_MISMATCH"
-    | "UNSUPPORTED_EVENT" | "CAPTURE_MISSING";
+    | "UNSUPPORTED_EVENT" | "CAPTURE_MISSING"
+    | "CREATION_AUDIT_MISSING" | "CREATION_AUDIT_DUPLICATE"
+    | "CREATION_AUDIT_INVALID";
   revision: number | null;
   eventId: string | null;
   message: string;
@@ -115,6 +117,7 @@ export function verifyPersistedReviewLedger(
   commands: readonly LedgerCommand[],
   audits: readonly LedgerAudit[],
   evaluatedAt = new Date(),
+  creationAudits?: readonly LedgerAudit[],
 ): PersistedReviewLedgerReport {
   const findings: PersistedReviewLedgerFinding[] = [];
   const add = (
@@ -123,6 +126,22 @@ export function verifyPersistedReviewLedger(
     eventId: string | null,
     message: string,
   ) => findings.push({ code, revision, eventId, message });
+  if (creationAudits !== undefined) {
+    if (creationAudits.length === 0)
+      add("CREATION_AUDIT_MISSING", null, null,
+        "No audit record documents review registration.");
+    if (creationAudits.length > 1)
+      add("CREATION_AUDIT_DUPLICATE", null, null,
+        "More than one audit record documents review registration.");
+    for (const audit of creationAudits) {
+      const metadata = record(audit.metadata);
+      if (audit.action !== "integrity.review.created" ||
+          audit.actorUserId === null ||
+          metadata?.captureId !== task.captureId)
+        add("CREATION_AUDIT_INVALID", null, null,
+          "Registration audit has an invalid actor, action or capture.");
+    }
+  }
   let expectedRevision = 1;
   let expectedDisposition: ReviewDisposition = "OPEN";
   let expectedOwner: string | null = null;
@@ -289,7 +308,7 @@ export async function inspectPersistedReviewLedger(
   if (task.revision > 10001)
     throw new WorkInputError("INVALID",
       "Ledger exceeds the maximum 10,000 transitions.");
-  const [events, commands, audits] = await db.$transaction([
+  const [events, commands, audits, creationAudits] = await db.$transaction([
     db.integrityReviewEvent.findMany({
       where: { organizationId: scope.organizationId, taskId: id },
       orderBy: [{ revisionAfter: "asc" }, { id: "asc" }],
@@ -318,11 +337,21 @@ export async function inspectPersistedReviewLedger(
       take: 10001,
       select: { action: true, actorUserId: true, metadata: true },
     }),
+    db.auditEvent.findMany({
+      where: {
+        organizationId: scope.organizationId,
+        resourceType: "IntegrityReviewTask",
+        resourceId: id,
+        action: "integrity.review.created",
+      },
+      take: 2,
+      select: { action: true, actorUserId: true, metadata: true },
+    }),
   ]);
   if (events.length > 10000 || commands.length > 10000 ||
       audits.length > 10000)
     throw new WorkInputError("INVALID",
       "Ledger exceeds the maximum 10,000 records.");
   return verifyPersistedReviewLedger(
-    task, events, commands, audits, new Date());
+    task, events, commands, audits, new Date(), creationAudits);
 }
