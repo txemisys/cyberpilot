@@ -110,7 +110,7 @@ function array<T extends string>(
   if (!Array.isArray(value) || value.length > 1000 ||
       value.some(x => typeof x !== "string" || !x ||
         x.length > 1500 || /[\u0000-\u001f\u007f]/.test(x) ||
-        (options !== undefined && !options.includes(x))))
+        (options !== undefined && !options.includes(x as T))))
     throw new WorkInputError("INVALID", "Invalid " + label);
   return [...new Set(value as T[])];
 }
@@ -134,10 +134,10 @@ export function parseIntegrityRemediationPlanQuery(
       throw new WorkInputError("INVALID", "Invalid " + field);
   }
   return {
-    priorities: array(raw.priorities, "priorities", priorities),
-    actions: array(raw.actions, "actions", actions),
-    caseKeys: array(raw.caseKeys, "case keys"),
-    workItemIds: array(raw.workItemIds, "work IDs"),
+    ...(raw.priorities !== undefined ? { priorities: array(raw.priorities, "priorities", priorities)! } : {}),
+    ...(raw.actions !== undefined ? { actions: array(raw.actions, "actions", actions)! } : {}),
+    ...(raw.caseKeys !== undefined ? { caseKeys: array(raw.caseKeys, "case keys")! } : {}),
+    ...(raw.workItemIds !== undefined ? { workItemIds: array(raw.workItemIds, "work IDs")! } : {}),
     executableOnly: raw.executableOnly === true,
     includeBlocked: raw.includeBlocked !== false,
     offset: integer(raw.offset, "offset", 0, 1000000),
