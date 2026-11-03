@@ -42,6 +42,8 @@ function parseRequest(value: unknown) {
   const policies = input.policies.map(x =>
     parseIntegrityEvidenceCoveragePolicy(x));
   const view = raw.view ?? "plan";
+  if (typeof view !== "string")
+    throw new WorkInputError("INVALID", "Invalid remediation view.");
   if (!["plan", "candidates", "history", "history-summary", "history-page"]
     .includes(view))
     throw new WorkInputError("INVALID", "Invalid remediation view.");
