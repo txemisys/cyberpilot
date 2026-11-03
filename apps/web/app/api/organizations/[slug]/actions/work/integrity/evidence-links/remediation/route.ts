@@ -1,3 +1,5 @@
+import { simulateIntegrityCapacityInterventions, parseIntegrityCapacityInterventions, parseIntegrityCapacityInterventionQuery, queryIntegrityCapacityInterventions } from "../../../../../../../../../lib/work-integrity-remediation-capacity-interventions";
+import { evaluateIntegrityCapacityPortfolio, parseIntegrityCapacityPortfolioPolicy, parseIntegrityCapacityPortfolioQuery, queryIntegrityCapacityPortfolio } from "../../../../../../../../../lib/work-integrity-remediation-capacity-portfolio";
 import { buildIntegrityCapacityCoverage, parseIntegrityCapacityCoverageQuery, queryIntegrityCapacityCoverage } from "../../../../../../../../../lib/work-integrity-remediation-capacity-coverage";
 import { compareIntegrityCapacityScenarios, parseIntegrityCapacityScenarios, parseIntegrityCapacityScenarioQuery, queryIntegrityCapacityScenarios } from "../../../../../../../../../lib/work-integrity-remediation-capacity-scenarios";
 import { diagnoseIntegrityExecutionCapacity, parseIntegrityCapacityBottleneckPolicy, parseIntegrityCapacityBottleneckQuery, queryIntegrityCapacityBottlenecks } from "../../../../../../../../../lib/work-integrity-remediation-capacity-bottlenecks";
@@ -106,6 +108,8 @@ function parseRequest(value: unknown) {
     "executionCapacityScenarios", "executionCapacityBaselineId", "executionCapacityScenarioQuery",
     "executionCapacityBottleneckPolicy", "executionCapacityBottleneckQuery",
     "executionCapacityCoverageQuery",
+    "executionCapacityInterventions", "executionCapacityInterventionQuery",
+    "executionCapacityPortfolioPolicy", "executionCapacityPortfolioQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -169,6 +173,10 @@ function parseRequest(value: unknown) {
     executionCapacityBottleneckPolicy: raw.executionCapacityBottleneckPolicy,
     executionCapacityBottleneckQuery: raw.executionCapacityBottleneckQuery,
     executionCapacityCoverageQuery: raw.executionCapacityCoverageQuery,
+    executionCapacityInterventions: raw.executionCapacityInterventions,
+    executionCapacityInterventionQuery: raw.executionCapacityInterventionQuery,
+    executionCapacityPortfolioPolicy: raw.executionCapacityPortfolioPolicy,
+    executionCapacityPortfolioQuery: raw.executionCapacityPortfolioQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -259,6 +267,16 @@ export async function POST(request: NextRequest, { params }: Context) {
       if (executionCapacity === null && parsed.executionCapacityCoverageQuery !== undefined) throw new WorkInputError("INVALID", "Coverage query requires capacity members.");
       const executionCapacityCoverage = executionCapacity === null ? null : buildIntegrityCapacityCoverage(executionQueue, executionCapacity, executionCapacityForecast);
       const executionCapacityCoveragePage = parsed.executionCapacityCoverageQuery === undefined || executionCapacityCoverage === null ? null : queryIntegrityCapacityCoverage(executionCapacityCoverage, parseIntegrityCapacityCoverageQuery(parsed.executionCapacityCoverageQuery));
+      if (parsed.executionCapacityInterventions === undefined && (parsed.executionCapacityInterventionQuery !== undefined || parsed.executionCapacityPortfolioPolicy !== undefined || parsed.executionCapacityPortfolioQuery !== undefined)) throw new WorkInputError("INVALID", "Intervention queries require intervention inputs.");
+      if (parsed.executionCapacityInterventions !== undefined && parsed.executionCapacityMembers === undefined) throw new WorkInputError("INVALID", "Interventions require capacity members.");
+      const capacityInterventions = parsed.executionCapacityInterventions === undefined ? null : parseIntegrityCapacityInterventions(parsed.executionCapacityInterventions);
+      const interventionMembers = capacityInterventions === null ? null : parseIntegrityExecutionCapacityMembers(parsed.executionCapacityMembers);
+      const interventionCapacityPolicy = capacityInterventions === null ? null : parseIntegrityExecutionCapacityPolicy(parsed.executionCapacityPolicy);
+      const interventionForecastPolicy = capacityInterventions === null ? null : parseIntegrityExecutionCapacityForecastPolicy(parsed.executionCapacityForecastPolicy);
+      const executionCapacityInterventions = capacityInterventions === null || interventionMembers === null || interventionCapacityPolicy === null || interventionForecastPolicy === null ? null : simulateIntegrityCapacityInterventions(executionQueue, interventionMembers, new Date().toISOString(), interventionCapacityPolicy, interventionForecastPolicy, capacityInterventions);
+      const executionCapacityInterventionPage = parsed.executionCapacityInterventionQuery === undefined || executionCapacityInterventions === null ? null : queryIntegrityCapacityInterventions(executionCapacityInterventions, parseIntegrityCapacityInterventionQuery(parsed.executionCapacityInterventionQuery));
+      const executionCapacityPortfolio = capacityInterventions === null || interventionMembers === null || interventionCapacityPolicy === null || interventionForecastPolicy === null || parsed.executionCapacityPortfolioPolicy === undefined ? null : evaluateIntegrityCapacityPortfolio(executionQueue, interventionMembers, new Date().toISOString(), interventionCapacityPolicy, interventionForecastPolicy, capacityInterventions, parseIntegrityCapacityPortfolioPolicy(parsed.executionCapacityPortfolioPolicy));
+      const executionCapacityPortfolioPage = parsed.executionCapacityPortfolioQuery === undefined || executionCapacityPortfolio === null ? null : queryIntegrityCapacityPortfolio(executionCapacityPortfolio, parseIntegrityCapacityPortfolioQuery(parsed.executionCapacityPortfolioQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -301,7 +319,9 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityExport,
           executionCapacityScenarios, executionCapacityScenarioPage,
           executionCapacityBottlenecks, executionCapacityBottleneckPage,
-          executionCapacityCoverage, executionCapacityCoveragePage }, { headers });
+          executionCapacityCoverage, executionCapacityCoveragePage,
+          executionCapacityInterventions, executionCapacityInterventionPage,
+          executionCapacityPortfolio, executionCapacityPortfolioPage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -327,7 +347,9 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityExport,
           executionCapacityScenarios, executionCapacityScenarioPage,
           executionCapacityBottlenecks, executionCapacityBottleneckPage,
-          executionCapacityCoverage, executionCapacityCoveragePage }, { headers });
+          executionCapacityCoverage, executionCapacityCoveragePage,
+          executionCapacityInterventions, executionCapacityInterventionPage,
+          executionCapacityPortfolio, executionCapacityPortfolioPage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
@@ -352,6 +374,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacityScenarios, executionCapacityScenarioPage,
           executionCapacityBottlenecks, executionCapacityBottleneckPage,
           executionCapacityCoverage, executionCapacityCoveragePage,
+          executionCapacityInterventions, executionCapacityInterventionPage,
+          executionCapacityPortfolio, executionCapacityPortfolioPage,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
