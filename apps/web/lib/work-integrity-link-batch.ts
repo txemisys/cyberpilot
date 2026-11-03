@@ -27,7 +27,7 @@ export type IntegrityBatchExecutionResult = IntegrityPlanExecutionReport & {
 };
 export type IntegrityBatchExecutor = {
   readHistory: (organizationId: string, captureId: string) =>
-    Promise<{ events: IntegrityLinkHistoryEvent[] }>;
+    Promise<{ events: readonly IntegrityLinkHistoryEvent[] }>;
   link: typeof linkIntegrityCaseToWork;
   unlink: typeof unlinkIntegrityCaseFromWork;
 };
@@ -117,7 +117,7 @@ export async function executeIntegrityBatch(
       const fresh = planIntegrityLinkOperations({
         captureId: request.captureId,
         operations: [original],
-        strict: request.strict,
+        ...(request.strict !== undefined ? { strict: request.strict } : {}),
       }, current.events);
       const latest = fresh.decisions[0]!;
       if (!latest.executable) {
