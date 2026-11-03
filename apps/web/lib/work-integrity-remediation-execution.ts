@@ -375,7 +375,8 @@ export function parseIntegrityRemediationExecutionQuery(
       candidateIds: list(raw.candidateIds, "execution candidate IDs", 1000),
     } : {}),
     ...(raw.actions !== undefined ? {
-      actions: list(raw.actions, "execution actions", 100),
+      actions: list(raw.actions, "execution actions", 100) as
+        NonNullable<IntegrityRemediationExecutionQuery["actions"]>,
     } : {}),
     onlyFindings: raw.onlyFindings === true,
     onlyUnverified: raw.onlyUnverified === true,
