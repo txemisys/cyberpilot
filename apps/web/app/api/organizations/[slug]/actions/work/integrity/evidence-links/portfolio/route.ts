@@ -44,6 +44,8 @@ function parseRequest(value: unknown) {
   const portfolio = parseIntegrityEvidencePortfolioInput(raw.portfolio);
   const policies = portfolio.policies.map(x => parseIntegrityEvidenceCoveragePolicy(x));
   const view = raw.view ?? "summary";
+  if (typeof view !== "string")
+    throw new WorkInputError("INVALID", "Invalid portfolio view.");
   if (!["summary", "cases", "risk", "risk-page", "history"].includes(view))
     throw new WorkInputError("INVALID", "Unknown portfolio view.");
   if (view !== "history" && raw.checkpoints !== undefined)
