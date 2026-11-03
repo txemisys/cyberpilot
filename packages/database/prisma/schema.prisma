@@ -727,6 +727,7 @@ model IntegrityReviewTask {
   events IntegrityReviewEvent[]
   commands IntegrityReviewCommand[]
   evidenceAssessments IntegrityEvidenceAssessment[]
+  assessmentRevision Int @default(0)
 
   @@unique([organizationId, captureId, externalTaskId])
   @@index([organizationId, disposition, updatedAt])
