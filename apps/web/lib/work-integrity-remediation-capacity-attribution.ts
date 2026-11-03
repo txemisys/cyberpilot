@@ -1,7 +1,6 @@
 import { WorkInputError } from "./remediation-work-input";
 import type {
   IntegrityCapacityInterventionReport,
-  IntegrityCapacityInterventionOutcome,
 } from "./work-integrity-remediation-capacity-interventions";
 import type {
   IntegrityCapacityPortfolioReport,
@@ -85,10 +84,6 @@ function bestBundle(
   bundles: IntegrityCapacityPortfolioBundle[],
 ): IntegrityCapacityPortfolioBundle | null {
   return [...bundles].sort(rank)[0] ?? null;
-}
-function positive(outcome: IntegrityCapacityInterventionOutcome) {
-  return outcome.assignedDelta > 0 || outcome.completedDelta > 0 ||
-    outcome.effortCompletedDelta > 0;
 }
 export function attributeIntegrityCapacityInterventions(
   interventions: IntegrityCapacityInterventionReport,
