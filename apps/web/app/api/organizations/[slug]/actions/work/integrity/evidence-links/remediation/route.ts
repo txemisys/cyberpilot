@@ -341,6 +341,8 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionCapacity, executionCapacityPage,
           executionCapacityForecast, executionCapacityForecastPage,
           executionCapacityExport,
+          executionCapacityScenarios, executionCapacityScenarioPage,
+          executionCapacityBottlenecks, executionCapacityBottleneckPage,
       }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
