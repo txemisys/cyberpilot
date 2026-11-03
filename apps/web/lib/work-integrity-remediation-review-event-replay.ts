@@ -166,7 +166,7 @@ export function parseIntegrityReviewReplayPolicy(value: unknown): IntegrityRevie
 export function parseIntegrityReviewEvents(value: unknown): IntegrityReviewEvent[] {
   if (!Array.isArray(value) || value.length > 5000)
     throw new WorkInputError("INVALID", "Invalid review event list.");
-  return value.map((entry, index) => {
+  return value.map(entry => {
     const raw = record(entry, "review event");
     if (Object.keys(raw).some(x => ![
       "eventId", "taskId", "kind", "occurredAt",
