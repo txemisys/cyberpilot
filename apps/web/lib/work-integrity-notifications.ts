@@ -2,7 +2,9 @@ import { createHash } from "node:crypto";
 import { db } from "@cyberpilot/database";
 import { canManageWork, canReadWork, parseWorkId, WorkInputError } from "./remediation-work-input";
 import type { ReviewScope } from "./work-integrity-persistent-review";
-import type { IntegrityNotificationKind } from "@cyberpilot/database";
+export type IntegrityNotificationKind =
+  | "REVIEW_ASSIGNED" | "REVIEW_OVERDUE" | "REVIEW_ESCALATED"
+  | "REVIEW_RESOLVED" | "PROVIDER_FAILURE" | "PROVIDER_RECOVERED";
 
 export type InboxFilter = {
   unreadOnly: boolean;
