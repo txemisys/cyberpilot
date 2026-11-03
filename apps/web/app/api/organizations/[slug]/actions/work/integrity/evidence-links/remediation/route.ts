@@ -68,7 +68,7 @@ function parseRequest(value: unknown) {
     "gatePolicy", "decisions", "decisionPolicy", "capacity", "exportRequest",
     "slaPolicy", "createdAt", "evaluatedAt", "escalationPolicy",
     "acknowledgements", "slaQuery", "escalationQuery",
-    "executionEvents", "verifiedEvidenceRefs", "executionQuery",
+    "executionEvents", "executionQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -107,7 +107,6 @@ function parseRequest(value: unknown) {
     acknowledgements: raw.acknowledgements,
     slaQuery: raw.slaQuery, escalationQuery: raw.escalationQuery,
     executionEvents: raw.executionEvents,
-    verifiedEvidenceRefs: raw.verifiedEvidenceRefs,
     executionQuery: raw.executionQuery,
   };
 }
@@ -159,13 +158,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         parsed.executionEvents ?? []);
       const executionLedger = buildIntegrityRemediationExecutionLedger(
         workspace.plan, decisions, executionEvents);
-      if (parsed.verifiedEvidenceRefs !== undefined &&
-          (!Array.isArray(parsed.verifiedEvidenceRefs) ||
-            parsed.verifiedEvidenceRefs.some(x => typeof x !== "string")))
-        throw new WorkInputError("INVALID", "Invalid verified evidence references.");
-      const execution = verifyIntegrityRemediationExecutionEvidence(
-        executionLedger, (parsed.verifiedEvidenceRefs ?? []) as string[]);
-      const executionPage = parsed.executionQuery === undefined ? null :
+      // Client-submitted evidence IDs cannot establish trusted verification.\n      const execution = verifyIntegrityRemediationExecutionEvidence(\n        executionLedger, []);\n      const executionPage = parsed.executionQuery === undefined ? null :
         queryIntegrityRemediationExecution(execution,
           parseIntegrityRemediationExecutionQuery(parsed.executionQuery));
       if (parsed.escalationPolicy !== undefined &&
