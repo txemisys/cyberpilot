@@ -328,7 +328,7 @@ export async function runGoogle2SvCheck(
   try {
     read = await readGoogleWorkspaceUser(
       input.subject, input.accessToken, {
-        fetcher: options?.fetcher,
+        ...(options?.fetcher ? { fetcher: options.fetcher } : {}),
         signal: AbortSignal.timeout(15000),
       });
   } catch (error) {
