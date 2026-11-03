@@ -1,3 +1,5 @@
+import { compareIntegrityCapacityScenarios, parseIntegrityCapacityScenarios, parseIntegrityCapacityScenarioQuery, queryIntegrityCapacityScenarios } from "../../../../../../../../../lib/work-integrity-remediation-capacity-scenarios";
+import { diagnoseIntegrityExecutionCapacity, parseIntegrityCapacityBottleneckPolicy, parseIntegrityCapacityBottleneckQuery, queryIntegrityCapacityBottlenecks } from "../../../../../../../../../lib/work-integrity-remediation-capacity-bottlenecks";
 import { exportIntegrityExecutionCapacity, parseIntegrityExecutionCapacityExportOptions } from "../../../../../../../../../lib/work-integrity-remediation-execution-capacity-export";
 import { forecastIntegrityExecutionCapacity, parseIntegrityExecutionCapacityForecastPolicy, parseIntegrityExecutionCapacityForecastQuery, queryIntegrityExecutionCapacityForecast } from "../../../../../../../../../lib/work-integrity-remediation-execution-capacity-forecast";
 import { planIntegrityExecutionCapacity, parseIntegrityExecutionCapacityMembers, parseIntegrityExecutionCapacityPolicy, parseIntegrityExecutionCapacityQuery, queryIntegrityExecutionCapacity } from "../../../../../../../../../lib/work-integrity-remediation-execution-capacity";
@@ -100,6 +102,8 @@ function parseRequest(value: unknown) {
     "executionCapacityMembers", "executionCapacityPolicy", "executionCapacityQuery",
     "executionCapacityForecastPolicy", "executionCapacityForecastQuery",
     "executionCapacityExport",
+    "executionCapacityScenarios", "executionCapacityBaselineId", "executionCapacityScenarioQuery",
+    "executionCapacityBottleneckPolicy", "executionCapacityBottleneckQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -157,6 +161,11 @@ function parseRequest(value: unknown) {
     executionCapacityForecastPolicy: raw.executionCapacityForecastPolicy,
     executionCapacityForecastQuery: raw.executionCapacityForecastQuery,
     executionCapacityExport: raw.executionCapacityExport,
+    executionCapacityScenarios: raw.executionCapacityScenarios,
+    executionCapacityBaselineId: raw.executionCapacityBaselineId,
+    executionCapacityScenarioQuery: raw.executionCapacityScenarioQuery,
+    executionCapacityBottleneckPolicy: raw.executionCapacityBottleneckPolicy,
+    executionCapacityBottleneckQuery: raw.executionCapacityBottleneckQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -237,6 +246,13 @@ export async function POST(request: NextRequest, { params }: Context) {
       const executionCapacityForecastPage = parsed.executionCapacityForecastQuery === undefined || executionCapacityForecast === null ? null : queryIntegrityExecutionCapacityForecast(executionCapacityForecast, parseIntegrityExecutionCapacityForecastQuery(parsed.executionCapacityForecastQuery));
       if (parsed.executionCapacityExport !== undefined && executionCapacity === null) throw new WorkInputError("INVALID", "Capacity export requires capacity members.");
       const executionCapacityExport = parsed.executionCapacityExport === undefined || executionCapacity === null ? null : exportIntegrityExecutionCapacity(executionCapacity, executionCapacityForecast, parseIntegrityExecutionCapacityExportOptions(parsed.executionCapacityExport));
+      if (parsed.executionCapacityScenarios === undefined && (parsed.executionCapacityBaselineId !== undefined || parsed.executionCapacityScenarioQuery !== undefined)) throw new WorkInputError("INVALID", "Scenario options require scenarios.");
+      if (parsed.executionCapacityBaselineId !== undefined && (typeof parsed.executionCapacityBaselineId !== "string" || !parsed.executionCapacityBaselineId)) throw new WorkInputError("INVALID", "Invalid scenario baseline.");
+      const executionCapacityScenarios = parsed.executionCapacityScenarios === undefined ? null : compareIntegrityCapacityScenarios(executionQueue, parseIntegrityCapacityScenarios(parsed.executionCapacityScenarios), new Date().toISOString(), parsed.executionCapacityBaselineId as string | undefined);
+      const executionCapacityScenarioPage = parsed.executionCapacityScenarioQuery === undefined || executionCapacityScenarios === null ? null : queryIntegrityCapacityScenarios(executionCapacityScenarios, parseIntegrityCapacityScenarioQuery(parsed.executionCapacityScenarioQuery));
+      if (executionCapacity === null && (parsed.executionCapacityBottleneckPolicy !== undefined || parsed.executionCapacityBottleneckQuery !== undefined)) throw new WorkInputError("INVALID", "Bottleneck options require capacity members.");
+      const executionCapacityBottlenecks = executionCapacity === null ? null : diagnoseIntegrityExecutionCapacity(executionQueue, executionCapacity, executionCapacityForecast, parseIntegrityCapacityBottleneckPolicy(parsed.executionCapacityBottleneckPolicy));
+      const executionCapacityBottleneckPage = parsed.executionCapacityBottleneckQuery === undefined || executionCapacityBottlenecks === null ? null : queryIntegrityCapacityBottlenecks(executionCapacityBottlenecks, parseIntegrityCapacityBottleneckQuery(parsed.executionCapacityBottleneckQuery));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -276,7 +292,9 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionQueue, executionQueuePage,
           executionCapacity, executionCapacityPage,
           executionCapacityForecast, executionCapacityForecastPage,
-          executionCapacityExport }, { headers });
+          executionCapacityExport,
+          executionCapacityScenarios, executionCapacityScenarioPage,
+          executionCapacityBottlenecks, executionCapacityBottleneckPage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
@@ -299,7 +317,9 @@ export async function POST(request: NextRequest, { params }: Context) {
           executionQueue, executionQueuePage,
           executionCapacity, executionCapacityPage,
           executionCapacityForecast, executionCapacityForecastPage,
-          executionCapacityExport }, { headers });
+          executionCapacityExport,
+          executionCapacityScenarios, executionCapacityScenarioPage,
+          executionCapacityBottlenecks, executionCapacityBottleneckPage }, { headers });
       }
       const escalations = evaluateIntegrityEscalations(
         sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
