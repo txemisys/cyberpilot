@@ -1,3 +1,4 @@
+import { evaluateIntegrityExecutionControls, parseIntegrityExecutionControlPolicy } from "../../../../../../../../../lib/work-integrity-remediation-execution-controls";
 import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../../lib/organizations";
 import { canReadWork, WorkInputError } from "../../../../../../../../../lib/remediation-work-input";
@@ -197,6 +198,7 @@ export async function POST(request: NextRequest, { params }: Context) {
       const executionEvidencePage = parsed.executionEvidenceQuery === undefined
         ? null : queryIntegrityExecutionEvidence(executionEvidence,
           parseIntegrityExecutionEvidenceQuery(parsed.executionEvidenceQuery));
+      const executionControls = evaluateIntegrityExecutionControls(workspace.plan, decisions, executionEvents, execution, executionAudit, new Date().toISOString(), parseIntegrityExecutionControlPolicy(undefined));
       const executionMatrix = buildIntegrityExecutionReviewMatrix(
         execution, workspace.plan);
       const executionReviewPage = parsed.executionReviewQuery === undefined
@@ -231,7 +233,7 @@ export async function POST(request: NextRequest, { params }: Context) {
         return NextResponse.json({ workspace, audit, execution, executionPage,
           executionAudit, executionMatrix, executionReviewPage, executionHistory,
           executionPerformance, executionPerformancePage,
-          executionEvidence, executionEvidencePage }, { headers });
+          executionEvidence, executionEvidencePage, executionControls }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
