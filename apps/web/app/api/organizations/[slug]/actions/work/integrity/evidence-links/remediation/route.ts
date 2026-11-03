@@ -21,6 +21,20 @@ import {
 } from "../../../../../../../../../lib/work-integrity-remediation-workspace";
 import { parseIntegrityRemediationGatePolicy } from "../../../../../../../../../lib/work-integrity-remediation-gates";
 import { parseIntegrityRemediationCapacity } from "../../../../../../../../../lib/work-integrity-remediation-capacity";
+import {
+  parseIntegrityRemediationSlaPolicy,
+  evaluateIntegrityRemediationSla,
+  parseIntegrityRemediationSlaQuery,
+  queryIntegrityRemediationSla,
+} from "../../../../../../../../../lib/work-integrity-remediation-sla";
+import {
+  parseIntegrityEscalationPolicy,
+  parseIntegrityEscalationAcknowledgements,
+  evaluateIntegrityEscalations,
+  parseIntegrityEscalationQuery,
+  queryIntegrityEscalations,
+  buildIntegrityEscalationDeliveryManifest,
+} from "../../../../../../../../../lib/work-integrity-remediation-escalation";
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
   "Cache-Control": "private, no-store",
@@ -45,6 +59,8 @@ function parseRequest(value: unknown) {
   if (Object.keys(raw).some(x => ![
     "portfolio", "view", "weights", "query", "checkpoints",
     "gatePolicy", "decisions", "decisionPolicy", "capacity", "exportRequest",
+    "slaPolicy", "createdAt", "evaluatedAt", "escalationPolicy",
+    "acknowledgements", "slaQuery", "escalationQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -66,6 +82,8 @@ function parseRequest(value: unknown) {
     throw new WorkInputError("INVALID", "Query requires paginated view.");
   if (view !== "workspace" && [
     "gatePolicy", "decisions", "decisionPolicy", "capacity", "exportRequest",
+    "slaPolicy", "createdAt", "evaluatedAt", "escalationPolicy",
+    "acknowledgements", "slaQuery", "escalationQuery",
   ].some(key => raw[key] !== undefined))
     throw new WorkInputError("INVALID", "Workspace options require workspace view.");
   const weights = parseIntegrityPortfolioRiskWeights(raw.weights);
@@ -75,6 +93,10 @@ function parseRequest(value: unknown) {
     gatePolicy: raw.gatePolicy, decisions: raw.decisions,
     decisionPolicy: raw.decisionPolicy, capacity: raw.capacity,
     exportRequest: raw.exportRequest,
+    slaPolicy: raw.slaPolicy, createdAt: raw.createdAt,
+    evaluatedAt: raw.evaluatedAt, escalationPolicy: raw.escalationPolicy,
+    acknowledgements: raw.acknowledgements,
+    slaQuery: raw.slaQuery, escalationQuery: raw.escalationQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -121,7 +143,45 @@ export async function POST(request: NextRequest, { params }: Context) {
       const audit = auditIntegrityRemediationDecisions(
         workspace.plan, decisions,
         parseIntegrityRemediationDecisionPolicy(parsed.decisionPolicy));
-      return NextResponse.json({ workspace, audit }, { headers });
+      if (parsed.escalationPolicy !== undefined &&
+          parsed.slaPolicy === undefined)
+        throw new WorkInputError("INVALID", "Escalation policy requires SLA policy.");
+      if (parsed.slaPolicy === undefined) {
+        if (parsed.createdAt !== undefined || parsed.evaluatedAt !== undefined ||
+            parsed.escalationPolicy !== undefined ||
+            parsed.acknowledgements !== undefined ||
+            parsed.slaQuery !== undefined || parsed.escalationQuery !== undefined)
+          throw new WorkInputError("INVALID", "SLA parameters require SLA policy.");
+        return NextResponse.json({ workspace, audit }, { headers });
+      }
+      if (typeof parsed.createdAt !== "string" ||
+          typeof parsed.evaluatedAt !== "string")
+        throw new WorkInputError("INVALID", "SLA timestamps required.");
+      const sla = evaluateIntegrityRemediationSla(
+        workspace.plan, decisions, parsed.createdAt, parsed.evaluatedAt,
+        parseIntegrityRemediationSlaPolicy(parsed.slaPolicy));
+      const slaPage = parsed.slaQuery === undefined ? null :
+        queryIntegrityRemediationSla(sla,
+          parseIntegrityRemediationSlaQuery(parsed.slaQuery));
+      if (parsed.escalationPolicy === undefined) {
+        if (parsed.acknowledgements !== undefined ||
+            parsed.escalationQuery !== undefined)
+          throw new WorkInputError("INVALID", "Escalation options require policy.");
+        return NextResponse.json({ workspace, audit, sla, slaPage }, { headers });
+      }
+      const escalations = evaluateIntegrityEscalations(
+        sla, parseIntegrityEscalationPolicy(parsed.escalationPolicy),
+        decisions, parseIntegrityEscalationAcknowledgements(
+          parsed.acknowledgements ?? []));
+      const escalationPage = parsed.escalationQuery === undefined ? null :
+        queryIntegrityEscalations(escalations,
+          parseIntegrityEscalationQuery(parsed.escalationQuery));
+      const deliveryManifest = buildIntegrityEscalationDeliveryManifest(
+        escalations);
+      return NextResponse.json({
+        workspace, audit, sla, slaPage, escalations,
+        escalationPage, deliveryManifest,
+      }, { headers });
     }
     if (["history", "history-summary", "history-page"].includes(parsed.view)) {
       if (!Array.isArray(parsed.checkpoints))
