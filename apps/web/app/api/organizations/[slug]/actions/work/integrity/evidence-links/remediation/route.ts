@@ -49,6 +49,11 @@ import {
   parseIntegrityExecutionReviewQuery,
   queryIntegrityExecutionReview,
 } from "../../../../../../../../../lib/work-integrity-remediation-execution-review";
+import {
+  evaluateIntegrityExecutionPerformance,
+  parseIntegrityExecutionPerformanceQuery,
+  queryIntegrityExecutionPerformance,
+} from "../../../../../../../../../lib/work-integrity-remediation-execution-performance";
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
   "Cache-Control": "private, no-store",
@@ -76,7 +81,7 @@ function parseRequest(value: unknown) {
     "slaPolicy", "createdAt", "evaluatedAt", "escalationPolicy",
     "acknowledgements", "slaQuery", "escalationQuery",
     "executionEvents", "executionQuery", "executionCheckpoints",
-    "executionReviewQuery",
+    "executionReviewQuery", "executionPerformanceQuery",
   ].includes(x)))
     throw new WorkInputError("INVALID", "Unknown remediation request field.");
   const input = parseIntegrityEvidencePortfolioInput(raw.portfolio);
@@ -118,6 +123,7 @@ function parseRequest(value: unknown) {
     executionQuery: raw.executionQuery,
     executionCheckpoints: raw.executionCheckpoints,
     executionReviewQuery: raw.executionReviewQuery,
+    executionPerformanceQuery: raw.executionPerformanceQuery,
   };
 }
 export async function POST(request: NextRequest, { params }: Context) {
@@ -185,6 +191,19 @@ export async function POST(request: NextRequest, { params }: Context) {
         ? null : buildIntegrityExecutionReviewHistory(
           workspace.plan, decisions, executionEvents,
           parsed.executionCheckpoints as string[]);
+      const executionPerformance = executionHistory === null ? null :
+        evaluateIntegrityExecutionPerformance(
+          execution, executionHistory, executionAudit,
+          executionHistory.summary.lastAt);
+      if (parsed.executionPerformanceQuery !== undefined &&
+          executionPerformance === null)
+        throw new WorkInputError("INVALID", "Execution performance requires checkpoints.");
+      const executionPerformancePage =
+        parsed.executionPerformanceQuery === undefined ||
+        executionPerformance === null ? null :
+          queryIntegrityExecutionPerformance(executionPerformance,
+            parseIntegrityExecutionPerformanceQuery(
+              parsed.executionPerformanceQuery));
       if (parsed.escalationPolicy !== undefined &&
           parsed.slaPolicy === undefined)
         throw new WorkInputError("INVALID", "Escalation policy requires SLA policy.");
@@ -195,7 +214,8 @@ export async function POST(request: NextRequest, { params }: Context) {
             parsed.slaQuery !== undefined || parsed.escalationQuery !== undefined)
           throw new WorkInputError("INVALID", "SLA parameters require SLA policy.");
         return NextResponse.json({ workspace, audit, execution, executionPage,
-          executionAudit, executionMatrix, executionReviewPage, executionHistory }, { headers });
+          executionAudit, executionMatrix, executionReviewPage, executionHistory,
+          executionPerformance, executionPerformancePage }, { headers });
       }
       if (typeof parsed.createdAt !== "string" ||
           typeof parsed.evaluatedAt !== "string")
