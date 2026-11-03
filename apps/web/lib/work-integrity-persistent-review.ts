@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { db } from "@cyberpilot/database";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@cyberpilot/database";
 import {
   WorkInputError, canReadWork, canManageWork, parseWorkId,
 } from "./remediation-work-input";
@@ -215,11 +215,12 @@ export function reviewCommandDigest(command: ReviewCommandInput): string {
   })).digest("hex");
 }
 function isUnique(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002";
+  return typeof error === "object" && error !== null &&
+    "code" in error && error.code === "P2002";
 }
 function isRetryable(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError &&
+  return typeof error === "object" && error !== null &&
+    "code" in error && typeof error.code === "string" &&
     ["P2034", "P2010"].includes(error.code);
 }
 async function findCommand(
@@ -455,7 +456,7 @@ export async function applyPersistentReviewCommand(
         },
       });
       return payload;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    }, { isolationLevel: "Serializable" });
     return { replayed: false, result: response };
   } catch (error) {
     if (isUnique(error) || isRetryable(error)) {
