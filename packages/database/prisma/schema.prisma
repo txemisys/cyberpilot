@@ -239,6 +239,9 @@ model Organization {
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
   integrityReviewCommands   IntegrityReviewCommand[]
+  integrityEvidenceAssessments IntegrityEvidenceAssessment[]
+  integrityReviewWorkLinks IntegrityReviewWorkLink[]
+  integrityProviderChecks IntegrityProviderCheck[]
 }
 
 model Membership {
@@ -411,6 +414,8 @@ model SecurityEvidence {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   workLinks WorkEvidenceLink[]
+  integrityAssessments IntegrityEvidenceAssessment[]
+  integrityProviderChecks IntegrityProviderCheck[]
 
   @@unique([organizationId, source, domain, controlId, scope])
   @@index([organizationId, domain, state])
@@ -501,6 +506,7 @@ model RemediationWorkItem {
   events RemediationWorkEvent[]
   checklist WorkChecklistEntry[]
   evidenceLinks WorkEvidenceLink[]
+  integrityReviewLinks IntegrityReviewWorkLink[]
   handoffs WorkHandoff[]
 
   @@unique([organizationId, remediationId])
@@ -724,6 +730,10 @@ model IntegrityReviewTask {
   capture IntegrityCaseCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
   events IntegrityReviewEvent[]
   commands IntegrityReviewCommand[]
+  evidenceAssessments IntegrityEvidenceAssessment[]
+  workLinks IntegrityReviewWorkLink[]
+  providerChecks IntegrityProviderCheck[]
+  assessmentRevision Int @default(0)
 
   @@unique([organizationId, captureId, externalTaskId])
   @@index([organizationId, disposition, updatedAt])
@@ -782,4 +792,101 @@ model RequestRateLimit {
 
   @@unique([scope, subjectHash, windowStart])
   @@index([expiresAt])
+}
+
+/**
+ * Human review of a specific evidence observation, not an assertion that
+ * the underlying control is independently verified by a provider.
+ */
+enum IntegrityEvidenceDecision {
+  ACCEPTED
+  REJECTED
+  INCONCLUSIVE
+}
+
+model IntegrityEvidenceAssessment {
+  id String @id @default(cuid())
+  organizationId String
+  taskId String
+  evidenceId String
+  assessorUserId String?
+  decision IntegrityEvidenceDecision
+  rationale String
+  observationDigest String @db.VarChar(64)
+  observedAt DateTime?
+  source String
+  controlId String
+  evidenceState String
+  evidenceUpdatedAt DateTime
+  revision Int
+  idempotencyKey String
+  requestDigest String @db.VarChar(64)
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  evidence SecurityEvidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, assessorUserId, idempotencyKey])
+  @@unique([taskId, revision])
+  @@index([organizationId, taskId, createdAt])
+  @@index([organizationId, evidenceId, createdAt])
+}
+
+/**
+ * Explicit operational association between an integrity review and a work item.
+ * A link is not a claim that the work remediated or independently verified a case.
+ */
+model IntegrityReviewWorkLink {
+  id String @id @default(cuid())
+  organizationId String
+  taskId String
+  workItemId String
+  rationale String
+  linkedByUserId String?
+  linkedAt DateTime @default(now())
+  unlinkedAt DateTime?
+  unlinkedByUserId String?
+  unlinkReason String?
+  revision Int @default(1)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  workItem RemediationWorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, taskId, workItemId])
+  @@index([organizationId, taskId, unlinkedAt])
+  @@index([organizationId, workItemId, unlinkedAt])
+}
+
+/**
+ * Append-only result of an actual remote provider read. This is separate
+ * from human assessments, and does not mutate remediation or CyberScore.
+ */
+model IntegrityProviderCheck {
+  id String @id @default(cuid())
+  organizationId String
+  taskId String
+  evidenceId String
+  provider String
+  subject String
+  controlId String
+  outcome String
+  providerObservedAt DateTime?
+  checkedAt DateTime @default(now())
+  requestedByUserId String?
+  requestKey String
+  requestDigest String @db.VarChar(64)
+  observationDigest String @db.VarChar(64)
+  responseDigest String @db.VarChar(64)
+  responseMetadata Json
+  failureCode String?
+  failureMessage String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  evidence SecurityEvidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, requestedByUserId, requestKey])
+  @@index([organizationId, taskId, checkedAt])
+  @@index([organizationId, evidenceId, checkedAt])
+  @@index([organizationId, provider, checkedAt])
 }
