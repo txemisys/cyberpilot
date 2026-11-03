@@ -97,7 +97,7 @@ const blockerWeights: Record<IntegrityExecutionReadinessBlocker, number> = {
   MISSING_PROVENANCE: 90,
 };
 const defaultPolicy: IntegrityExecutionRemediationQueuePolicy = {
-  priorityWeights: { CRITICAL: 100, HIGH: 70, MEDIUM: 40, LOW: 15 },
+  priorityWeights: { P0: 100, P1: 70, P2: 40, P3: 15, CRITICAL: 100, HIGH: 70, MEDIUM: 40, LOW: 15 },
   blockerWeights,
   agingDays: 7,
   agingPointsPerPeriod: 5,
