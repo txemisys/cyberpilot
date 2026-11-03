@@ -23,7 +23,7 @@ const check = {
 };
 const record = {
   taskId: "review-task-12345", workItemId: "work-item-12345",
-  unlinkedAt: null, reviewDisposition: "IN_REVIEW",
+  unlinkedAt: null as Date | null, reviewDisposition: "IN_REVIEW",
   workStatus: "DONE", remediationStatus: "SUCCEEDED",
   findingStatus: "OPEN", evidenceIds: [evidence.id],
 };
@@ -77,7 +77,7 @@ describe("provider work readiness", () => {
   });
   it("blocks modified evidence", () => {
     expect(evaluate({}, [check], [{
-      ...evidence, details: { customerId: "C987654321" },
+      ...evidence, details: { customerId: "C987654321", subject: "admin@example.invalid" },
     }]).state).toBe("PROVIDER_STALE");
   });
   it("blocks a second linked evidence record without verification", () => {
