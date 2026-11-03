@@ -151,9 +151,15 @@ export function IntegrityOperationsWorkspace({
     setError(null);
     setNotice(null);
     try {
-      await jsonRequest(base + "/" + endpoint, {
+      const result = await jsonRequest<{
+        failed?: number;
+        results?: Array<{ message: string; status: string }>;
+      }>(base + "/" + endpoint, {
         method, body: JSON.stringify(body),
       });
+      if (result.failed && result.failed > 0)
+        throw new Error(result.results?.find(row => row.status === "FAILED")?.message ??
+          "The operation was rejected.");
       setNotice("Action saved. The workspace has been refreshed.");
       await reload();
     } catch (cause) {
@@ -193,19 +199,23 @@ export function IntegrityOperationsWorkspace({
       setError("Enter the user ID of an existing organization member.");
       return;
     }
-    const revision = await jsonRequest<{
-      task: { revision: number };
-    }>(base + "/reviews?view=detail&taskId=" + encodeURIComponent(row.taskId));
-    await perform(row.taskId, "review-triage", "POST", {
-      dryRun: false,
-      commands: [{
-        taskId: row.taskId,
-        action, expectedRevision: revision.task.revision,
-        ...(action === "ASSIGN" ? { recipientUserId: assignee.trim() } : {}),
-        note: triageNote.trim(),
-        idempotencyKey: crypto.randomUUID(),
-      }],
-    });
+    try {
+      const revision = await jsonRequest<{
+        task: { revision: number };
+      }>(base + "/reviews?view=detail&taskId=" + encodeURIComponent(row.taskId));
+      await perform(row.taskId, "review-triage", "POST", {
+        dryRun: false,
+        commands: [{
+          taskId: row.taskId,
+          action, expectedRevision: revision.task.revision,
+          ...(action === "ASSIGN" ? { recipientUserId: assignee.trim() } : {}),
+          note: triageNote.trim(),
+          idempotencyKey: crypto.randomUUID(),
+        }],
+      });
+    } catch (cause) {
+      setError(readableError(cause));
+    }
   }
   const active = view === "QUEUE" ? queue :
     view === "INBOX" ? inbox : escalations;
