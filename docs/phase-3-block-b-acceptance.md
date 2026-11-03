@@ -54,3 +54,13 @@ La API `GET /api/organizations/{slug}/actions/work/integrity/provider-google-2sv
 **Limitación:** la identidad del cliente Google se compara con la evidencia vinculada; esta operación no constituye una demostración independiente de que la organización del usuario de CyberPilot sea propietaria de ese cliente. La propiedad y el consentimiento deben establecerse en el proceso de conexión del proveedor. El token de acceso se transmite en el cuerpo HTTPS y no debe registrarse en logs, telemetría o herramientas de inspección de tráfico. Debe utilizarse un token de vida corta y alcance mínimo. En producción se recomienda reemplazar el token proporcionado por el usuario por un secreto cifrado y vinculado a la organización mediante el sistema de conexiones.
 
 Para cerrar B se exige una ejecución real autorizada contra Google Workspace, la revisión de permisos, la comprobación del resultado y la aceptación operacional. Los tests con `fetch` simulado verifican el contrato del adaptador pero no sustituyen esa ejecución real.
+
+## Verificación técnica → trabajo de remediación (incremento posterior)
+
+La API `provider-work-readiness?taskId=...` evalúa únicamente asociaciones activas revisión↔trabajo y evidencia↔trabajo explícitamente persistidas. Una tarea `DONE` con evidencias vinculadas puede solicitar revisión humana únicamente cuando **todas** las evidencias vinculadas tienen una comprobación reciente del proveedor para la misma revisión, con el mismo digest de observación. El endpoint nunca modifica estados de trabajo, hallazgos, remediaciones o CyberScore.
+
+La API `provider-capture-gaps?captureId=...` devuelve por páginas las revisiones de una captura, sus últimas comprobaciones, enlaces de trabajo y carencias de verificación: sin evidencia, sin comprobación, error, fallo, inconcluso, caducidad, observación modificada y trabajo pendiente. No interpreta la ausencia de una comprobación como fallo demostrado del control.
+
+La API `provider-history?taskId=...` ofrece cronología por evidencia, transiciones entre observaciones, digest de observación, incidencias de lectura del proveedor y candidatos a seguimiento. La comparación de transiciones preserva el predecesor aunque la consulta esté paginada. **No estima la duración de una incidencia entre lecturas.**
+
+Pruebas: clasificación de trabajo/evidencia, estados conservadores, cronología y precedencia, informes por captura, e integración PostgreSQL del registro de comprobaciones, auditoría, replay idempotente, aislamiento entre organizaciones y obsolescencia de evidencias. La prueba PostgreSQL emplea un adaptador HTTP simulado y no prueba permisos reales de Google Workspace.
