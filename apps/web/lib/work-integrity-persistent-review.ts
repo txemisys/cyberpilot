@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { db } from "@cyberpilot/database";
-import type { Prisma } from "@cyberpilot/database";
 import {
   WorkInputError, canReadWork, canManageWork, parseWorkId,
 } from "./remediation-work-input";
@@ -389,6 +388,20 @@ export async function applyPersistentReviewCommand(
       if (task.revision !== command.expectedRevision)
         throw new WorkInputError("CONFLICT",
           "Review revision mismatch. Reload the task before retrying.");
+      if (command.action === "RESOLVE") {
+        // A submitted evidence ID must exist in the same organization.
+        // Existence is not independent verification of its security state.
+        const registered = await tx.securityEvidence.findMany({
+          where: {
+            organizationId: scope.organizationId,
+            id: { in: command.evidenceRefs },
+          },
+          select: { id: true },
+        });
+        if (registered.length !== command.evidenceRefs.length)
+          throw new WorkInputError("INVALID",
+            "Resolution references must identify evidence in this organization.");
+      }
       const planned = planReviewTransition(
         task.disposition, command, task.ownerUserId,
         scope.userId, task.severity);
