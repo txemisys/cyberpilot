@@ -42,3 +42,15 @@ El Bloque B no estará cerrado al 100 % hasta satisfacer B-14 a B-17. Las prueba
 6. Comprobar que AUDITOR no puede mutar y que otra organización no puede leer ni asociar.
 7. Ejecutar la verificación autorizada de proveedor cuando exista; registrar resultado verificable y discrepancias.
 8. Confirmar que no se ha modificado CyberScore ni cerrado un hallazgo sin verificación independiente.
+
+## Incremento de verificación técnica Google Workspace
+
+El endpoint `POST /api/organizations/{slug}/actions/work/integrity/provider-google-2sv` ejecuta una lectura real de Google Admin Directory API `users.get` y guarda el resultado sin persistir el token OAuth ni la respuesta íntegra. Se requiere una cuenta de prueba Google Workspace con acceso autorizado al usuario y el permiso OAuth necesario para leer usuarios. No se incluye ninguna credencial de ejemplo ni se asume disponibilidad de la API en CI.
+
+El cuerpo requiere `taskId`, `evidenceId`, `subject`, `expectedCustomerId`, `requestKey` y `accessToken`. La evidencia debe estar persistida con `source=GOOGLE_WORKSPACE`, `controlId=google_workspace.user_2sv` y `details.customerId` y `details.subject` iguales a los valores solicitados. El proveedor debe devolver el mismo `customerId`. El sistema registra `PASS` únicamente cuando la inscripción y la exigencia de verificación en dos pasos son ambas verdaderas; cualquier atributo ausente, cuenta suspendida o discrepancia de identidad genera un resultado conservador. Los fallos HTTP no se interpretan como seguridad.
+
+La API `GET /api/organizations/{slug}/actions/work/integrity/provider-google-2sv?taskId=...` consulta el historial. El endpoint `provider-gates` calcula la vigencia temporal de la comprobación y la coincidencia del digest de la evidencia; un PASS antiguo, sin observación o con evidencia modificada no habilita `PROVIDER_PASS`.
+
+**Limitación:** la identidad del cliente Google se compara con la evidencia vinculada; esta operación no constituye una demostración independiente de que la organización del usuario de CyberPilot sea propietaria de ese cliente. La propiedad y el consentimiento deben establecerse en el proceso de conexión del proveedor. El token de acceso se transmite en el cuerpo HTTPS y no debe registrarse en logs, telemetría o herramientas de inspección de tráfico. Debe utilizarse un token de vida corta y alcance mínimo. En producción se recomienda reemplazar el token proporcionado por el usuario por un secreto cifrado y vinculado a la organización mediante el sistema de conexiones.
+
+Para cerrar B se exige una ejecución real autorizada contra Google Workspace, la revisión de permisos, la comprobación del resultado y la aceptación operacional. Los tests con `fetch` simulado verifican el contrato del adaptador pero no sustituyen esa ejecución real.
