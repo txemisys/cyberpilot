@@ -93,6 +93,13 @@ export type IntegrityRemediationExecutionPage = {
   hasMore: boolean;
   candidates: IntegrityRemediationExecutionCandidate[];
 };
+const remediationActions: IntegrityRemediationCandidate["action"][] = [
+  "LINK_REQUIRED_WORK", "RELINK_WITHDRAWN_WORK",
+  "CREATE_WORK_ASSIGNMENT", "REVIEW_AUDIT_ERROR",
+  "REVIEW_AUDIT_WARNING", "REVIEW_UNCOVERED_CASE",
+  "REVIEW_UNREFERENCED_WORK", "REVIEW_SHARED_DEPENDENCY",
+  "REVIEW_WITHDRAWN_ONLY_CASE", "REVIEW_POLICY_CONFLICT",
+];
 const states: IntegrityRemediationExecutionState[] = [
   "REQUESTED", "IN_PROGRESS", "BLOCKED", "COMPLETED", "FAILED", "CANCELLED",
 ];
@@ -361,6 +368,11 @@ export function parseIntegrityRemediationExecutionQuery(
   if (selectedStates?.some(x => x !== "NOT_STARTED" &&
       !states.includes(x as IntegrityRemediationExecutionState)))
     throw new WorkInputError("INVALID", "Unknown execution state.");
+  const selectedActions = raw.actions === undefined ? undefined :
+    list(raw.actions, "execution actions", 100);
+  if (selectedActions?.some(action =>
+      !remediationActions.includes(action as IntegrityRemediationCandidate["action"])))
+    throw new WorkInputError("INVALID", "Unknown remediation action.");
   const offset = raw.offset === undefined ? 0 : raw.offset;
   const limit = raw.limit === undefined ? 100 : raw.limit;
   if (!Number.isSafeInteger(offset) || (offset as number) < 0 ||
@@ -374,8 +386,8 @@ export function parseIntegrityRemediationExecutionQuery(
     ...(raw.candidateIds !== undefined ? {
       candidateIds: list(raw.candidateIds, "execution candidate IDs", 1000),
     } : {}),
-    ...(raw.actions !== undefined ? {
-      actions: list(raw.actions, "execution actions", 100) as
+    ...(selectedActions !== undefined ? {
+      actions: selectedActions as
         NonNullable<IntegrityRemediationExecutionQuery["actions"]>,
     } : {}),
     onlyFindings: raw.onlyFindings === true,
