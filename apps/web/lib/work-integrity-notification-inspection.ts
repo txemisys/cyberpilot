@@ -249,8 +249,9 @@ export async function inspectIntegrityNotifications(
   }
   const where = {
     organizationId: scope.organizationId,
-    recipientUserId: isAdmin ?
-      query.recipientUserId : scope.userId,
+    ...(isAdmin ?
+      (query.recipientUserId ? { recipientUserId: query.recipientUserId } : {}) :
+      { recipientUserId: scope.userId }),
     ...(query.taskId ? { taskId: query.taskId } : {}),
     ...(query.includeDismissed ? {} : { dismissedAt: null }),
   };
@@ -328,6 +329,7 @@ export async function inspectIntegrityNotifications(
     ]);
   const auditsByNotification = new Map<string, NotificationAudit[]>();
   for (const audit of audits) {
+    if (!audit.resourceId) continue;
     const bucket = auditsByNotification.get(audit.resourceId) ?? [];
     bucket.push(audit);
     auditsByNotification.set(audit.resourceId, bucket);
