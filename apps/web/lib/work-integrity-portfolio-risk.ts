@@ -155,9 +155,9 @@ export function parseIntegrityPortfolioRiskQuery(
     minimumScore: integer(raw.minimumScore, "minimum risk", 0, 100),
     ...(levels ? { levels } : {}),
     ...(raw.caseKeys === undefined ? {} :
-      { caseKeys: identifiers(raw.caseKeys, "case keys") }),
+      { caseKeys: identifiers(raw.caseKeys, "case keys")! }),
     ...(raw.workItemIds === undefined ? {} :
-      { workItemIds: identifiers(raw.workItemIds, "work IDs") }),
+      { workItemIds: identifiers(raw.workItemIds, "work IDs")! }),
     offset: integer(raw.offset, "offset", 0, 1000000),
     limit: integer(raw.limit, "limit", 100, 1000),
   };
