@@ -158,7 +158,10 @@ export async function POST(request: NextRequest, { params }: Context) {
         parsed.executionEvents ?? []);
       const executionLedger = buildIntegrityRemediationExecutionLedger(
         workspace.plan, decisions, executionEvents);
-      // Client-submitted evidence IDs cannot establish trusted verification.\n      const execution = verifyIntegrityRemediationExecutionEvidence(\n        executionLedger, []);\n      const executionPage = parsed.executionQuery === undefined ? null :
+      // Client-submitted evidence IDs cannot establish trusted verification.
+      const execution = verifyIntegrityRemediationExecutionEvidence(
+        executionLedger, []);
+      const executionPage = parsed.executionQuery === undefined ? null :
         queryIntegrityRemediationExecution(execution,
           parseIntegrityRemediationExecutionQuery(parsed.executionQuery));
       if (parsed.escalationPolicy !== undefined &&
