@@ -197,16 +197,16 @@ describe("database-scoped integrity queue filters", () => {
   it("derives severity-dependent overdue boundaries", () => {
     const result = queueBucketPredicate(
       parseQueueQuery({ bucket: "OVERDUE" }), instant);
-    expect(result.OR).toEqual([
+    expect(result).toMatchObject({ OR: [
       { severity: "ERROR", createdAt: { lte: new Date("2026-11-03T00:00:00.000Z") } },
       { severity: "WARNING", createdAt: { lte: new Date("2026-11-01T12:00:00.000Z") } },
       { severity: "INFO", createdAt: { lte: new Date("2026-10-29T12:00:00.000Z") } },
-    ]);
+    ] });
   });
   it("restricts unassigned tasks to reviews not due soon", () => {
     const result = queueBucketPredicate(
       parseQueueQuery({ bucket: "UNASSIGNED" }), instant);
-    expect(result.ownerUserId).toBeNull();
+    expect(result).toMatchObject({ ownerUserId: null });
     expect(result.OR).toHaveLength(3);
   });
   it("requires an assignee for in-progress and awaiting states", () => {
