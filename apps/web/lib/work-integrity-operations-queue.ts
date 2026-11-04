@@ -183,7 +183,9 @@ export function queueBucketPredicate(query: QueueQuery, now: Date): Prisma.Integ
     return { disposition: "RESOLVED" };
   if (query.bucket === "WAIVED")
     return { disposition: "WAIVED" };
-  const active = { disposition: { notIn: ["RESOLVED", "WAIVED"] } };
+  const active: Prisma.IntegrityReviewTaskWhereInput = {
+    disposition: { notIn: ["RESOLVED", "WAIVED"] },
+  };
   const due = (hours: number) =>
     new Date(now.getTime() - hours * 3600000);
   const soon = (hours: number) =>
