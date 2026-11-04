@@ -133,7 +133,7 @@ export function mapAgingNotification(
     anomalies.push("DISMISSED_BEFORE_CREATION");
   if (!Number.isSafeInteger(record.revision) || record.revision < 1)
     anomalies.push("INVALID_REVISION");
-  const state = record.dismissedAt ? "DISMISSED" :
+  const state: AgingRecord["state"] = record.dismissedAt ? "DISMISSED" :
     record.readAt ? "READ" : "UNREAD";
   const canonical = {
     id: record.id, taskId: record.taskId,
