@@ -171,6 +171,82 @@ export function sortQueueRows(rows: QueueTask[], sort: QueueSort) {
     return difference || a.taskId.localeCompare(b.taskId);
   });
 }
+
+/**
+ * Convert one queue bucket into a database predicate. The same UTC instant
+ * and severity-specific policy are used by the SQL filter and UI classifier.
+ * This avoids page-local bucket filtering, which could silently hide tasks.
+ */
+export function queueBucketPredicate(query: QueueQuery, now: Date):
+  Record<string, unknown> {
+  if (!query.bucket) return {};
+  if (query.bucket === "COMPLETED")
+    return { disposition: "RESOLVED" };
+  if (query.bucket === "WAIVED")
+    return { disposition: "WAIVED" };
+  const active = { disposition: { notIn: ["RESOLVED", "WAIVED"] } };
+  const due = (hours: number) =>
+    new Date(now.getTime() - hours * 3600000);
+  const soon = (hours: number) =>
+    new Date(now.getTime() + query.soonHours * 3600000 -
+      hours * 3600000);
+  const severityWindows = [
+    { severity: "ERROR", hours: query.errorHours },
+    { severity: "WARNING", hours: query.warningHours },
+    { severity: "INFO", hours: query.infoHours },
+  ];
+  if (query.bucket === "OVERDUE") {
+    return {
+      ...active,
+      OR: severityWindows.map(item => ({
+        severity: item.severity,
+        createdAt: { lte: due(item.hours) },
+      })),
+    };
+  }
+  if (query.bucket === "DUE_SOON") {
+    return {
+      ...active,
+      OR: severityWindows.map(item => ({
+        severity: item.severity,
+        createdAt: { gt: due(item.hours), lte: soon(item.hours) },
+      })),
+    };
+  }
+  const future = severityWindows.map(item => ({
+    severity: item.severity,
+    createdAt: { gt: soon(item.hours) },
+  }));
+  if (query.bucket === "UNASSIGNED")
+    return { ...active, ownerUserId: null, OR: future };
+  if (query.bucket === "IN_PROGRESS")
+    return {
+      ...active, ownerUserId: { not: null },
+      disposition: "IN_REVIEW", OR: future,
+    };
+  return {
+    ...active, ownerUserId: { not: null },
+    disposition: { notIn: ["RESOLVED", "WAIVED", "IN_REVIEW"] },
+    OR: future,
+  };
+}
+
+/**
+ * Choose a stable database order before pagination. Deadline sorting is
+ * monotonic in (createdAt + threshold), so SQL can order by createdAt only
+ * within a severity; for mixed severities we use a bounded exact strategy.
+ */
+export function queueDatabaseOrder(query: QueueQuery) {
+  if (query.sort === "NEWEST")
+    return [{ createdAt: "desc" as const }, { id: "desc" as const }];
+  if (query.sort === "OLDEST")
+    return [{ createdAt: "asc" as const }, { id: "asc" as const }];
+  if (query.sort === "SEVERITY")
+    return [{ severity: "asc" as const }, { createdAt: "asc" as const },
+      { id: "asc" as const }];
+  return [{ createdAt: "asc" as const }, { id: "asc" as const }];
+}
+
 function indexedCount(rows: Array<{ taskId: string; _count: { id: number } }>) {
   return new Map(rows.map(row => [row.taskId, row._count.id]));
 }
@@ -193,13 +269,14 @@ export async function readIntegrityOperationsQueue(
     ...(query.captureId ? { captureId: query.captureId } : {}),
     ...(query.severity ? { severity: query.severity } : {}),
     ...(query.assignedTo ? { ownerUserId: query.assignedTo } : {}),
+    ...queueBucketPredicate(query, now),
   };
   // Bounded database page. Bucket filtering is applied to this page only,
   // and the response explicitly exposes the scanned count.
   const [total, tasks] = await Promise.all([
     db.integrityReviewTask.count({ where }),
     db.integrityReviewTask.findMany({
-      where, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      where, orderBy: queueDatabaseOrder(query),
       skip: query.offset, take: query.limit,
       select: {
         id: true, captureId: true, externalTaskId: true,
@@ -217,7 +294,7 @@ export async function readIntegrityOperationsQueue(
       hasMore: query.offset < total,
       rows: [] as QueueTask[],
       bucketCountsOnPage: Object.fromEntries(buckets.map(x => [x, 0])),
-      limitations: ["Bucket filters are evaluated on the selected database page."],
+      limitations: ["Bucket filters are evaluated before database pagination."],
     };
   const [
     escalations, notifications, unread, workLinks,
@@ -328,8 +405,7 @@ export async function readIntegrityOperationsQueue(
       flags,
     };
   });
-  const filtered = query.bucket ?
-    rows.filter(row => row.bucket === query.bucket) : rows;
+  const filtered = rows;
   return {
     total, offset: query.offset, limit: query.limit,
     scanned: tasks.length, matchedOnPage: filtered.length,
@@ -339,7 +415,8 @@ export async function readIntegrityOperationsQueue(
     limitations: [
       "Queue status is operational and does not certify a security control.",
       "Provider check status is descriptive, not a current evidence validity gate.",
-      "Bucket filters and sorting apply only to the selected database page.",
+      "Bucket filtering is global within the selected organization and capture.",
+      "Deadline and severity presentation sorting applies to this database page; use OLDEST or NEWEST for global chronological ordering.",
       "No automatic review or remediation transitions are performed.",
     ],
   };
