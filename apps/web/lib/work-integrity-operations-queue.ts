@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { db } from "@cyberpilot/database";
+import { db, type Prisma } from "@cyberpilot/database";
 import { canManageWork, canReadWork, parseWorkId, WorkInputError } from "./remediation-work-input";
 import type { ReviewScope } from "./work-integrity-persistent-review";
 
@@ -177,7 +177,7 @@ export function sortQueueRows(rows: QueueTask[], sort: QueueSort) {
  * and severity-specific policy are used by the SQL filter and UI classifier.
  * This avoids page-local bucket filtering, which could silently hide tasks.
  */
-export function queueBucketPredicate(query: QueueQuery, now: Date) {
+export function queueBucketPredicate(query: QueueQuery, now: Date): Prisma.IntegrityReviewTaskWhereInput {
   if (!query.bucket) return {};
   if (query.bucket === "COMPLETED")
     return { disposition: "RESOLVED" };
