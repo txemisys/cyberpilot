@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseQueueQuery, queueDeadline, classifyQueueTask,
-  sortQueueRows, queueSnapshot,
+  sortQueueRows, queueSnapshot, queueBucketPredicate, queueDatabaseOrder,
 } from "./work-integrity-operations-queue";
 import {
   parseTriageCommand, parseTriageBatch,
@@ -178,5 +178,51 @@ describe("integrity operations time series", () => {
     { unknown: true },
   ])("rejects invalid metrics query %j", input => {
     expect(() => parseOperationsMetricsQuery(input, now)).toThrow();
+  });
+});
+
+
+describe("database-scoped integrity queue filters", () => {
+  const instant = new Date("2026-11-03T12:00:00.000Z");
+  const policy = parseQueueQuery({});
+  it("does not add a predicate without a bucket", () => {
+    expect(queueBucketPredicate(policy, instant)).toEqual({});
+  });
+  it("filters terminal states directly before pagination", () => {
+    expect(queueBucketPredicate(parseQueueQuery({ bucket: "COMPLETED" }), instant))
+      .toEqual({ disposition: "RESOLVED" });
+    expect(queueBucketPredicate(parseQueueQuery({ bucket: "WAIVED" }), instant))
+      .toEqual({ disposition: "WAIVED" });
+  });
+  it("derives severity-dependent overdue boundaries", () => {
+    const result = queueBucketPredicate(
+      parseQueueQuery({ bucket: "OVERDUE" }), instant);
+    expect(result.OR).toEqual([
+      { severity: "ERROR", createdAt: { lte: new Date("2026-11-03T00:00:00.000Z") } },
+      { severity: "WARNING", createdAt: { lte: new Date("2026-11-01T12:00:00.000Z") } },
+      { severity: "INFO", createdAt: { lte: new Date("2026-10-29T12:00:00.000Z") } },
+    ]);
+  });
+  it("restricts unassigned tasks to reviews not due soon", () => {
+    const result = queueBucketPredicate(
+      parseQueueQuery({ bucket: "UNASSIGNED" }), instant);
+    expect(result.ownerUserId).toBeNull();
+    expect(result.OR).toHaveLength(3);
+  });
+  it("requires an assignee for in-progress and awaiting states", () => {
+    for (const bucket of ["IN_PROGRESS", "AWAITING_REVIEW"]) {
+      const result = queueBucketPredicate(
+        parseQueueQuery({ bucket }), instant);
+      expect(result.ownerUserId).toEqual({ not: null });
+      expect(result.OR).toHaveLength(3);
+    }
+  });
+  it("uses stable SQL ordering for chronological pagination", () => {
+    expect(queueDatabaseOrder(parseQueueQuery({ sort: "NEWEST" }))).toEqual([
+      { createdAt: "desc" }, { id: "desc" },
+    ]);
+    expect(queueDatabaseOrder(parseQueueQuery({ sort: "OLDEST" }))).toEqual([
+      { createdAt: "asc" }, { id: "asc" },
+    ]);
   });
 });
