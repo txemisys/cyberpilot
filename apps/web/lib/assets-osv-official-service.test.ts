@@ -166,9 +166,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
     let importId = "";
     beforeAll(async () => {
       await db.user.createMany({ data: [
-        { id: userId, email: "osv-official-admin-" + nonce + "@example.invalid" },
-        { id: memberId, email: "osv-official-member-" + nonce + "@example.invalid" },
-        { id: outsiderId, email: "osv-official-other-" + nonce + "@example.invalid" },
+        { id: userId, name: "OSV admin", email: "osv-official-admin-" + nonce + "@example.invalid" },
+        { id: memberId, name: "OSV member", email: "osv-official-member-" + nonce + "@example.invalid" },
+        { id: outsiderId, name: "OSV outsider", email: "osv-official-other-" + nonce + "@example.invalid" },
       ]});
       await db.organization.createMany({ data: [
         { id: organizationId, slug: "official-osv-" + nonce,
