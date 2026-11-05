@@ -117,7 +117,7 @@ describe("asset comparison validation", () => {
     }]);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.category).toBe("ADVISORY_CHANGED");
-    expect(rows[0]?.explanations.join(" ")).toMatch(/may reflect/i);
+    expect(rows[0]?.explanations.join(" ")).toMatch(/may differ/i);
   });
   it("treats timestamp-only updates as non-significant", () => {
     const rows = compareAssetObservations([base], [{
