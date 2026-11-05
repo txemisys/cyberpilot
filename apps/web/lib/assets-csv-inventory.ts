@@ -93,9 +93,8 @@ export function inventoryHash(value: unknown): string {
   ).digest("hex");
 }
 export function normalizeInventoryProduct(value: string): string {
-  return value.normalize("NFKC").toLowerCase().trim()
-    .replace(/\s+/g, " ")
-    .replace(/[®™]/g, "");
+  return value.replace(/[®™]/g, "").normalize("NFKC").toLowerCase().trim()
+    .replace(/\s+/g, " ");
 }
 export function classifyInventoryVersion(
   value: string | null,
