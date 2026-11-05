@@ -327,3 +327,61 @@ conflictos de claves, reportes atribuidos a otra organización,
 resultados fuera del plan, alta transaccional real PostgreSQL,
 lecturas dentro y fuera de tenant, auditoría y prohibición
 de nuevas consultas tras retirar el inventario.
+
+## Sexto incremento: frescura OSV, presupuesto orientativo y deltas de historial
+
+`GET /api/organizations/{slug}/assets/refresh-readiness` analiza
+las inspecciones registradas de un inventario para identificar
+identidades de paquete/version pendientes de evaluación,
+observaciones suficientemente recientes, respuestas incompletas
+en periodo de enfriamiento, e inconsistencias temporales.
+
+El plan admite políticas de frescura, cooldown tras error,
+presupuesto diario de consultas, inspecciones por día y
+límite de paquetes recomendados. El periodo de historial
+es configurable, con límites de lectura y paginación.
+El resumen cuenta todo el histórico analizado; las filas
+detalladas se devuelven por páginas.
+
+**Los presupuestos son diagnósticos, no reservas atómicas.**
+El cálculo usa las inspecciones del día UTC disponibles en
+PostgreSQL. Dos operadores pueden leer un presupuesto a la
+vez; por eso este incremento no automatiza los fetch ni
+afirma aplicar un límite físico al proveedor. Para programar
+ejecuciones se necesita una reserva transaccional de cuotas
+y un worker autorizado, además de una política de
+consentimiento y reintentos.
+
+`GET /api/organizations/{slug}/assets/osv-history-delta`
+compara dos inspecciones del mismo inventario y tenant,
+con orden temporal comprobado. Solo compara paquetes
+idénticos en ecosistema, nombre y versión, sin correlación
+difusa ni suposiciones sobre hardware.
+
+Las diferencias identifican IDs literales añadidos,
+IDs que ya no figuran, IDs aproximados del proveedor,
+cambios de registros withdrawn, rangos sin resolver
+y cambios de estado de completitud. Los recuentos se
+calculan sobre todos los paquetes comparables, y cada
+cambio recibe una huella SHA-256. Los paquetes que no
+existen en ambas inspecciones se excluyen y provocan
+informe parcial. No se interpreta que un aviso ausente
+haya sido solucionado o que un equipo esté parcheado.
+
+La interfaz `asset-osv-refresh-diagnostics.tsx` muestra
+controles de políticas, estado, paquetes recomendados,
+presupuesto orientativo, deltas históricos y advertencias.
+Se conserva el aislamiento por organización y el carácter
+read-only tanto en los servicios como en las rutas.
+
+Se añaden pruebas unitarias de validación, cooldown,
+frescura, agregaciones de presupuesto y diferencias
+conservadoras, además de pruebas PostgreSQL de
+lectura por tenant, filtros, comparaciones, consistencia
+de contadores y ausencia de escrituras.
+
+**Fuera de alcance:** scheduler periódico, cuota global
+concurrente garantizada, eliminación de avisos con
+fines de cumplimiento, notificaciones por cambio y
+atestación de remediaciones mediante agentes o
+fuentes autorizadas de endpoint.
