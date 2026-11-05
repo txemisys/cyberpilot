@@ -89,6 +89,7 @@ export type PlanningRow = {
   severity: string;
   disposition: string;
   ownerAssigned: boolean;
+  ownerUserId: string | null;
   revision: number;
   required: boolean;
   dueAt: string;
@@ -289,7 +290,8 @@ export function planTask(
   const canonical = {
     taskId: task.id, captureId: task.captureId, title: task.title,
     severity: task.severity, disposition: task.disposition,
-    ownerAssigned: task.ownerUserId !== null, revision: task.revision,
+    ownerAssigned: task.ownerUserId !== null, ownerUserId: task.ownerUserId,
+    revision: task.revision,
     required: task.required, dueAt: due.toISOString(),
     hoursToDue: Math.round(hoursToDue * 100) / 100,
     ageHours: Math.round(ageHours * 100) / 100,
