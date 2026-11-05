@@ -5,6 +5,7 @@ import { AssetInventoryLongitudinal } from "../../../../components/asset-invento
 import { AssetOsvCorrelationWorkspace } from "../../../../components/asset-osv-correlation-workspace";
 import { AssetOfficialOsvWorkspace } from "../../../../components/asset-osv-official-workspace";
 import { AssetOsvInspectionLedger } from "../../../../components/asset-osv-inspection-ledger";
+import { AssetOsvRefreshDiagnostics } from "../../../../components/asset-osv-refresh-diagnostics";
 
 type Context = { params: Promise<{ slug: string }> };
 export default async function AssetInventoryPage({ params }: Context) {
@@ -25,6 +26,7 @@ export default async function AssetInventoryPage({ params }: Context) {
       <AssetOsvCorrelationWorkspace slug={slug} />
       <AssetOfficialOsvWorkspace slug={slug} canManage={canManage} />
       <AssetOsvInspectionLedger slug={slug} canManage={canManage} />
+      <AssetOsvRefreshDiagnostics slug={slug} />
     </section>
   </main>;
 }
