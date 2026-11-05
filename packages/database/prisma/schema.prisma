@@ -930,11 +930,11 @@ model AssetInventoryDevice {
   platform String
   osName String
   osVersion String?
-  softwareName String?
+  softwareName String @default("")
   softwareVersion String?
   observedAt DateTime
   sourceRow Int
-  normalizedProductKey String?
+  normalizedProductKey String @default("")
   versionStatus String
   freshnessStatus String
   advisoryStatus String
@@ -943,7 +943,7 @@ model AssetInventoryDevice {
   createdAt DateTime @default(now())
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   import AssetInventoryImport @relation(fields: [importId], references: [id], onDelete: Cascade)
-  @@unique([importId, externalId, softwareName])
+  @@unique([importId, externalId, normalizedProductKey])
   @@index([organizationId, externalId, observedAt])
   @@index([organizationId, platform, osName])
   @@index([organizationId, importId])
