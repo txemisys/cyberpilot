@@ -3,6 +3,7 @@ import { requireOrganizationAccess } from "../../../../lib/organizations";
 import { AssetInventoryWorkspace } from "../../../../components/asset-inventory-workspace";
 import { AssetInventoryLongitudinal } from "../../../../components/asset-inventory-longitudinal";
 import { AssetOsvCorrelationWorkspace } from "../../../../components/asset-osv-correlation-workspace";
+import { AssetOfficialOsvWorkspace } from "../../../../components/asset-osv-official-workspace";
 
 type Context = { params: Promise<{ slug: string }> };
 export default async function AssetInventoryPage({ params }: Context) {
@@ -21,6 +22,7 @@ export default async function AssetInventoryPage({ params }: Context) {
       <AssetInventoryWorkspace slug={slug} canManage={canManage} />
       <AssetInventoryLongitudinal slug={slug} canManage={canManage} />
       <AssetOsvCorrelationWorkspace slug={slug} />
+      <AssetOfficialOsvWorkspace slug={slug} canManage={canManage} />
     </section>
   </main>;
 }
