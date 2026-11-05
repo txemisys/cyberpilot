@@ -16,7 +16,6 @@ export type InterventionHistoryQuery = {
   to?: Date;
   offset: number;
   limit: number;
-  includeReplays: boolean;
 };
 export type InterventionAuditSource = {
   id: string;
@@ -102,14 +101,12 @@ function date(value: unknown) {
 export function parseInterventionHistoryQuery(value: unknown): InterventionHistoryQuery {
   const raw = object(value);
   const allowed = ["captureId", "taskId", "action", "from",
-    "to", "offset", "limit", "includeReplays"];
+    "to", "offset", "limit"];
   if (Object.keys(raw).some(key => !allowed.includes(key)))
     throw new WorkInputError("INVALID", "Unknown history filter.");
   if (raw.action !== undefined &&
       !allowedActions.includes(String(raw.action).toLowerCase() as typeof allowedActions[number]))
     throw new WorkInputError("INVALID", "Unsupported triage action.");
-  if (raw.includeReplays !== undefined && typeof raw.includeReplays !== "boolean")
-    throw new WorkInputError("INVALID", "Invalid includeReplays.");
   const from = raw.from === undefined ? undefined : date(raw.from);
   const to = raw.to === undefined ? undefined : date(raw.to);
   if (from && to && from >= to)
@@ -128,7 +125,6 @@ export function parseInterventionHistoryQuery(value: unknown): InterventionHisto
     ...(to ? { to } : {}),
     offset: integer(raw.offset ?? 0, "offset", 0, 1000000),
     limit: integer(raw.limit ?? 50, "limit", 1, 200),
-    includeReplays: raw.includeReplays === true,
   };
 }
 export function interventionHistoryDigest(value: unknown) {
