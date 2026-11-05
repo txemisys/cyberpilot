@@ -46,7 +46,7 @@ CREATE INDEX "AssetInventoryImport_organizationId_createdAt_idx"
   ON "AssetInventoryImport"("organizationId", "createdAt");
 CREATE INDEX "AssetInventoryImport_organizationId_state_createdAt_idx"
   ON "AssetInventoryImport"("organizationId", "state", "createdAt");
-CREATE UNIQUE INDEX "AssetInventoryDevice_importId_externalId_normalizedProductKey_key"
+CREATE UNIQUE INDEX "AssetInvDevice_import_external_product_key"
   ON "AssetInventoryDevice"("importId", "externalId", "normalizedProductKey");
 CREATE INDEX "AssetInventoryDevice_organizationId_externalId_observedAt_idx"
   ON "AssetInventoryDevice"("organizationId", "externalId", "observedAt");
