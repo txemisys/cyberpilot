@@ -237,6 +237,8 @@ model Organization {
   workHandoffs              WorkHandoff[]
   assetInventoryImports     AssetInventoryImport[]
   assetInventoryDevices     AssetInventoryDevice[]
+  assetOsvInspections       AssetOsvInspection[]
+  assetOsvQueries           AssetOsvQueryRecord[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -984,6 +986,7 @@ model AssetInventoryImport {
   retiredAt DateTime?
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   devices AssetInventoryDevice[]
+  osvInspections AssetOsvInspection[]
   @@unique([organizationId, idempotencyKey])
   @@index([organizationId, createdAt])
   @@index([organizationId, state, createdAt])
@@ -1016,4 +1019,60 @@ model AssetInventoryDevice {
   @@index([organizationId, externalId, observedAt])
   @@index([organizationId, platform, osName])
   @@index([organizationId, importId])
+}
+
+/**
+ * Immutable outcome of an administrator-authorized OSV inspection.
+ * Stores normalized query reports, not raw provider traffic or device IDs.
+ * A replay key is scoped to one organization and one command fingerprint.
+ */
+model AssetOsvInspection {
+  id String @id @default(cuid())
+  organizationId String
+  inventoryImportId String
+  actorUserId String?
+  requestKey String
+  requestDigest String @db.VarChar(64)
+  reportDigest String @db.VarChar(64)
+  status String
+  provider String @default("OSV_DEV_API")
+  coverage String @default("DECLARED_NOT_VERIFIED")
+  report Json
+  queryCount Int
+  completedCount Int
+  possibleCount Int
+  providerOnlyCount Int
+  createdAt DateTime @default(now())
+  completedAt DateTime
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventoryImport AssetInventoryImport @relation(fields: [inventoryImportId], references: [id], onDelete: Cascade)
+  queries AssetOsvQueryRecord[]
+  @@unique([organizationId, requestKey])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, inventoryImportId, createdAt])
+}
+
+model AssetOsvQueryRecord {
+  id String @id @default(cuid())
+  organizationId String
+  inspectionId String
+  queryKey String @db.VarChar(64)
+  ecosystem String
+  packageName String
+  version String
+  providerStatus String
+  providerDigest String? @db.VarChar(64)
+  checkedAt DateTime?
+  possibleIds Json @default("[]")
+  providerOnlyIds Json @default("[]")
+  withdrawnIds Json @default("[]")
+  unresolvedIds Json @default("[]")
+  observationCount Int
+  pageCount Int
+  recordedAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inspection AssetOsvInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  @@unique([inspectionId, queryKey])
+  @@index([organizationId, ecosystem, packageName, version])
+  @@index([organizationId, inspectionId])
 }
