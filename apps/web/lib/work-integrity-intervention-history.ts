@@ -20,7 +20,7 @@ export type InterventionHistoryQuery = {
 export type InterventionAuditSource = {
   id: string;
   action: string;
-  resourceId: string;
+  resourceId: string | null;
   actorUserId: string | null;
   occurredAt: Date;
   metadata: unknown;
@@ -119,7 +119,8 @@ export function parseInterventionHistoryQuery(value: unknown): InterventionHisto
       taskId: parseWorkId(raw.taskId, "review task ID"),
     }),
     ...(raw.action === undefined ? {} : {
-      action: String(raw.action).toUpperCase() as InterventionHistoryQuery["action"],
+      action: String(raw.action).toUpperCase() as
+      NonNullable<InterventionHistoryQuery["action"]>,
     }),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
@@ -173,9 +174,10 @@ export function mapInterventionAuditEvent(
   const note = string(data.note);
   if (!note) anomalies.push("MISSING_AUDIT_REASON");
   if (!event.actorUserId) anomalies.push("MISSING_ACTOR");
+  if (!event.resourceId) anomalies.push("MISSING_TASK_REFERENCE");
   if (key) previousKeys.add(key);
   const canonical = {
-    eventId: event.id, taskId: event.resourceId,
+    eventId: event.id, taskId: event.resourceId ?? "",
     action: event.action, timestamp: event.occurredAt.toISOString(),
     actorHash: event.actorUserId ?
       interventionHistoryDigest(event.actorUserId) : null,
