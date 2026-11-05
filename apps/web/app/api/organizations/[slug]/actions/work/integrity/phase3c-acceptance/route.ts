@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../../../lib/organizations";
 import { readPhase3CAcceptance } from "../../../../../../../../lib/work-integrity-phase3c-acceptance";
 import { WorkInputError } from "../../../../../../../../lib/remediation-work-input";
+import { buildAcceptanceExecutionPlan } from "../../../../../../../../lib/work-integrity-phase3c-acceptance-plan";
 
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
@@ -55,7 +56,9 @@ export async function GET(request: NextRequest, { params }: Context) {
       organizationId: membership.organization.id,
       userId: session.user.id, role: membership.role,
     }, parameters(request));
-    return NextResponse.json(report, { headers });
+    return NextResponse.json({ ...report,
+      executionPlan: buildAcceptanceExecutionPlan(report),
+    }, { headers });
   } catch (error) {
     return failure(error);
   }
