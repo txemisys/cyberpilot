@@ -108,10 +108,7 @@ describe("asset comparison validation", () => {
     const rows = compareAssetObservations([base], [changed]);
     expect(rows.map(x => x.category)).toEqual([
       "OS_CHANGED", "VERSION_CHANGED", "PLATFORM_CHANGED",
-    ].sort((a, b) => {
-      const order = ["PLATFORM_CHANGED", "OS_CHANGED", "VERSION_CHANGED"];
-      return order.indexOf(a) - order.indexOf(b);
-    }));
+    ]);
   });
   it("detects change in advisory associations without asserting exposure", () => {
     const rows = compareAssetObservations([base], [{
