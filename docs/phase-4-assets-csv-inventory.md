@@ -159,3 +159,61 @@ Las pruebas de este incremento cubren categorías de diferencia,
 filtrado, límites, timestamps, hashes, condiciones de autorización,
 retención mínima, vistas previas, idempotencia de borrado,
 aislamiento entre organizaciones y transacciones PostgreSQL.
+
+## Tercer incremento: evaluación conservadora de exports OSV
+
+El workspace de Assets incluye un analizador de snapshots OSV aportados por
+el operador. El contrato sigue la estructura `id`, `modified`,
+`withdrawn`, `aliases`, `affected[].package`, `versions` y
+`ranges` publicada por el proyecto OSV:
+https://ossf.github.io/osv-schema/
+
+**No se descarga ni se autentica un feed externo.** El sistema recibe
+hasta 500 registros OSV estructurados en JSON, con `sourceLabel`,
+`sourceVersion` y `retrievedAt`. Exige timestamps UTC válidos, paquetes
+identificados por ecosistema y nombre, y rechaza duplicados. Los rangos
+de versiones pueden declararse, pero no se interpretan automáticamente,
+porque su semántica depende del ecosistema y del tipo de rango.
+
+El operador debe facilitar vinculaciones explícitas
+`inventoryProduct -> ecosystem + packageName` y, opcionalmente, PURL.
+Se rechazan equivalencias duplicadas. Un mismo nombre de paquete de
+ecosistemas diferentes no es intercambiable. La única correlación que
+produce `EXACT_AFFECTED_VERSION` requiere una versión exacta del
+inventario incluida literalmente en `affected[].versions` para la
+identidad de paquete enlazada. Los registros retirados `withdrawn`
+no generan coincidencias positivas. Los rangos no evaluados y los
+nombres de producto sin asignar conservan un estado de incertidumbre.
+
+Categorías explícitas del resultado:
+- `EXACT_AFFECTED_VERSION`: posible asociación literal declarada.
+- `NO_EXACT_VERSION_MATCH`: ninguna coincidencia exacta en el feed aportado;
+  **no** significa que el producto esté libre de vulnerabilidades.
+- `UNKNOWN_VERSION`: versión insuficiente, ausente o ambigua.
+- `UNMAPPED_PRODUCT`: no existe equivalencia aprobada.
+- `RANGES_UNEVALUATED`: hay rangos que no pueden resolverse con el
+  motor conservador.
+- `WITHDRAWN_RECORD`: solo aparecen registros retirados.
+
+La API `POST /api/organizations/{slug}/assets/osv-candidates`
+rechaza solicitudes superiores a 1 MiB, comprueba permisos de lectura
+y la organización del inventario, verifica que el número de filas leídas
+coincide con el snapshot importado y no ejecuta escrituras ni llamadas
+de red. Devuelve un informe versionado, digest SHA-256, metadatos de
+procedencia, recuentos para el conjunto completo y página de candidatos
+acotada. Si la cobertura del inventario no puede confirmarse, se
+rechaza la evaluación.
+
+La interfaz permite cargar JSON y equivalencias de paquete,
+previsualizar un ejemplo sintético, confirmar el significado limitado
+de los resultados y consultar páginas y categorías. No crea findings,
+no atribuye explotación real, no modifica CyberScore y no presenta
+una coincidencia como verificación de parche o exposición.
+
+Las pruebas cubren esquema, entradas inválidas, rangos sin evaluación,
+aliases, retirada, identidad por ecosistema, PURL, igualdad de versión,
+paginación, interpretaciones conservadoras, aislamiento PostgreSQL y
+carácter read-only. Para usar fuentes oficiales de forma automática
+queda pendiente incorporar verificación y autenticación del proveedor,
+descarga controlada, versionado persistente y política de frescura del
+feed; esta fase no promete esas funciones.
