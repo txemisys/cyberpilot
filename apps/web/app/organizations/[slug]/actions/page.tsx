@@ -55,6 +55,7 @@ export default async function RemediationActionCenter({params,searchParams}:Para
         <h1 className="dashboard-title">Security actions</h1>
         <p className="lede">{membership.organization.name} · Follow progress without confusing completed work with verified security.</p>
         <p className="action-link"><Link href={`/organizations/${slug}`}>Back to workspace</Link></p>
+        <p className="action-link"><Link href={`/organizations/${slug}/integrity-operations`}>Open integrity operations and notifications</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/history`}>View recorded action history</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/integrity`}>Review persisted integrity captures and historical comparisons</Link></p>
         <p className="action-link"><Link href={`/organizations/${slug}/actions/workload`}>View remediation workload report</Link></p>
