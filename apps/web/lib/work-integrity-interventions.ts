@@ -328,6 +328,7 @@ export async function executeIntegrityInterventions(
         commands: [{
           taskId: command.taskId, action: triageAction(command.kind),
           expectedRevision: command.expectedRevision,
+          expectedOwnerUserId: command.expectedOwnerUserId,
           ...(command.assigneeUserId ? {
             recipientUserId: command.assigneeUserId,
           } : {}),
