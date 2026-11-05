@@ -85,6 +85,9 @@ export function parseAssetQuery(value: unknown): AssetInventoryQuery {
       (versionStatus && !versions.includes(versionStatus)) ||
       (advisoryStatus && !advisories.includes(advisoryStatus)))
     throw new WorkInputError("INVALID", "Unsupported inventory filter.");
+  const limit = number(raw.limit ?? 50, "limit", 100);
+  if (limit === 0)
+    throw new WorkInputError("INVALID", "Inventory page size must be positive.");
   return {
     ...(raw.importId === undefined ? {} : {
       importId: parseWorkId(raw.importId, "import ID"),
@@ -96,7 +99,7 @@ export function parseAssetQuery(value: unknown): AssetInventoryQuery {
     ...(versionStatus === undefined ? {} : { versionStatus }),
     ...(advisoryStatus === undefined ? {} : { advisoryStatus }),
     offset: number(raw.offset ?? 0, "offset", 1000000),
-    limit: number(raw.limit ?? 50, "limit", 100),
+    limit,
     includeRetired: raw.includeRetired === true,
   };
 }
@@ -104,7 +107,7 @@ export function assetImportFingerprint(input: AssetImportInput, report: Inventor
   return inventoryHash({
     sourceLabel: input.sourceLabel, csvDigest: inventoryHash(input.csv),
     advisoryDigest: inventoryHash(input.advisories),
-    normalizedDigest: report.digest,
+    schemaVersion: 1,
   });
 }
 export async function importAssetInventory(
