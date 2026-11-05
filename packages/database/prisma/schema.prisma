@@ -244,6 +244,8 @@ model Organization {
   integrityEvidenceAssessments IntegrityEvidenceAssessment[]
   integrityReviewWorkLinks IntegrityReviewWorkLink[]
   integrityProviderChecks IntegrityProviderCheck[]
+  integrityNotifications IntegrityNotification[]
+  integrityEscalations IntegrityEscalation[]
 }
 
 model Membership {
@@ -735,6 +737,8 @@ model IntegrityReviewTask {
   evidenceAssessments IntegrityEvidenceAssessment[]
   workLinks IntegrityReviewWorkLink[]
   providerChecks IntegrityProviderCheck[]
+  notifications IntegrityNotification[]
+  escalations IntegrityEscalation[]
   assessmentRevision Int @default(0)
 
   @@unique([organizationId, captureId, externalTaskId])
@@ -891,6 +895,70 @@ model IntegrityProviderCheck {
   @@index([organizationId, taskId, checkedAt])
   @@index([organizationId, evidenceId, checkedAt])
   @@index([organizationId, provider, checkedAt])
+}
+
+enum IntegrityNotificationKind {
+  REVIEW_ASSIGNED
+  REVIEW_OVERDUE
+  REVIEW_ESCALATED
+  REVIEW_RESOLVED
+  PROVIDER_FAILURE
+  PROVIDER_RECOVERED
+}
+
+enum IntegrityEscalationState {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  CANCELLED
+}
+
+model IntegrityNotification {
+  id String @id @default(cuid())
+  organizationId String
+  taskId String
+  recipientUserId String
+  kind IntegrityNotificationKind
+  dedupeKey String
+  title String
+  message String
+  context Json?
+  createdAt DateTime @default(now())
+  readAt DateTime?
+  dismissedAt DateTime?
+  revision Int @default(1)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, recipientUserId, dedupeKey])
+  @@index([organizationId, recipientUserId, createdAt])
+  @@index([organizationId, taskId, createdAt])
+  @@index([organizationId, recipientUserId, readAt])
+}
+
+model IntegrityEscalation {
+  id String @id @default(cuid())
+  organizationId String
+  taskId String
+  level Int @default(1)
+  state IntegrityEscalationState @default(OPEN)
+  reason String
+  dedupeKey String
+  dueAt DateTime
+  openedAt DateTime @default(now())
+  acknowledgedAt DateTime?
+  resolvedAt DateTime?
+  actorUserId String?
+  revision Int @default(1)
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task IntegrityReviewTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, taskId, dedupeKey])
+  @@index([organizationId, state, dueAt])
+  @@index([organizationId, taskId, openedAt])
 }
 
 enum AssetImportState {
