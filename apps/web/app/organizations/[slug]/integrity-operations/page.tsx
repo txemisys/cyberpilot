@@ -5,6 +5,7 @@ import { IntegrityEventOperations } from "../../../../components/integrity-event
 import { IntegrityOperationsReports } from "../../../../components/integrity-operations-reports";
 import { IntegrityOperationalAssurance } from "../../../../components/integrity-operational-assurance";
 import { IntegrityPolicyDiagnostics } from "../../../../components/integrity-policy-diagnostics";
+import { IntegrityOperationsPlanning } from "../../../../components/integrity-operations-planning";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -25,6 +26,7 @@ export default async function IntegrityOperationsPage({ params }: Props) {
         <IntegrityOperationsReports slug={slug} canManage={canManage} />
         <IntegrityOperationalAssurance slug={slug} canManage={canManage} />
         <IntegrityPolicyDiagnostics slug={slug} canManage={canManage} />
+        <IntegrityOperationsPlanning slug={slug} canManage={canManage} />
       </div>
     </>
   );
