@@ -127,7 +127,7 @@ export function parseOfficialOsvInspection(
 }
 function packageKey(ecosystem: string, name: string, version: string,
   purl: string | null) {
-  return [ecosystem, name, version, purl ?? ""].join("\u0000");
+  return JSON.stringify([ecosystem, name, version, purl ?? ""]);
 }
 export function planOfficialOsvInspection(
   importId: string, rows: SnapshotRow[],
