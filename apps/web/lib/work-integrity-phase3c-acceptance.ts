@@ -419,7 +419,7 @@ export async function readPhase3CAcceptance(
   const [events, notifications, escalations, providers, workLinks, audits, members] =
     await Promise.all([
       db.integrityReviewEvent.findMany({
-        where: scoped, orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
+        where: scoped, take: 5001, orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
         select: {
           id: true, taskId: true, action: true,
           revisionBefore: true, revisionAfter: true,
@@ -427,32 +427,33 @@ export async function readPhase3CAcceptance(
         },
       }),
       db.integrityNotification.findMany({
-        where: scoped, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        where: scoped, take: 5001, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         select: {
           id: true, taskId: true, recipientUserId: true, revision: true,
           kind: true, createdAt: true, readAt: true, dismissedAt: true,
         },
       }),
       db.integrityEscalation.findMany({
-        where: scoped, orderBy: [{ openedAt: "asc" }, { id: "asc" }],
+        where: scoped, take: 5001, orderBy: [{ openedAt: "asc" }, { id: "asc" }],
         select: {
           id: true, taskId: true, state: true, revision: true, level: true,
           openedAt: true, dueAt: true, acknowledgedAt: true, resolvedAt: true,
         },
       }),
       db.integrityProviderCheck.findMany({
-        where: scoped, orderBy: [{ checkedAt: "desc" }, { id: "desc" }],
+        where: scoped, take: 5001, orderBy: [{ checkedAt: "desc" }, { id: "desc" }],
         select: {
           id: true, taskId: true, outcome: true, checkedAt: true,
           providerObservedAt: true,
         },
       }),
       db.integrityReviewWorkLink.findMany({
-        where: scoped, select: {
+        where: scoped, take: 5001, select: {
           taskId: true, workItemId: true, linkedAt: true, unlinkedAt: true,
         },
       }),
       db.auditEvent.findMany({
+        take: 5001,
         where: {
           organizationId: scope.organizationId,
           resourceType: "IntegrityReviewTask",
@@ -467,8 +468,22 @@ export async function readPhase3CAcceptance(
         select: { userId: true },
       }),
     ]);
-  return buildAcceptanceReport(scope.organizationId, query, tasks, {
+  const report = buildAcceptanceReport(scope.organizationId, query, tasks, {
     events, notifications, escalations, providers, workLinks, audits,
     memberIds: new Set(members.map(x => x.userId)),
   }, total, now);
+  if ([events, notifications, escalations, providers, workLinks, audits]
+    .some(rows => rows.length >= 5001)) {
+    report.complete = false;
+    report.outcome = report.summary.blockers ? "BLOCKED" : "REQUIRES_REVIEW";
+    report.limitations.push(
+      "One or more related collections exceeded the 5000-record inspection cap. " +
+      "This report cannot support a complete acceptance decision.");
+    report.digest = acceptanceDigest({
+      schema: report.schema, captureId: report.captureId,
+      generatedAt: report.generatedAt, summary: report.summary,
+      tasks: report.tasks, complete: false, truncated: true,
+    });
+  }
+  return report;
 }
