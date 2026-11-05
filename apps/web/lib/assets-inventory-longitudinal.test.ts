@@ -52,7 +52,7 @@ const candidate = {
 };
 const purge = {
   importId: candidate.importId, expectedDigest: candidate.payloadDigest,
-  confirmImportId: candidate.importId, confirmPurge: true,
+  confirmImportId: candidate.importId, confirmPurge: true as const,
   minimumRetiredDays: 30, reason: "Permanently remove obsolete customer data.",
   dryRun: true, idempotencyKey: "purge-key-12345",
 };
