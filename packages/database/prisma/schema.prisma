@@ -911,6 +911,7 @@ model AssetInventoryImport {
   importedCount Int
   duplicateCount Int
   unknownVersionCount Int
+  advisorySources Json @default("[]")
   createdAt DateTime @default(now())
   retiredAt DateTime?
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
