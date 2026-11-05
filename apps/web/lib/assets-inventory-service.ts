@@ -108,6 +108,7 @@ export function assetImportFingerprint(input: AssetImportInput, report: Inventor
     sourceLabel: input.sourceLabel, csvDigest: inventoryHash(input.csv),
     advisoryDigest: inventoryHash(input.advisories),
     schemaVersion: 1,
+    source: report.source,
   });
 }
 export async function importAssetInventory(
@@ -156,6 +157,11 @@ export async function importAssetInventory(
         importedCount: report.importedCount,
         duplicateCount: report.duplicateCount,
         unknownVersionCount: report.unknownVersionCount,
+        advisorySources: [...new Map(input.advisories.map(item => [
+          item.feed + ":" + item.feedVersion,
+          { feed: item.feed, feedVersion: item.feedVersion,
+            observedAt: item.observedAt },
+        ])).values()],
       },
     });
     await tx.assetInventoryDevice.createMany({
@@ -223,6 +229,7 @@ export async function listAssetInventoryImports(
         declaredCount: true, importedCount: true,
         duplicateCount: true, unknownVersionCount: true,
         createdAt: true, retiredAt: true, payloadDigest: true,
+        advisorySources: true,
       },
     }),
   ]);
