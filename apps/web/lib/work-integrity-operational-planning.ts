@@ -55,8 +55,8 @@ export type PlanningWorkLink = {
 };
 export type PlanningAssessment = {
   taskId: string;
-  outcome: string;
-  assessedAt: Date;
+  decision: string;
+  createdAt: Date;
 };
 export type PlanningSignal =
   | "OVERDUE"
@@ -442,7 +442,7 @@ export async function readIntegrityOperationalPlanning(
     }),
     db.integrityEvidenceAssessment.findMany({
       where: scoped, take: 5000,
-      select: { taskId: true, outcome: true, assessedAt: true },
+      select: { taskId: true, decision: true, createdAt: true },
     }),
   ]);
   const report = buildPlanningReport(scope.organizationId, query, tasks, {
