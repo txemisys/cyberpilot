@@ -339,7 +339,7 @@ export async function queryOfficialOsv(
     a.id.localeCompare(b.id));
   const canonical = {
     schema: "cyberpilot.assets.osv.live.query.v1" as const,
-    endpoint: OSV_API_ORIGIN,
+    endpoint: OSV_API_ORIGIN as typeof OSV_API_ORIGIN,
     package: request,
     checkedAt, provider: "OSV_DEV_API" as const,
     transport: "HTTPS_FIXED_ENDPOINT" as const,
