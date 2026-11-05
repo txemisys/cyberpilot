@@ -60,6 +60,7 @@ type InspectionDetail = {
     };
   };
   checkedAt: string;
+  persistedReportDigest: string;
   warnings: string[];
 };
 type Import = {
