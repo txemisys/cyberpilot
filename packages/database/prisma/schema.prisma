@@ -235,6 +235,8 @@ model Organization {
   workChecklistEntries      WorkChecklistEntry[]
   workEvidenceLinks         WorkEvidenceLink[]
   workHandoffs              WorkHandoff[]
+  assetInventoryImports     AssetInventoryImport[]
+  assetInventoryDevices     AssetInventoryDevice[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -889,4 +891,60 @@ model IntegrityProviderCheck {
   @@index([organizationId, taskId, checkedAt])
   @@index([organizationId, evidenceId, checkedAt])
   @@index([organizationId, provider, checkedAt])
+}
+
+enum AssetImportState {
+  COMMITTED
+  RETIRED
+}
+
+model AssetInventoryImport {
+  id String @id @default(cuid())
+  organizationId String
+  actorUserId String?
+  idempotencyKey String
+  payloadDigest String @db.VarChar(64)
+  sourceLabel String
+  state AssetImportState @default(COMMITTED)
+  schemaVersion Int @default(1)
+  declaredCount Int
+  importedCount Int
+  duplicateCount Int
+  unknownVersionCount Int
+  createdAt DateTime @default(now())
+  retiredAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  devices AssetInventoryDevice[]
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, state, createdAt])
+}
+
+model AssetInventoryDevice {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  externalId String
+  hostname String?
+  ownerHash String? @db.VarChar(64)
+  platform String
+  osName String
+  osVersion String?
+  softwareName String?
+  softwareVersion String?
+  observedAt DateTime
+  sourceRow Int
+  normalizedProductKey String?
+  versionStatus String
+  freshnessStatus String
+  advisoryStatus String
+  advisoryIds Json @default("[]")
+  confidence String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  import AssetInventoryImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  @@unique([importId, externalId, softwareName])
+  @@index([organizationId, externalId, observedAt])
+  @@index([organizationId, platform, osName])
+  @@index([organizationId, importId])
 }
