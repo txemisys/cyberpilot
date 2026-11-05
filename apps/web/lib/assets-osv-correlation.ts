@@ -349,8 +349,8 @@ export function correlateOsvRow(
 export function summarizeOsvCandidates(
   rows: OsvCandidate[],
 ): CandidateSummary {
-  const counts = Object.fromEntries(classification.map(code => [code, 0]))
-    as Record<CandidateClassification, number>;
+  const counts = Object.fromEntries(classification.map(code => [code, 0])) as
+    Record<CandidateClassification, number>;
   for (const row of rows) counts[row.category]++;
   return {
     totalRows: rows.length,
