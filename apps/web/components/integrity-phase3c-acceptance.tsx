@@ -39,7 +39,25 @@ type Summary = {
   auditedActions: number;
   byCode: Record<string, number>;
 };
+type PlannedAction = {
+  key: string;
+  taskId: string;
+  workstream: string;
+  nextStep: string;
+  priority: "P0" | "P1" | "P2";
+  message: string;
+  codes: string[];
+  blockerCount: number;
+  reviewCount: number;
+};
 type AcceptanceReport = {
+  executionPlan: {
+    partial: boolean;
+    actions: PlannedAction[];
+    byPriority: { P0: number; P1: number; P2: number };
+    digest: string;
+    warnings: string[];
+  };
   schema: string;
   organizationId: string;
   captureId: string;
@@ -278,6 +296,26 @@ export function IntegrityPhase3CAcceptance({
       <details>
         <summary>Report digest</summary>
         <code style={{ overflowWrap: "anywhere" }}>{result.digest}</code>
+      </details>
+      <h3>Investigation plan</h3>
+      <p>Prioritized human investigations, not automated remediation.
+        P0: {result.executionPlan.byPriority.P0} ·
+        P1: {result.executionPlan.byPriority.P1} ·
+        P2: {result.executionPlan.byPriority.P2}</p>
+      <div style={{ display: "grid", gap: 8 }}>
+        {result.executionPlan.actions.map(action => <article key={action.key}
+          style={{ border: "1px solid #8885", borderRadius: 8, padding: 10 }}>
+          <strong>{action.priority} · {action.workstream}</strong>
+          <p>{action.message}</p>
+          <small>{action.taskId} · {action.codes.join(", ")}</small>
+        </article>)}
+      </div>
+      <details>
+        <summary>Plan digest and limitations</summary>
+        <code style={{ overflowWrap: "anywhere" }}>
+          {result.executionPlan.digest}</code>
+        <ul>{result.executionPlan.warnings.map(item => <li key={item}>
+          {item}</li>)}</ul>
       </details>
       <h3>Findings by code</h3>
       {Object.keys(result.summary.byCode).length === 0 ?
