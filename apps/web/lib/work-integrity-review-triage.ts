@@ -13,6 +13,7 @@ export type TriageCommand = {
   taskId: string;
   action: TriageAction;
   expectedRevision: number;
+  expectedOwnerUserId?: string | null;
   recipientUserId?: string;
   note: string;
   idempotencyKey: string;
@@ -57,7 +58,7 @@ export function parseTriageCommand(value: unknown): TriageCommand {
   const raw = object(value);
   if (Object.keys(raw).some(key => ![
     "taskId", "action", "expectedRevision",
-    "recipientUserId", "note", "idempotencyKey",
+    "recipientUserId", "expectedOwnerUserId", "note", "idempotencyKey",
   ].includes(key)))
     throw new WorkInputError("INVALID", "Unknown triage field.");
   if (!actions.includes(raw.action as TriageAction))
@@ -71,6 +72,10 @@ export function parseTriageCommand(value: unknown): TriageCommand {
     taskId: parseWorkId(raw.taskId, "review task ID"),
     action,
     expectedRevision: integer(raw.expectedRevision, "revision", 1, 2147483646),
+    ...(raw.expectedOwnerUserId === undefined ? {} : {
+      expectedOwnerUserId: raw.expectedOwnerUserId === null ? null :
+        parseWorkId(raw.expectedOwnerUserId, "expected owner user ID"),
+    }),
     ...(raw.recipientUserId === undefined ? {} : {
       recipientUserId: parseWorkId(raw.recipientUserId, "recipient user ID"),
     }),
@@ -177,7 +182,9 @@ async function triageSingle(
       if (metadata?.note !== command.note ||
           metadata?.revisionBefore !== command.expectedRevision ||
           (command.action === "ASSIGN" &&
-            metadata?.nextOwner !== command.recipientUserId))
+            metadata?.nextOwner !== command.recipientUserId) ||
+          (command.expectedOwnerUserId !== undefined &&
+            metadata?.previousOwner !== command.expectedOwnerUserId))
         throw new WorkInputError("CONFLICT", "Triage idempotency key reused.");
       return {
         taskId: task.id, action: command.action,
@@ -191,6 +198,9 @@ async function triageSingle(
     }
     if (task.revision !== command.expectedRevision)
       throw new WorkInputError("CONFLICT", "Review revision changed.");
+    if (command.expectedOwnerUserId !== undefined &&
+        task.ownerUserId !== command.expectedOwnerUserId)
+      throw new WorkInputError("CONFLICT", "Review owner changed.");
     if (isTerminal(task.disposition))
       throw new WorkInputError("CONFLICT", "Cannot triage a closed review.");
     const admins = await tx.membership.findMany({
