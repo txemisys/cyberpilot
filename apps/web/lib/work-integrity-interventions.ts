@@ -301,10 +301,23 @@ export async function executeIntegrityInterventions(
           },
         }),
       ]);
+      const previous = await db.auditEvent.findFirst({
+        where: {
+          organizationId: scope.organizationId,
+          resourceType: "IntegrityReviewTask",
+          resourceId: command.taskId,
+          action: "integrity.triage." + triageAction(command.kind).toLowerCase(),
+          metadata: { path: ["idempotencyKey"],
+            equals: "triage:" + command.idempotencyKey },
+        },
+        select: { id: true },
+      });
       const eligibility = evaluateIntervention(command, {
         task, members, openReminders: reminders, now,
       });
-      if (!eligibility.eligible) {
+      // Completed requests must reach the underlying command's replay
+      // validation even after assignment changed the owner.
+      if (!previous && !eligibility.eligible) {
         results.push(interventionResult(command, "FAILED",
           eligibility.reason, "CONFLICT", task.revision));
         if (input.stopOnError) break;
