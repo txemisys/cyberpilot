@@ -250,7 +250,7 @@ describe("conservative OSV candidate correlation", () => {
     expect(result.candidates).toHaveLength(1);
     expect(result.hasMore).toBe(true);
     expect(result.complete).toBe(false);
-    expect(result.warnings.join(" ")).toMatch(/do not establish/i);
+    expect(result.warnings.join(" ")).toMatch(/does not establish/i);
   });
   it("compares only complete OSV candidate reports in one tenant", () => {
     const prior = buildOsvCandidateReport("org-12345", "import-12345",
