@@ -206,10 +206,10 @@ export function analyzeAcceptanceTask(
   if (task.completedAt && task.completedAt < task.createdAt)
     issue("COMPLETION_BEFORE_CREATION", "BLOCKER", "REVIEW", task.id,
       "Completion precedes creation.");
-  if (!events.length)
-    issue("NO_REVIEW_EVENTS", "REVIEW", "REVIEW", task.id,
-      "No revision events were available in this inspection.");
-  let prior = 0;
+  if (!events.length && task.revision !== 1)
+    issue("NO_REVIEW_EVENTS", "BLOCKER", "REVIEW", task.id,
+      "Persisted revision exceeds the initial revision but has no events.");
+  let prior = 1;
   let priorAfter: string | null = null;
   const seenRevisions = new Set<number>();
   for (const event of events) {
@@ -230,6 +230,9 @@ export function analyzeAcceptanceTask(
     prior = event.revisionAfter;
     priorAfter = event.after;
   }
+  if (events.length && prior !== task.revision)
+    issue("REVIEW_EVENT_REVISION_GAP", "BLOCKER", "REVIEW", task.id,
+      "Latest event does not reach the persisted review revision.");
   if (priorAfter && priorAfter !== task.disposition)
     issue("REVIEW_EVENT_STATE_MISMATCH", "BLOCKER", "REVIEW", task.id,
       "Latest revision event does not match current review disposition.");
@@ -350,7 +353,7 @@ export function buildAcceptanceReport(
   const complete = query.offset === 0 && tasks.length === totalTasks;
   const outcome: AcceptanceReport["outcome"] =
     summary.blockers ? "BLOCKED" :
-      summary.reviewsRequired || !complete ? "REQUIRES_REVIEW" :
+      summary.reviewsRequired || !complete || !tasks.length ? "REQUIRES_REVIEW" :
         "READY_FOR_MANUAL_ACCEPTANCE";
   const canonical = {
     schema: "cyberpilot.integrity.phase3c.acceptance.v1" as const,
