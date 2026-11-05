@@ -943,7 +943,7 @@ model AssetInventoryDevice {
   createdAt DateTime @default(now())
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   import AssetInventoryImport @relation(fields: [importId], references: [id], onDelete: Cascade)
-  @@unique([importId, externalId, normalizedProductKey])
+  @@unique([importId, externalId, normalizedProductKey], map: "AssetInvDevice_import_external_product_key")
   @@index([organizationId, externalId, observedAt])
   @@index([organizationId, platform, osName])
   @@index([organizationId, importId])
