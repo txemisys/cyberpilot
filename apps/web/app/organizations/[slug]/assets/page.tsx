@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOrganizationAccess } from "../../../../lib/organizations";
 import { AssetInventoryWorkspace } from "../../../../components/asset-inventory-workspace";
+import { AssetInventoryLongitudinal } from "../../../../components/asset-inventory-longitudinal";
 
 type Context = { params: Promise<{ slug: string }> };
 export default async function AssetInventoryPage({ params }: Context) {
@@ -17,6 +18,7 @@ export default async function AssetInventoryPage({ params }: Context) {
         <Link href={`/organizations/${slug}/actions`}>Back to action center</Link>
       </p>
       <AssetInventoryWorkspace slug={slug} canManage={canManage} />
+      <AssetInventoryLongitudinal slug={slug} canManage={canManage} />
     </section>
   </main>;
 }
