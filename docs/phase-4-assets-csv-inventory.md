@@ -276,3 +276,54 @@ inter-tenant, evaluación completa de rangos por ecosistema y
 aceptación LIVE con red real. Los tests ejecutan respuestas HTTPS
 simuladas mediante un fetch inyectado; el CI no certifica
 disponibilidad o fidelidad de OSV.dev en producción.
+
+## Quinto incremento: historial OSV duradero y versionado
+
+Se incorpora el contrato `AssetOsvInspection` + `AssetOsvQueryRecord` de
+Prisma/PostgreSQL, con la migración
+`20261105123000_asset_osv_inspection_ledger`. Una inspección pertenece
+siempre a una organización y un `AssetInventoryImport` concreto.
+Cada paquete consultado tiene un registro propio con ecosistema,
+nombre, versión, estado del proveedor, digest y referencias agrupadas.
+El almacenamiento es inmutable desde la API; las filas no incluyen
+identificadores de dispositivos ni credenciales, y las respuestas
+HTTP crudas no se persisten.
+
+`GET /api/organizations/{slug}/assets/osv-inspections` permite listar
+inspecciones paginadas por import, estado y fecha, así como leer un
+detalle específico con sus consultas registradas. MEMBER y AUDITOR
+pueden leer dentro de su organización; los IDs externos se rechazan
+sin revelar su existencia.
+
+`POST /api/organizations/{slug}/assets/osv-inspections` acepta una
+solicitud `{requestKey, inspection}` con parámetros equivalentes a la
+consulta oficial, `dryRun:false` obligatorio, y tamaño máximo de
+64 KiB. Requiere ADMIN/OWNER. El identificador de idempotencia
+se valida y queda ligado al digest del comando y la organización.
+
+Antes de contactar OSV se busca una ejecución existente con la misma
+clave: si coincide, se devuelve exactamente el informe previamente
+almacenado sin volver a llamar al proveedor; si difiere, se rechaza.
+Las consultas de red ocurren fuera de la transacción PostgreSQL.
+Después se revalida que el inventario siga activo y se guardan
+atómicamente cabecera, consultas y AuditEvent. Una colisión única
+de clave tras carreras se resuelve buscando el registro existente y
+validando su digest, en lugar de considerar el segundo evento
+automáticamente como un error 500.
+
+La interfaz en `/organizations/{slug}/assets` ofrece
+historial, filtros, páginas, lectura de informes y digests, además
+de un procedimiento con preview sin red seguido de confirmación
+explícita antes de consultar al proveedor y persistir.
+
+**Interpretación:** `COMPLETE` únicamente se refiere a la
+cobertura del plan de consultas OSV disponible en esa ejecución;
+no equivale a cobertura del parque de dispositivos ni acredita
+ausencia de vulnerabilidades. Los snapshots guardados son históricos
+y sus datos pueden quedar obsoletos al cambiar los avisos.
+
+Las pruebas cubren validación de comandos, digests, replays,
+conflictos de claves, reportes atribuidos a otra organización,
+resultados fuera del plan, alta transaccional real PostgreSQL,
+lecturas dentro y fuera de tenant, auditoría y prohibición
+de nuevas consultas tras retirar el inventario.
