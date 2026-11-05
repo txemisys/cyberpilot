@@ -217,3 +217,62 @@ carácter read-only. Para usar fuentes oficiales de forma automática
 queda pendiente incorporar verificación y autenticación del proveedor,
 descarga controlada, versionado persistente y política de frescura del
 feed; esta fase no promete esas funciones.
+
+## Cuarto incremento: consulta oficial directa a OSV.dev
+
+Se añade `POST /api/organizations/{slug}/assets/osv-official`, reservado
+a ADMIN/OWNER. A diferencia del export JSON manual del bloque anterior,
+este endpoint sí consulta el servicio remoto de OSV.dev desde el servidor,
+pero solo cuando el operador autoriza expresamente el envío.
+
+La API oficial documenta el contrato `POST https://api.osv.dev/v1/query`
+para `package: {name, ecosystem}` y `version`, o para una PURL
+sin versión y la versión independiente. La consulta OSV admite
+paginación con `next_page_token` y el servidor declara que puede
+aplicar coincidencia de versión aproximada:
+
+https://google.github.io/osv.dev/post-v1-query/
+
+Controles de la implementación:
+
+- Destino HTTPS fijo `api.osv.dev/v1/query`, sin URLs aportadas por el
+  cliente, sin redirecciones, sin credenciales y sin cookies.
+- Los datos enviados se limitan a nombre de paquete, ecosistema,
+  versión y, opcionalmente, PURL desprovista de versión.
+- Se rechazan entradas arbitrarias, secuencias de control,
+  rutas sospechosas y versiones indeterminadas.
+- El administrador previsualiza por defecto sin red y debe consentir
+  explícitamente la consulta.
+- Deduplicación de parejas paquete/version entre filas del mismo
+  snapshot para reducir peticiones innecesarias.
+- Presupuesto acotado de paquetes (máximo 20), páginas (máximo 3),
+  registros (máximo 100 por consulta), bytes recibidos por página
+  y timeout.
+- HTTP no-2xx, JSON inválido, exceso de tamaño, paginación ciclada
+  y respuestas contradictorias se clasifican como fallos o cobertura
+  truncada. No se presenta un fallo como ausencia de vulnerabilidades.
+- En cada respuesta se conserva fuente, fecha de consulta, volumen,
+  resultado, digest y advertencias de cobertura/frescura. No se crean
+  hallazgos ni se modifica CyberScore.
+- Se exige importación activa, tenant correcto, cobertura completa
+  por número de filas y permisos adecuados.
+
+La API de OSV **puede hacer fuzzy match de versiones**. Por eso el
+resultado distingue las posibles asociaciones por enumeración literal
+`affected.versions` de otros IDs que OSV comunica sin enumeración
+literal, rangos no evaluados y avisos withdrawn. Una coincidencia,
+incluso literal, no prueba exposición ni explotación real.
+
+**Garantía de procedencia:** la aplicación contacta con el endpoint
+oficial por HTTPS. Eso valida el destino de transporte bajo el sistema
+de confianza TLS del servidor, pero **no constituye una firma
+criptográfica del registro OSV**, una comprobación del origen primario
+de la vulnerabilidad ni un estado certificable de parche.
+
+**Alcance pendiente:** firma o validación externa de advisories,
+persistencia de snapshots firmados del proveedor, trabajos recurrentes
+programados, cache compartida y control de cuotas globales
+inter-tenant, evaluación completa de rangos por ecosistema y
+aceptación LIVE con red real. Los tests ejecutan respuestas HTTPS
+simuladas mediante un fetch inyectado; el CI no certifica
+disponibilidad o fidelidad de OSV.dev en producción.
