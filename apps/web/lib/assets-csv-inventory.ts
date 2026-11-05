@@ -82,8 +82,8 @@ function scalar(
     invalid("Inventory " + field + " is required.");
   return trimmed;
 }
-function safeString(value: string, field: string, maximum: number) {
-  if (value.length > maximum || forbiddenControls.test(value))
+function safeString(value: unknown, field: string, maximum: number): string {
+  if (typeof value !== "string" || value.length > maximum || forbiddenControls.test(value))
     invalid("Invalid " + field + ".");
   return value;
 }
