@@ -162,14 +162,12 @@ export function planOfficialOsvInspection(
     const existing = work.get(key);
     if (existing) {
       existing.observationCount++;
-      if (existing.identifiers.length < 5)
-        existing.identifiers.push(row.externalId);
     } else {
       work.set(key, {
         key, ecosystem: request.ecosystem, name: request.name,
         version: request.version,
         expectedPurl: request.expectedPurl ?? null,
-        observationCount: 1, identifiers: [row.externalId],
+        observationCount: 1, identifiers: [],
       });
     }
   }
