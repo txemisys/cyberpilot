@@ -211,6 +211,39 @@ export function parseLiveOsvPage(
     responseDigest: digest(rawBody),
   };
 }
+/**
+ * Enforce the transfer budget while bytes are arriving. Reading text() and
+ * checking afterward could buffer arbitrarily large upstream responses.
+ * Reject truncated UTF-8 instead of silently replacing invalid characters.
+ */
+export async function readBoundedOsvBody(
+  response: Response, maximumBytes: number,
+): Promise<string> {
+  if (!response.body)
+    throw new Error("OSV response body is unavailable.");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let total = 0;
+  let text = "";
+  try {
+    while (true) {
+      const part = await reader.read();
+      if (part.done) break;
+      total += part.value.byteLength;
+      if (total > maximumBytes)
+        throw new Error("OSV response exceeds configured byte budget.");
+      text += decoder.decode(part.value, { stream: true });
+    }
+    text += decoder.decode();
+    return text;
+  } finally {
+    reader.releaseLock();
+    if (!reader.closed) {
+      // Cancellation also signals the remote producer to stop sending data.
+      void response.body.cancel().catch(() => undefined);
+    }
+  }
+}
 async function fetchPage(request: LiveOsvRequest, pageToken: string | undefined,
   client: typeof fetch, options: ClientLimits,
 ): Promise<LiveOsvPage> {
@@ -234,9 +267,7 @@ async function fetchPage(request: LiveOsvRequest, pageToken: string | undefined,
     const declaredLength = response.headers.get("content-length");
     if (declaredLength && Number(declaredLength) > options.maxResponseBytes)
       throw new Error("OSV response exceeds configured byte budget.");
-    const body = await response.text();
-    if (Buffer.byteLength(body, "utf8") > options.maxResponseBytes)
-      throw new Error("OSV response exceeds configured byte budget.");
+    const body = await readBoundedOsvBody(response, options.maxResponseBytes);
     let decoded: unknown;
     try { decoded = JSON.parse(body); }
     catch { throw new Error("Invalid OSV API JSON."); }
