@@ -132,6 +132,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
         expectedState: "COMMITTED",
         reason: "Superseded by the newer synthetic export.",
       }, retirement);
+      await db.assetInventoryImport.update({
+        where: { id: previousImportId },
+        data: { createdAt: new Date("2026-01-10T00:00:00.000Z") },
+      });
       const retained = await inspectAssetRetention(admin, {
         minimumRetiredDays: 30, maximumCandidateAgeDays: 30,
       }, now);
