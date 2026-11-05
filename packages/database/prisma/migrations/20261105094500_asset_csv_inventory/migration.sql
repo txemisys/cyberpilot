@@ -13,6 +13,7 @@ CREATE TABLE "AssetInventoryImport" (
   "importedCount" INTEGER NOT NULL,
   "duplicateCount" INTEGER NOT NULL,
   "unknownVersionCount" INTEGER NOT NULL,
+  "advisorySources" JSONB NOT NULL DEFAULT '[]',
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "retiredAt" TIMESTAMP(3),
   CONSTRAINT "AssetInventoryImport_pkey" PRIMARY KEY ("id")
