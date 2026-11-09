@@ -24,6 +24,7 @@ type RenewalPlan = {
   maximumHttpPages: number; capacityAvailable: boolean;
   quotaInspectionsRemaining: number; quotaRequestsRemaining: number;
   decisions: RenewalDecision[]; validForExecution: boolean;
+  blockingReasons: string[];
   newPackagesApproved: boolean;
   partialInventoryApproved: boolean;
   planDigest: string; warnings: string[];
@@ -346,6 +347,11 @@ export function AssetOsvRenewalWorkspace({
         !preview.partialInventoryApproved) &&
         <p role="alert">Incomplete inventory mapping requires explicit
           acknowledgment above before renewal.</p>}
+      {preview.blockingReasons.length > 0 && <section role="alert">
+        <h4>Execution is blocked for these reasons</h4>
+        <ul>{preview.blockingReasons.map((reason, index) =>
+          <li key={index}>{reason}</li>)}</ul>
+      </section>}
       {preview.decisions.map(item =>
         <Decision key={item.packageKey} value={item}/>)}
       <details>
