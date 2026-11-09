@@ -56,6 +56,7 @@ export type OsvRenewalPlan = {
   quotaRequestsRemaining: number;
   decisions: OsvRenewalDecision[];
   validForExecution: boolean;
+  blockingReasons: string[];
   newPackagesApproved: boolean;
   partialInventoryApproved: boolean;
   planDigest: string;
@@ -243,6 +244,32 @@ export function evaluateRenewalPlan(
     coverage.selectedPackages, command.inspection.maxPagesPerPackage);
   const capacityAvailable = quota.inspectionsRemaining >= 1 &&
     quota.requestsRemaining >= maximumHttpPages;
+  const blockingReasons: string[] = [];
+  if (coverage.selectedPackages === 0)
+    blockingReasons.push("No eligible package-version queries were selected.");
+  if (!allEligible)
+    blockingReasons.push(
+      "At least one package is fresh, still cooling down, or has inconsistent provider timestamps.");
+  if (coverage.skippedPackages > 0)
+    blockingReasons.push(
+      "The query limit omitted known package versions from the inventory.");
+  if (!capacityAvailable)
+    blockingReasons.push(
+      "Atomic quota has insufficient inspections or reserved HTTP pages remaining.");
+  if (decisions.some(item => item.classification === "NEW_PACKAGE") &&
+      !command.allowNewPackages)
+    blockingReasons.push(
+      "New package-version identities require explicit operator approval.");
+  if ((coverage.unmappedRows + coverage.invalidVersionRows) > 0 &&
+      !command.allowIncompleteInventory)
+    blockingReasons.push(
+      "Incomplete inventory coverage requires explicit acknowledgement.");
+  if (previous.completedAt.getTime() > now.getTime() + 300000)
+    blockingReasons.push(
+      "The historical inspection has a future completion timestamp.");
+  if (!coverage.allRowsAccountedFor)
+    blockingReasons.push(
+      "Inventory record accounting is inconsistent.");
   const canonical = {
     schema: "cyberpilot.assets.osv.renewal.plan.v1" as const,
     organizationId: scope.organizationId,
@@ -264,12 +291,8 @@ export function evaluateRenewalPlan(
     quotaInspectionsRemaining: quota.inspectionsRemaining,
     quotaRequestsRemaining: quota.requestsRemaining,
     decisions,
-    validForExecution: allEligible && coverage.selectedPackages > 0 &&
-      coverage.skippedPackages === 0 && capacityAvailable &&
-      (decisions.every(item => item.classification !== "NEW_PACKAGE") ||
-        command.allowNewPackages) &&
-      (coverage.unmappedRows + coverage.invalidVersionRows === 0 ||
-        command.allowIncompleteInventory),
+    validForExecution: blockingReasons.length === 0,
+    blockingReasons,
     newPackagesApproved: command.allowNewPackages,
     partialInventoryApproved: command.allowIncompleteInventory,
   };
@@ -305,8 +328,7 @@ export function evaluateRenewalPlan(
       ...((coverage.unmappedRows + coverage.invalidVersionRows > 0) &&
         !command.allowIncompleteInventory ?
         ["Incomplete inventory mappings require an explicit partial-coverage acknowledgement."] : []),
-      ...(canonical.validForExecution ? [] :
-        ["Renewal is blocked: resolve deferred packages, skipped packages or quota first."]),
+      ...blockingReasons.map(reason => "Renewal blocked: " + reason),
     ],
   };
 }
