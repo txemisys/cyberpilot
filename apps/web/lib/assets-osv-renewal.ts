@@ -19,6 +19,8 @@ export type OsvRenewalCommand = {
   policy: RefreshPolicy;
   dryRun: boolean;
   confirmOutbound: boolean;
+  allowNewPackages: boolean;
+  allowIncompleteInventory: boolean;
   expectedPlanDigest: string | null;
 };
 export type OsvRenewalDecision = {
@@ -54,6 +56,8 @@ export type OsvRenewalPlan = {
   quotaRequestsRemaining: number;
   decisions: OsvRenewalDecision[];
   validForExecution: boolean;
+  newPackagesApproved: boolean;
+  partialInventoryApproved: boolean;
   planDigest: string;
   warnings: string[];
 };
@@ -142,11 +146,16 @@ export function parseOsvRenewalCommand(input: unknown): OsvRenewalCommand {
   if (Object.keys(raw).some(key => ![
     "sourceInspectionId", "requestKey", "inspection", "policy",
     "dryRun", "confirmOutbound", "expectedPlanDigest",
+    "allowNewPackages", "allowIncompleteInventory",
   ].includes(key))) fail("Unexpected OSV renewal field.");
   const inspection = parseOfficialOsvInspection(raw.inspection);
   const dryRun = raw.dryRun !== false;
   if (raw.dryRun !== undefined && typeof raw.dryRun !== "boolean")
     fail("Invalid renewal preview flag.");
+  if (raw.allowNewPackages !== undefined && typeof raw.allowNewPackages !== "boolean")
+    fail("Invalid new-package approval flag.");
+  if (raw.allowIncompleteInventory !== undefined && typeof raw.allowIncompleteInventory !== "boolean")
+    fail("Invalid partial-inventory approval flag.");
   if (raw.confirmOutbound !== undefined &&
       typeof raw.confirmOutbound !== "boolean")
     fail("Invalid outbound authorization flag.");
@@ -166,6 +175,8 @@ export function parseOsvRenewalCommand(input: unknown): OsvRenewalCommand {
     requestKey: string(raw.requestKey, "idempotency key", 12, 150),
     inspection, policy: parseRefreshPolicy(raw.policy ?? {}),
     dryRun, confirmOutbound: raw.confirmOutbound === true,
+    allowNewPackages: raw.allowNewPackages === true,
+    allowIncompleteInventory: raw.allowIncompleteInventory === true,
     expectedPlanDigest: typeof expectedPlanDigest === "string" ?
       expectedPlanDigest : null,
   };
@@ -254,7 +265,13 @@ export function evaluateRenewalPlan(
     quotaRequestsRemaining: quota.requestsRemaining,
     decisions,
     validForExecution: allEligible && coverage.selectedPackages > 0 &&
-      coverage.skippedPackages === 0 && capacityAvailable,
+      coverage.skippedPackages === 0 && capacityAvailable &&
+      (decisions.every(item => item.classification !== "NEW_PACKAGE") ||
+        command.allowNewPackages) &&
+      (coverage.unmappedRows + coverage.invalidVersionRows === 0 ||
+        command.allowIncompleteInventory),
+    newPackagesApproved: command.allowNewPackages,
+    partialInventoryApproved: command.allowIncompleteInventory,
   };
   // Date and quota counters must NOT be part of the approval digest:
   // they legitimately change between preview and execution.
@@ -271,6 +288,8 @@ export function evaluateRenewalPlan(
         (a, b) => a.inventoryProduct.localeCompare(b.inventoryProduct)),
     },
     policy: command.policy,
+    allowNewPackages: command.allowNewPackages,
+    allowIncompleteInventory: command.allowIncompleteInventory,
     packageKeys: decisions.map(x => x.packageKey).sort(),
   });
   return {
@@ -281,6 +300,11 @@ export function evaluateRenewalPlan(
       "A fresh completed query is not repeated before its freshness threshold.",
       "Incomplete provider observations are subject to the minimum retry cooldown.",
       "OSV HTTPS requests are executed only after the operator confirms this preview.",
+      ...(canonical.missingPreviousPackages && !command.allowNewPackages ?
+        ["New package identities require separate explicit operator approval."] : []),
+      ...((coverage.unmappedRows + coverage.invalidVersionRows > 0) &&
+        !command.allowIncompleteInventory ?
+        ["Incomplete inventory mappings require an explicit partial-coverage acknowledgement."] : []),
       ...(canonical.validForExecution ? [] :
         ["Renewal is blocked: resolve deferred packages, skipped packages or quota first."]),
     ],
