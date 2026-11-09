@@ -189,6 +189,7 @@ export function evaluateRenewalPlan(
   quota: {
     inspectionsRemaining: number; requestsRemaining: number;
   }, now: Date,
+  recentQueries: PreviousQuery[] = previous.queries,
 ): OsvRenewalPlan {
   assertRenewalPrevious(scope, command, previous);
   if (!Number.isFinite(now.getTime())) fail("Invalid renewal time.");
@@ -196,9 +197,18 @@ export function evaluateRenewalPlan(
     command.inspection.importId, rows,
     command.inspection.packageBindings, command.inspection.limitPackages);
   if (!coverage.allRowsAccountedFor) fail("Inconsistent inventory mappings.", "CONFLICT");
-  const prior = new Map(previous.queries.map(item => [
-    refreshPackageKey(previousToPackage(item)), previousToPackage(item),
-  ]));
+  // A selected historical source is an audit reference, not permission to
+  // bypass newer complete checks of the same package/version. Consult all
+  // recorded queries of the active inventory, then use the latest timestamp.
+  const prior = new Map<string, RefreshPackageState>();
+  for (const value of recentQueries) {
+    const item = previousToPackage(value);
+    const key = refreshPackageKey(item);
+    const current = prior.get(key);
+    if (!current || (item.checkedAt?.getTime() ?? -Infinity) >
+        (current.checkedAt?.getTime() ?? -Infinity))
+      prior.set(key, item);
+  }
   const decisions: OsvRenewalDecision[] = [];
   for (const entry of coverage.work) {
     const key = JSON.stringify([entry.ecosystem, entry.name, entry.version]);
@@ -329,6 +339,43 @@ export async function loadOsvRenewalSource(
   assertRenewalPrevious(scope, command, previous);
   return { previous, rows };
 }
+/**
+ * Read the entire bounded query history for this inventory, not merely the
+ * chosen source report. Otherwise selecting an arbitrarily old report would
+ * bypass the freshness gate and generate duplicate provider traffic.
+ *
+ * The limit is intentionally fail-closed: if the number of persisted query
+ * records exceeds the bounded search, the server rejects live renewals
+ * rather than trusting an incomplete recency analysis.
+ */
+export async function loadLatestOsvRenewalQueries(
+  scope: AssetScope, command: OsvRenewalCommand,
+): Promise<PreviousQuery[]> {
+  const rows = await db.assetOsvQueryRecord.findMany({
+    where: {
+      organizationId: scope.organizationId,
+      inspection: {
+        organizationId: scope.organizationId,
+        inventoryImportId: command.inspection.importId,
+      },
+    },
+    select: {
+      inspectionId: true, ecosystem: true, packageName: true,
+      version: true, queryKey: true, checkedAt: true,
+      providerStatus: true, observationCount: true,
+      possibleIds: true, providerOnlyIds: true,
+      withdrawnIds: true, unresolvedIds: true,
+    },
+    orderBy: [
+      { checkedAt: "desc" }, { inspectionId: "desc" },
+      { queryKey: "desc" },
+    ],
+    take: 10001,
+  });
+  if (rows.length > 10000)
+    fail("OSV renewal history exceeds bounded freshness capacity.", "CONFLICT");
+  return rows;
+}
 export async function previewOsvRenewal(
   scope: AssetScope, input: unknown, now = new Date(),
 ): Promise<OsvRenewalPlan> {
@@ -338,7 +385,8 @@ export async function previewOsvRenewal(
   const command = parseOsvRenewalCommand(input);
   const { previous, rows } = await loadOsvRenewalSource(scope, command);
   const quota = await inspectOfficialOsvQuota(scope, now, 1);
-  return evaluateRenewalPlan(scope, command, previous, rows, quota, now);
+  const recent = await loadLatestOsvRenewalQueries(scope, command);
+  return evaluateRenewalPlan(scope, command, previous, rows, quota, now, recent);
 }
 export type RenewalExecutionDeps = {
   now?: () => Date;
@@ -356,7 +404,8 @@ export async function executeOsvRenewal(
   const now = deps.now?.() ?? new Date();
   const { previous, rows } = await loadOsvRenewalSource(scope, command);
   const quota = await inspectOfficialOsvQuota(scope, now, 1);
-  const plan = evaluateRenewalPlan(scope, command, previous, rows, quota, now);
+  const recent = await loadLatestOsvRenewalQueries(scope, command);
+  const plan = evaluateRenewalPlan(scope, command, previous, rows, quota, now, recent);
   assertRenewalExecution(command, plan);
   // The persisted inspection ledger and atomic quota share the same
   // human-authorized idempotency key. The quota enforces concurrent spend.
