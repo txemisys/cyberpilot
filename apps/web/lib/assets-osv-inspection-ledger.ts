@@ -281,7 +281,10 @@ export async function persistOsvInspection(
   if (existing) return replayOsvLedger(scope, command, existing);
   // Provider calls occur outside the transaction. A long remote request
   // never holds a database lock, and its results remain read-only until commit.
-  const report = await inspectOfficialOsv(scope, command.inspection, dependencies);
+  const report = await inspectOfficialOsv(scope, command.inspection, {
+    ...dependencies,
+    quotaRequestKey: "osv-ledger-" + command.requestKey,
+  });
   assertLedgerReport(scope, command, report);
   const last = await db.assetInventoryImport.findFirst({
     where: {
