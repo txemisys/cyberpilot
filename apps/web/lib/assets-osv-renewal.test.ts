@@ -242,6 +242,41 @@ describe("OSV renewal readiness and approval digests", () => {
     expect(a.planDigest).toBe(b.planDigest);
     expect(a.generatedAt).toBe(b.generatedAt);
   });
+  it("uses newest inventory-wide provider query, not arbitrarily old source", () => {
+    const command = parseOsvRenewalCommand(input);
+    const recent = [
+      ...old.queries,
+      {
+        ...old.queries[0]!,
+        inspectionId: "more-recent-inspection-12345",
+        checkedAt: new Date("2026-11-09T11:30:00.000Z"),
+        providerStatus: "COMPLETE",
+      },
+    ];
+    const plan = evaluateRenewalPlan(org, command, old, rows,
+      { inspectionsRemaining: 10, requestsRemaining: 100 },
+      now, recent);
+    expect(plan.validForExecution).toBe(false);
+    expect(plan.decisions[0]?.classification).toBe("FRESH_COMPLETE");
+    expect(plan.deferredPackages).toBe(1);
+  });
+  it("does not let a recent failed query bypass its cooldown through an old report", () => {
+    const command = parseOsvRenewalCommand(input);
+    const recent = [
+      ...old.queries,
+      {
+        ...old.queries[0]!,
+        inspectionId: "recent-failed-query-12345",
+        checkedAt: new Date("2026-11-09T11:45:00.000Z"),
+        providerStatus: "UPSTREAM_ERROR",
+      },
+    ];
+    const plan = evaluateRenewalPlan(org, command, old, rows,
+      { inspectionsRemaining: 10, requestsRemaining: 100 },
+      now, recent);
+    expect(plan.validForExecution).toBe(false);
+    expect(plan.decisions[0]?.classification).toBe("RETRY_DEFERRED");
+  });
   it("binds authorization to package version, request key and policy", () => {
     const baseline = fixture().plan.planDigest;
     expect(fixture({
