@@ -166,6 +166,43 @@ export function AssetOsvRenewalWorkspace({
       expectedPlanDigest: planDigest,
     };
   }
+  /**
+   * Reviewed package mappings can be loaded from a local JSON file. The
+   * browser does not upload the file itself; only validated mappings are
+   * included in the eventual explicit preview request.
+   */
+  async function importBindingsFile(file: File | undefined) {
+    if (!file || busy !== "IDLE") return;
+    if (file.size > 50000) {
+      setError("OSV renewal package mappings must be under 50 KiB.");
+      return;
+    }
+    try {
+      const source = await file.text();
+      const decoded: unknown = JSON.parse(source);
+      if (!Array.isArray(decoded) || decoded.length > 100) {
+        setError("Mapping JSON must be an array of at most 100 entries.");
+        return;
+      }
+      for (const item of decoded) {
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+          setError("Each mapping must be an object.");
+          return;
+        }
+        const row = item as Record<string, unknown>;
+        if (typeof row.inventoryProduct !== "string" ||
+            typeof row.ecosystem !== "string" ||
+            typeof row.packageName !== "string") {
+          setError("Every mapping requires product, ecosystem and package name.");
+          return;
+        }
+      }
+      setBindings(JSON.stringify(decoded, null, 2));
+      reset();
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  }
   async function plan() {
     if (busy !== "IDLE" || !importId || !sourceInspectionId ||
         !bindings.trim()) return;
@@ -261,6 +298,16 @@ export function AssetOsvRenewalWorkspace({
       <button type="button" onClick={() => {
         setBindings(exampleBindings); reset();
       }}>Insert synthetic mapping example</button>
+      <label>Load reviewed JSON mapping file
+        <input type="file" accept="application/json,.json"
+          onChange={event => {
+            void importBindingsFile(event.target.files?.[0]);
+            event.target.value = "";
+          }}/>
+      </label>
+      <p>The file is parsed locally; package mappings are transmitted
+        only when requesting a preview or explicitly authorized renewal.</p>
+
       <div style={{
         display: "flex", flexWrap: "wrap", gap: 12,
       }}>
