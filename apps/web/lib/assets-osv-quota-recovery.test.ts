@@ -49,6 +49,7 @@ describe("OSV quota recovery policy", () => {
   it("never classifies young or terminal reservations as recoverable", () => {
     const old = {
       id: "reservation-12345", requestKey: "key-12345",
+      requestDigest: "a".repeat(64),
       inventoryImportId: "import-12345", state: "RESERVED",
       startedAt: new Date(now.getTime() - 3600000),
       reservedRequests: 3,
