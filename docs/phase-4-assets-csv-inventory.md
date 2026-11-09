@@ -458,3 +458,62 @@ no garantiza que no se hayan enviado páginas antes de una
 caída del proceso. No se habilita aún un scheduler,
 automatización sin consentimiento, circuit breaker
 compartido ni distribución externa de cuotas.
+
+## Octavo incremento: renovación controlada de inspecciones OSV
+
+La nueva ruta `POST /api/organizations/{slug}/assets/osv-renewal`
+implementa dos operaciones explícitas: `dryRun:true` crea
+un informe de elegibilidad sin consultar al proveedor ni
+reservar cuota, y `dryRun:false` ejecuta una renovación
+aprobada cuyo digest corresponda al plan presentado.
+
+El contrato `assets-osv-renewal.ts` exige seleccionar una
+inspección histórica del mismo tenant y snapshot activo,
+proporcionar nuevamente las equivalencias de paquetes
+aprobadas y conservar una clave de idempotencia. Se valida
+el recuento integral de filas de inventario y la cobertura
+de consultas de la inspección histórica.
+
+La aprobación queda ligada por SHA-256 al snapshot, inspección
+de origen, digest del informe previo, clave idempotente, versión
+y ecosistema de cada paquete, límites, política de frescura
+y autorizaciones adicionales. El instante de la vista previa
+y los contadores variables de cuota se recalculan en la
+ejecución; la previsualización no reserva capacidad.
+
+**Frescura efectiva:** la evaluación busca las consultas más
+recientes registradas en todas las inspecciones del mismo
+inventario, no solo en la fuente histórica seleccionada.
+Esto impide eludir el intervalo de frescura seleccionando
+deliberadamente una inspección antigua. También se respeta
+el cooldown de las respuestas fallidas. Si hay más de
+10.000 registros históricos en esa evaluación, se bloquea
+con cobertura desconocida.
+
+Los paquetes que no figuraban en la inspección anterior
+requieren autorización adicional `allowNewPackages`; las
+filas de inventario sin equivalencia o con versión ambigua
+requieren `allowIncompleteInventory`. Un paquete reciente,
+un error durante cooldown, una fecha futura, consulta omitida
+por presupuesto o agotamiento de cuota impiden ejecutar.
+El informe enumera cada bloqueo para facilitar revisión.
+
+La ejecución utiliza el ledger existente, conserva el
+resultado histórico e intenta calcular el delta de avisos
+frente a la inspección anterior. Si falla una comparación
+posterior al guardado, el informe ya almacenado conserva su
+identidad; la aplicación no repite consultas de red
+simplemente para producir un delta.
+
+La UI `asset-osv-renewal-workspace.tsx` permite seleccionar
+inventario e inspección, cargar mapeos revisados desde JSON
+local limitado, configurar frescura y cooldown, ver todas
+las decisiones y advertencias, autorizar aparte el envío
+a OSV.dev y revisar el informe resultante.
+
+**Este bloque no activa un scheduler automático.** Las
+renovaciones se inician expresamente por un administrador,
+consume cuota atómica y mantienen su estado en el ledger
+de evidencias declaradas. Las diferencias OSV no acreditan
+parcheado, seguridad del endpoint, reducción del riesgo,
+explotación ni resultado del CyberScore.
