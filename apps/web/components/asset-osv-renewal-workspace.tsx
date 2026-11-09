@@ -24,6 +24,8 @@ type RenewalPlan = {
   maximumHttpPages: number; capacityAvailable: boolean;
   quotaInspectionsRemaining: number; quotaRequestsRemaining: number;
   decisions: RenewalDecision[]; validForExecution: boolean;
+  newPackagesApproved: boolean;
+  partialInventoryApproved: boolean;
   planDigest: string; warnings: string[];
 };
 type RenewalDelta = {
@@ -106,6 +108,8 @@ export function AssetOsvRenewalWorkspace({
   const [limitPackages, setLimitPackages] = useState(5);
   const [includeIncomplete, setIncludeIncomplete] = useState(true);
   const [confirmed, setConfirmed] = useState(false);
+  const [allowNewPackages, setAllowNewPackages] = useState(false);
+  const [allowIncompleteInventory, setAllowIncompleteInventory] = useState(false);
   const [preview, setPreview] = useState<RenewalPlan | null>(null);
   const [outcome, setOutcome] = useState<RenewalOutcome | null>(null);
   const [requestKey, setRequestKey] = useState("");
@@ -157,6 +161,7 @@ export function AssetOsvRenewalWorkspace({
         historyWindowDays: 90, includeIncomplete,
       },
       dryRun, confirmOutbound: !dryRun,
+      allowNewPackages, allowIncompleteInventory,
       expectedPlanDigest: planDigest,
     };
   }
@@ -290,6 +295,22 @@ export function AssetOsvRenewalWorkspace({
           }}/>
         Permit retry of incomplete provider responses after cooldown
       </label>
+      <label>
+        <input type="checkbox" checked={allowNewPackages}
+          onChange={event => {
+            setAllowNewPackages(event.target.checked); reset();
+          }}/>
+        I explicitly approve querying new package/version identities not
+        present in the historical OSV inspection.
+      </label>
+      <label>
+        <input type="checkbox" checked={allowIncompleteInventory}
+          onChange={event => {
+            setAllowIncompleteInventory(event.target.checked); reset();
+          }}/>
+        I acknowledge that unmapped or ambiguous inventory rows will
+        remain UNKNOWN rather than being considered vulnerability-free.
+      </label>
       <button type="button" disabled={!importId ||
         !sourceInspectionId || !bindings.trim()}
         onClick={() => void plan()}>
@@ -318,6 +339,13 @@ export function AssetOsvRenewalWorkspace({
         <Metric label="Available daily request pages"
           value={preview.quotaRequestsRemaining}/>
       </div>
+      {(preview.missingPreviousPackages > 0 && !preview.newPackagesApproved) &&
+        <p role="alert">New package identities require explicit opt-in above,
+          followed by a fresh preview.</p>}
+      {(preview.unboundRows + preview.invalidVersionRows > 0 &&
+        !preview.partialInventoryApproved) &&
+        <p role="alert">Incomplete inventory mapping requires explicit
+          acknowledgment above before renewal.</p>}
       {preview.decisions.map(item =>
         <Decision key={item.packageKey} value={item}/>)}
       <details>
