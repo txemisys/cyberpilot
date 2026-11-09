@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import { db } from "@cyberpilot/database";
+import {
+  createOsvQuotaCommand, reserveOfficialOsvQuota,
+  settleOfficialOsvQuota,
+} from "./assets-osv-atomic-quota";
 import { canManageWork, parseWorkId, WorkInputError } from "./remediation-work-input";
 import { parsePackageBindings } from "./assets-osv-correlation";
 import type { PackageBinding } from "./assets-osv-correlation";
@@ -279,6 +283,7 @@ export type OfficialOsvFetchDependencies = {
   query?: typeof queryOfficialOsv;
   now?: () => Date;
   clientOptions?: LiveOsvClientOptions;
+  quotaRequestKey?: string;
 };
 export async function inspectOfficialOsv(
   scope: AssetScope, input: unknown,
@@ -318,19 +323,47 @@ export async function inspectOfficialOsv(
     throw new WorkInputError("CONFLICT", "Inventory mapping coverage inconsistent.");
   if (command.dryRun)
     return buildOfficialOsvInspectionReport(scope, command, plan, [], now);
+  // Reserve the worst-case number of HTTP pages before ANY upstream call.
+  // A denied quota cannot reach the provider, including via direct API calls.
+  if (plan.selectedPackages === 0)
+    return buildOfficialOsvInspectionReport(
+      scope, command, plan, [], dependencies.now?.() ?? new Date());
+  const quotaCommand = createOsvQuotaCommand(
+    scope.organizationId, command.importId, plan.selectedPackages,
+    command.maxPagesPerPackage, dependencies.quotaRequestKey);
+  const reservation = await reserveOfficialOsvQuota(scope, quotaCommand,
+    dependencies.now?.() ?? new Date());
+  if (reservation.replayed)
+    throw new WorkInputError("CONFLICT",
+      "An OSV provider query with this reservation key was already started; retry through the inspection ledger.");
   const results: OfficialOsvPackageResult[] = [];
-  for (const work of plan.work) {
-    const provider = await (dependencies.query ?? queryOfficialOsv)({
-      ecosystem: work.ecosystem, name: work.name, version: work.version,
-      expectedPurl: work.expectedPurl,
-    }, {
-      ...dependencies.clientOptions,
-      maxPages: command.maxPagesPerPackage,
-      maxRecords: command.maxRecordsPerPackage,
-    });
-    results.push(interpretOfficialOsvResult(work, provider,
-      command.maxAgeMinutes, dependencies.now?.() ?? new Date()));
+  let actualPages = 0;
+  let outcome: "FINISHED" | "FAILED" = "FAILED";
+  try {
+    for (const work of plan.work) {
+      const provider = await (dependencies.query ?? queryOfficialOsv)({
+        ecosystem: work.ecosystem, name: work.name, version: work.version,
+        expectedPurl: work.expectedPurl,
+      }, {
+        ...dependencies.clientOptions,
+        maxPages: command.maxPagesPerPackage,
+        maxRecords: command.maxRecordsPerPackage,
+      });
+      actualPages += provider.queriedPages;
+      if (actualPages > reservation.reservedRequests)
+        throw new WorkInputError("CONFLICT",
+          "OSV provider used more HTTP pages than its atomic quota reservation.");
+      results.push(interpretOfficialOsvResult(work, provider,
+        command.maxAgeMinutes, dependencies.now?.() ?? new Date()));
+    }
+    const report = buildOfficialOsvInspectionReport(
+      scope, command, plan, results, dependencies.now?.() ?? new Date());
+    outcome = "FINISHED";
+    return report;
+  } finally {
+    // Preserve the reservation even if a worker crashes between network and
+    // settlement. The budget is never automatically refunded.
+    await settleOfficialOsvQuota(scope, reservation, outcome,
+      actualPages, dependencies.now?.() ?? new Date());
   }
-  return buildOfficialOsvInspectionReport(
-    scope, command, plan, results, dependencies.now?.() ?? new Date());
 }
