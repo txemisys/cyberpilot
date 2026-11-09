@@ -234,6 +234,25 @@ describe("OSV renewal readiness and approval digests", () => {
     expect(plan.unreviewedPackages).toBe(1);
     expect(plan.validForExecution).toBe(false);
   });
+  it("reports actionable reasons for stale plans and insufficient quota", () => {
+    const freshness = fixture({}, {
+      queries: [{ ...old.queries[0]!,
+        checkedAt: new Date("2026-11-09T11:59:00.000Z"),
+      }],
+    }).plan;
+    expect(freshness.blockingReasons.join(" ")).toMatch(/fresh/i);
+    const quota = fixture({}, {}, rows, {
+      inspectionsRemaining: 1, requestsRemaining: 0,
+    }).plan;
+    expect(quota.blockingReasons.join(" ")).toMatch(/quota/i);
+  });
+  it("blocks renewing a source with a completion timestamp in the future", () => {
+    const plan = fixture({}, {
+      completedAt: new Date("2026-11-11T12:00:00.000Z"),
+    }).plan;
+    expect(plan.validForExecution).toBe(false);
+    expect(plan.blockingReasons.join(" ")).toMatch(/future/i);
+  });
   it("blocks execution if an atomic quota counter is exhausted", () => {
     const { plan } = fixture({}, {}, rows, {
       inspectionsRemaining: 0, requestsRemaining: 100,
