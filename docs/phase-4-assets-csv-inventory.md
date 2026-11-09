@@ -385,3 +385,76 @@ concurrente garantizada, eliminación de avisos con
 fines de cumplimiento, notificaciones por cambio y
 atestación de remediaciones mediante agentes o
 fuentes autorizadas de endpoint.
+
+## Séptimo incremento: cuotas atómicas y reservas OSV con recuperación auditada
+
+Las llamadas remotas del servicio oficial OSV ahora pasan por
+`assets-osv-atomic-quota.ts`, integrado en `inspectOfficialOsv`.
+El contrato define un presupuesto real, por organización y día
+UTC, predeterminado a 20 inspecciones y 200 páginas HTTP
+reservadas por día. Los máximos operativos son fijos en servidor
+y no pueden ampliarse por parámetros de la petición pública.
+Cada ejecución reserva antes de tocar la red el peor caso
+`paquetesSeleccionados × maxPagesPerPackage`, con límite de 60
+páginas reservadas por inspección. El preview `dryRun:true`
+no reserva ni contacta al proveedor.
+
+La migración
+`20261109113000_osv_atomic_quota_reservations` introduce
+`AssetOsvQuotaDay` y `AssetOsvQuotaReservation`. El contador
+diario posee una clave única `(organizationId, utcDay)`;
+las reservas tienen clave única por organización y requestKey.
+El servicio incrementa ambos contadores mediante una única
+operación condicional `UPDATE ... WHERE` de PostgreSQL
+dentro de una transacción. Si no hay presupuesto, la transacción
+no crea una reserva y se rechaza la consulta antes del fetch.
+
+El límite se aplica tanto a la API de consulta directa como
+a la API de inspecciones persistidas. La ruta del historial
+utiliza una clave de reserva vinculada a la idempotencia del
+comando, para que una ejecución concurrente con la misma
+identidad no pueda realizar un segundo fetch.
+
+Después del trabajo, la reserva pasa a `FINISHED` o `FAILED`,
+con el número de páginas comunicado por el cliente. La cuota
+reservada **no se devuelve**, ni siquiera ante fallo; eso
+evita afirmar que un paquete HTTP nunca alcanzó al proveedor.
+Una interrupción del proceso puede dejar una reserva abierta.
+
+Las nuevas rutas administrativas:
+- `GET /api/organizations/{slug}/assets/osv-quota`:
+  presupuesto, consumo atómico, reservas y estados sin
+  exponer datos de otras organizaciones.
+- `GET /api/organizations/{slug}/assets/osv-quota-recovery`:
+  previsualización read-only de reservas sin liquidar y
+  evaluación de antigüedad mínima.
+- `POST /api/organizations/{slug}/assets/osv-quota-recovery`:
+  clasificación manual de un resultado desconocido como
+  `UNKNOWN`, con ID confirmado dos veces, digest esperado,
+  explicación suficientemente detallada, edad mínima y
+  AuditEvent transaccional.
+
+La recuperación no devuelve cuota, no vuelve a consultar
+OSV ni cambia evidencias. Una clasificación `UNKNOWN`
+repetida se trata idempotentemente y no duplica el AuditEvent.
+No se permite reescribir los estados terminales `FINISHED`
+o `FAILED`.
+
+La interfaz de Assets ofrece contadores de cuota,
+diagnóstico de reservas y proceso de revisión asistido
+con confirmación explícita y huellas verificables.
+
+Las pruebas PostgreSQL ejercitan concurrencia con dos
+reservas, rechazo tras agotamiento, bloqueo del fetch real
+del servicio, replay, separación de organizaciones,
+aislamiento entre días UTC, liquidación sin reembolso,
+recuperación de una reserva antigua y auditoría.
+
+**Limitaciones explícitas:** el contador limita solo las
+consultas realizadas a través de este servicio y base de
+datos compartida; otros clientes que utilicen OSV.dev no
+consumen estas reservas. Una reserva temporal `RESERVED`
+no garantiza que no se hayan enviado páginas antes de una
+caída del proceso. No se habilita aún un scheduler,
+automatización sin consentimiento, circuit breaker
+compartido ni distribución externa de cuotas.
