@@ -11,6 +11,7 @@ export type OsvQuotaRecoveryPolicy = {
 export type OsvStalledReservation = {
   id: string;
   requestKey: string;
+  requestDigest: string;
   inventoryImportId: string;
   startedAt: string;
   ageMinutes: number;
@@ -116,8 +117,9 @@ export function parseOsvQuotaRecoveryCommand(
 }
 export function assessStalledReservation(
   row: {
-    id: string; requestKey: string; inventoryImportId: string;
-    state: string; startedAt: Date; reservedRequests: number;
+    id: string; requestKey: string; requestDigest: string;
+    inventoryImportId: string; state: string; startedAt: Date;
+    reservedRequests: number;
   }, now: Date, thresholdMinutes: number,
 ): OsvStalledReservation {
   const age = (now.getTime() - row.startedAt.getTime()) / 60000;
@@ -126,6 +128,7 @@ export function assessStalledReservation(
     valid && age >= thresholdMinutes;
   return {
     id: row.id, requestKey: row.requestKey,
+    requestDigest: row.requestDigest,
     inventoryImportId: row.inventoryImportId,
     startedAt: row.startedAt.toISOString(),
     ageMinutes: valid ? Math.floor(age) : -1,
@@ -155,7 +158,8 @@ export async function previewOsvQuotaRecovery(
     orderBy: [{ startedAt: "asc" }, { id: "asc" }],
     take: policy.maximumListed + 1,
     select: {
-      id: true, requestKey: true, inventoryImportId: true,
+      id: true, requestKey: true, requestDigest: true,
+      inventoryImportId: true,
       state: true, startedAt: true, reservedRequests: true,
     },
   });
