@@ -185,6 +185,44 @@ describe("OSV renewal readiness and approval digests", () => {
     expect(plan.missingPreviousPackages).toBe(1);
     expect(plan.decisions[0]?.classification).toBe("NEW_PACKAGE");
   });
+  it("requires explicit new-package consent for identities absent from source", () => {
+    const newRows = [{
+      ...rows[0]!, softwareVersion: "2.0.0",
+    }];
+    const blocked = fixture({}, {}, newRows).plan;
+    expect(blocked.missingPreviousPackages).toBe(1);
+    expect(blocked.validForExecution).toBe(false);
+    const permitted = fixture({
+      allowNewPackages: true,
+    } as Partial<typeof input>, {}, newRows).plan;
+    expect(permitted.newPackagesApproved).toBe(true);
+    expect(permitted.validForExecution).toBe(true);
+    expect(permitted.planDigest).not.toBe(blocked.planDigest);
+  });
+  it("requires a separate acknowledgement for ambiguous inventory coverage", () => {
+    const mixed = [...rows, {
+      ...rows[0]!, externalId: "unmapped-id",
+      softwareName: "Unknown Product",
+      normalizedProductKey: "unknown product",
+    }];
+    const blocked = fixture({}, {}, mixed).plan;
+    expect(blocked.unboundRows).toBe(1);
+    expect(blocked.validForExecution).toBe(false);
+    const allowed = fixture({
+      allowIncompleteInventory: true,
+    } as Partial<typeof input>, {}, mixed).plan;
+    expect(allowed.partialInventoryApproved).toBe(true);
+    expect(allowed.validForExecution).toBe(true);
+    expect(allowed.planDigest).not.toBe(blocked.planDigest);
+  });
+  it("rejects invalid types for extra human approval flags", () => {
+    expect(() => parseOsvRenewalCommand({
+      ...input, allowNewPackages: "yes",
+    })).toThrow();
+    expect(() => parseOsvRenewalCommand({
+      ...input, allowIncompleteInventory: "true",
+    })).toThrow();
+  });
   it("conservatively blocks partially selected package sets", () => {
     const nextRows = [
       ...rows, { ...rows[0]!, externalId: "asset-abc",
