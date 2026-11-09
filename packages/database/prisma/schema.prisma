@@ -239,6 +239,8 @@ model Organization {
   assetInventoryDevices     AssetInventoryDevice[]
   assetOsvInspections       AssetOsvInspection[]
   assetOsvQueries           AssetOsvQueryRecord[]
+  assetOsvQuotaDays         AssetOsvQuotaDay[]
+  assetOsvReservations      AssetOsvQuotaReservation[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -1075,4 +1077,44 @@ model AssetOsvQueryRecord {
   @@unique([inspectionId, queryKey])
   @@index([organizationId, ecosystem, packageName, version])
   @@index([organizationId, inspectionId])
+}
+
+/** Per-tenant UTC-day hard reservation counters. Reservations are charged
+ * before outbound network requests and are never refunded automatically. */
+model AssetOsvQuotaDay {
+  id String @id @default(cuid())
+  organizationId String
+  utcDay DateTime @db.Date
+  inspectionLimit Int @default(20)
+  requestLimit Int @default(200)
+  inspectionsReserved Int @default(0)
+  requestsReserved Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reservations AssetOsvQuotaReservation[]
+  @@unique([organizationId, utcDay])
+  @@index([organizationId, updatedAt])
+}
+
+/** Append-only reservation journal: failure still consumes conservatively
+ * the reserved request budget because the provider may have received it. */
+model AssetOsvQuotaReservation {
+  id String @id @default(cuid())
+  organizationId String
+  quotaDayId String
+  requestKey String
+  requestDigest String @db.VarChar(64)
+  inventoryImportId String
+  reservedRequests Int
+  state String @default("RESERVED")
+  actualRequests Int @default(0)
+  errorCode String?
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  quotaDay AssetOsvQuotaDay @relation(fields: [quotaDayId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, requestKey])
+  @@index([organizationId, startedAt])
+  @@index([quotaDayId, state])
 }
