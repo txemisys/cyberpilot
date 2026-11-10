@@ -144,7 +144,7 @@ function number(input: unknown, key: string, lo: number, hi: number) {
 }
 function id(input: unknown, label: string) {
   if (typeof input !== "string" ||
-      !/^[a-zA-Z0-9_-]{5,150}$/.test(input))
+      !/^[a-zA-Z0-9_-]{8,150}$/.test(input))
     invalid("Invalid " + label + ".");
   return input;
 }
