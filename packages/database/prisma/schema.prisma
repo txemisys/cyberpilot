@@ -244,6 +244,7 @@ model Organization {
   assetOsvSchedules         AssetOsvRenewalSchedule[]
   assetOsvScheduleRuns      AssetOsvRenewalRun[]
   assetOsvDispatchNonces    AssetOsvDispatchNonce[]
+  assetOsvDispatchAlerts    AssetOsvDispatchAlert[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -1194,4 +1195,34 @@ model AssetOsvDispatchNonce {
   @@unique([organizationId, nonceDigest])
   @@index([organizationId, acceptedAt])
   @@index([organizationId, expiresAt])
+}
+
+/** Operator-triaged, tenant-scoped OSV scheduler alert.
+ * An ACKNOWLEDGED alert is not a resolved provider incident. */
+model AssetOsvDispatchAlert {
+  id String @id @default(cuid())
+  organizationId String
+  code String @db.VarChar(80)
+  subjectKey String @db.VarChar(100)
+  severity String
+  state String @default("OPEN")
+  revision Int @default(1)
+  firstSeenAt DateTime
+  lastSeenAt DateTime
+  observedCount Int @default(1)
+  evidenceDigest String @db.VarChar(64)
+  evidence Json
+  acknowledgementReason String?
+  acknowledgedByUserId String?
+  acknowledgedAt DateTime?
+  resolutionReason String?
+  resolvedByUserId String?
+  resolvedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, code, subjectKey])
+  @@index([organizationId, state, lastSeenAt])
+  @@index([organizationId, severity, lastSeenAt])
+  @@index([organizationId, createdAt])
 }
