@@ -164,7 +164,10 @@ function evaluateCase(row: CaseRow, evidence: ReturnType<
   const issues: string[] = [];
   const next: string[] = [];
   const fingerprintsMatch = !!evidence &&
-    row.evidenceFingerprint === evidence.evidenceFingerprint;
+    row.evidenceFingerprint === evidence.evidenceFingerprint &&
+    row.category === evidence.status &&
+    row.priority === evidence.priority &&
+    row.softwareVersion === evidence.version;
   const sourceConsistent =
     row.organizationId === dataset.organizationId &&
     row.importId === dataset.snapshot.importId &&
