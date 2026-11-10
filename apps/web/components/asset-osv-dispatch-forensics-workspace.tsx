@@ -40,6 +40,18 @@ type Report = {
     unresolvedQuotas: number;
   };
   reportDigest: string; warnings: string[];
+  verification?: {
+    validForInternalReview: boolean;
+    fingerprintValid: boolean;
+    nodeDigestsValid: boolean;
+    referencesValid: boolean;
+    summaryValid: boolean;
+    orderingValid: boolean;
+    completeWithinWindow: boolean;
+    checkedNodes: number;
+    issues: string[];
+    warnings: string[];
+  };
   liveProviderVerified: false; changesCommitted: false;
   networkRequestsMade: 0; findingsModified: false;
 };
@@ -284,6 +296,37 @@ export function AssetOsvDispatchForensicsWorkspace({
         Network requests made: 0.
         Application records modified: NO.
         Endpoint findings modified: NO.</p>
+      {report.verification && <section>
+        <h3>Independent local integrity checks</h3>
+        <p>Internal consistency:
+          {" "}<strong>{report.verification.validForInternalReview ?
+            "VERIFIED WITHIN WINDOW" : "NOT VERIFIED"}</strong>.
+          Nodes checked: {report.verification.checkedNodes}.</p>
+        <ul>
+          <li>Canonical fingerprint: {report.verification.fingerprintValid ?
+            "PASS" : "FAIL"}</li>
+          <li>Individual record digests: {report.verification.nodeDigestsValid ?
+            "PASS" : "FAIL"}</li>
+          <li>Graph references: {report.verification.referencesValid ?
+            "PASS" : "FAIL"}</li>
+          <li>Summary and ordering: {
+            report.verification.summaryValid &&
+            report.verification.orderingValid ? "PASS" : "FAIL"}</li>
+          <li>Collection completeness: {
+            report.verification.completeWithinWindow ? "PASS" : "FAIL"}</li>
+        </ul>
+        {report.verification.issues.length > 0 &&
+          <div role="alert">
+            <p>Evidence integrity warnings:</p>
+            <ul>{report.verification.issues.map((issue, index) =>
+              <li key={index}>{issue}</li>)}</ul>
+          </div>}
+        <details>
+          <summary>Fingerprint verification limitations</summary>
+          <ul>{report.verification.warnings.map((warning, index) =>
+            <li key={index}>{warning}</li>)}</ul>
+        </details>
+      </section>}
       <h3>Operational anomalies</h3>
       <label>Severity
         <select value={severity}
