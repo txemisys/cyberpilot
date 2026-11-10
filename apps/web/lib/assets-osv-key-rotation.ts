@@ -277,7 +277,20 @@ export function inspectRotationInventory(
   if (!Number.isFinite(now.getTime()))
     invalid("Invalid rotation inventory evaluation time.");
   const keys = config.keys.filter(key => key.organizationId === orgId)
-    .map(key => inspectRotationKey(key, now, policy))
+    .map(key => {
+      const status = inspectRotationKey(key, now, policy);
+      if (!config.enabled) return {
+        ...status,
+        currentlyAccepting: false,
+        acceptsAtActivation: false,
+        acceptsAtRetirement: false,
+        observations: [
+          ...status.observations,
+          "Dispatcher is disabled; no configured key is accepting dispatches.",
+        ],
+      };
+      return status;
+    })
     .sort((a, b) => a.id.localeCompare(b.id));
   return {
     schema: "cyberpilot.assets.osv.rotation.inventory.v1",
