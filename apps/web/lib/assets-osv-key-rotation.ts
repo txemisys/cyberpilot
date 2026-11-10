@@ -364,8 +364,8 @@ export function evaluateRotationPlan(
     reasons.push("Too many simultaneously active keys at cutover.");
   if (activeAtRetirement < 1)
     reasons.push("No replacement key would be active after retirement.");
-  if (simulated.find(x => x.id === input.retiringKeyId)?
-      .acceptsAtRetirement)
+  if (simulated.find(x => x.id === input.retiringKeyId)
+      ?.acceptsAtRetirement)
     reasons.push("Retiring key still accepts requests after cutover.");
   if (policy.requireZeroOutstandingClaims && outstandingClaims > 0)
     reasons.push("Unsettled claims must be investigated before rotating.");
