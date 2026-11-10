@@ -1027,3 +1027,98 @@ El desarrollo y la aceptación offline no necesitan tenants de
 Google Workspace ni Microsoft 365 ni consultas LIVE de OSV.dev.
 Pendiente aceptación manual representativa, política de retención
 y las validaciones externas que sí requieren credenciales reales.
+
+## Ronda doble CC: aceptación de producto y preparación de privacidad (10/11/2026)
+
+### C1 — Aceptación offline trazable y sin terceros
+
+El motor assets-offline-acceptance.ts evalúa el recorrido completo entre
+inventario CSV declarado, inspección OSV guardada, candidaturas,
+casos de revisión humana, pasos, procedencia y auditoría. No realiza
+ninguna consulta a OSV.dev ni contactos con tenants externos.
+
+Se introducen condiciones explícitas de bloqueo o advertencia para:
+integridad de todos los registros del inventario, completitud del
+proveedor, cobertura del mapeo producto-paquete independiente de la
+exactitud de la versión, no elevación del no-match a seguridad,
+reconciliación de digests, unicidad de casos, estados de revisión,
+checklists y auditoría de apertura. Cada puerta de aceptación explica
+sus datos, recursos afectados y límites.
+
+El servicio assets-offline-acceptance-service.ts exige ADMIN/OWNER,
+asocia por organizationId el inventario y su inspección, lee todos
+los casos hasta un límite configurado y busca auditorías específicas
+de apertura. Un conjunto truncado provoca CONFLICT. No hay
+mutaciones de base de datos, modificaciones de CyberScore ni
+cambios del ciclo de vida de SecurityFinding.
+
+assets-offline-acceptance-verification.ts comprueba, de manera
+independiente, el digest SHA-256 del informe, la presencia de todas
+las condiciones obligatorias, conteos, unicidad, origen y ausencia
+de efectos externos. No es autenticación criptográfica del productor.
+La API POST /api/organizations/{slug}/assets/offline-acceptance
+rechaza informes que fallen la verificación estructural.
+AssetOfflineAcceptanceWorkspace ofrece una consola de aceptación
+local con explicación por caso, filtros y exportación JSON.
+
+Incluso cuando los checks de este motor no bloquean,
+manualAcceptanceStillRequired sigue siendo true. Un resultado
+ELIGIBLE no equivale a una aprobación operativa ni autoriza fusión.
+
+### C2 — Preparación de retención, privacidad y borrado controlado
+
+assets-privacy-readiness.ts y assets-privacy-readiness-service.ts
+inspeccionan toda la colección acotada de snapshots de la
+organización y generan una evaluación de tratamiento de datos
+potencialmente personales. Agrupan registros por snapshot
+para medir hostnames, ownerHash, inspecciones históricas, casos
+humanos, schedules y auditoría relacionada.
+
+Los hashes de propietario son seudonimización, no
+anonimización. Los hostnames pueden identificar personas.
+La edad de los snapshots, los casos no resueltos y la
+persistencia de evidencia se consideran señales de revisión;
+ninguna señal establece por sí misma base legal, tratamiento
+adecuado o eliminación de copias.
+
+Se implementan controles sobre retención, integridad del
+inventario, antigüedad, PII, datos históricos, trazabilidad
+de auditoría, dependencias de borrado y backups. El sistema
+no acepta que la desactivación de un control de revisión
+equivalga a una aprobación. Se presenta el procedimiento
+CLASSIFY, APPROVE, RETIRE, VERIFY, PURGE, BACKUP_REVIEW, CLOSE,
+cada etapa con revisión humana y evidencia esperada.
+
+La API POST /api/organizations/{slug}/assets/privacy-readiness
+requiere ADMIN/OWNER y límites de tamaño; no realiza cambios.
+El panel AssetPrivacyReadinessWorkspace permite configurar
+umbrales, revisar evidencia por importación, identificar
+dependencias y exportar la evaluación. La eliminación real
+requiere la operación de purge separada, autorizada y
+auditable, que no se invoca desde estas herramientas.
+
+La propiedad backupDeletionVerified es siempre false:
+una operación PostgreSQL no demuestra eliminación de
+copias de seguridad, exportaciones o réplicas externas.
+No se emite aprobación legal automática.
+
+### Pruebas y aceptación
+
+Los tests cubren estados completos e incompletos, mapeos
+faltantes incluso con versiones UNKNOWN, fingerprints
+inconsistentes, revisión sin auditoría, casos completados
+con pasos pendientes, fuentes de otro tenant, límites
+de evaluación y políticas explícitas.
+
+La integración PostgreSQL comprueba lectura aislada,
+bloqueo previo a revisar un candidato OSV, casos auditados,
+ausencia de escrituras durante la evaluación y señales
+seudonimizadas sin revelar nombres de host u owner originales.
+
+**Pendientes reales:** ejecución manual documentada
+de escenarios de aceptación representativos, aprobación
+de política de conservación y privacidad por el operador,
+validación de eliminación/retención de backups y las
+integraciones LIVE todavía excluidas de esta fase
+offline. La fusión del PR #211 permanece sujeta a
+la aceptación de producto y a todos los workflows.
