@@ -7,7 +7,7 @@ import {
 import {
   configuredDispatchKeys,
 } from "../../../../../../lib/assets-osv-signed-dispatch";
-import { WorkInputError } from "../../../../../../lib/remediation-work-input";
+import { WorkInputError, canManageWork } from "../../../../../../lib/remediation-work-input";
 
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
@@ -55,8 +55,6 @@ async function body(request: NextRequest) {
 export async function GET(_request: NextRequest, { params }: Context) {
   try {
     const tenant = await scope((await params).slug);
-    const { canManageWork } = await import(
-      "../../../../../../lib/remediation-work-input");
     if (!canManageWork(tenant.role))
       throw new WorkInputError("FORBIDDEN",
         "Key rotation inventory requires admin access.");
