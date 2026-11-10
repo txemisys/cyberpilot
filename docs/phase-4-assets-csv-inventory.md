@@ -961,3 +961,69 @@ validación real del proveedor. Las pruebas
 no acreditan remediación, exposición efectiva,
 explotabilidad ni seguridad de un dispositivo,
 y no modifican CyberScore ni findings.
+
+## Ronda doble CC: guías trazables y seguimiento humano
+
+### C1 — Orientaciones a partir de evidencia persistida
+
+El motor assets-action-guidance.ts transforma un inventario CSV
+COMMITTED y una inspección OSV almacenada del mismo tenant en propuestas
+de investigación por activo y producto. La API POST
+/api/organizations/{slug}/assets/action-guidance exige los dos
+identificadores y un mapeo explícito producto-paquete. El servicio
+assets-action-guidance-service.ts verifica que la inspección pertenece
+al inventario solicitado, compara los contadores de PostgreSQL con
+los datos íntegros y rechaza colecciones truncadas.
+
+Las categorías son REVIEW_POSSIBLE_ADVISORY,
+REVIEW_PROVIDER_UNCERTAINTY, REVIEW_SOURCE_INTEGRITY,
+REVIEW_MISSING_MAPPING, REVIEW_UNKNOWN_VERSION,
+REVIEW_STALE_OBSERVATION y NO_POSITIVE_MATCH_IN_SCOPED_INSPECTION.
+La igualdad exacta de paquete y versión con la respuesta OSV guardada
+permite proponer revisión, NO constatar exposición del endpoint.
+Los IDs withdrawn, unresolved y provider-only se conservan por
+separado; las respuestas incompletas y versiones ambiguas no se
+presentan como ausencia de riesgo.
+
+Cada candidato incluye la procedencia, digests, categoría,
+justificación, checklist de acciones humanas y SHA-256 estable.
+El informe se pagina y filtra sin presentar cobertura parcial como
+completa. AssetActionGuidanceWorkspace ofrece exportación local,
+revisión de fuentes y limitaciones. La evaluación no consulta
+proveedores, no escribe findings ni modifica CyberScore.
+
+### C2 — Casos persistentes de revisión con checklist y auditoría
+
+AssetAdviceCase y AssetAdviceCaseStep registran trabajo humano
+sobre candidatos, separados de SecurityFinding y Remediation.
+La migración 20261110181000_asset_advice_cases añade unicidad por
+organización/inspección/activo/producto, revisiones e índices.
+La API GET/POST/PATCH/PUT
+/api/organizations/{slug}/assets/action-cases admite consulta
+paginada, apertura contra el fingerprint recomputado en servidor,
+transición CAS y actualización auditada de pasos. Mutaciones
+solo ADMIN/OWNER; lecturas limitadas a la organización.
+
+El ciclo OPEN -> IN_REVIEW -> WORK_COMPLETED admite DISMISSED
+documentado y REOPEN. WORK_COMPLETED requiere que todos los
+pasos humanos estén DONE y documentados. Los eventos de auditoría
+se escriben en la misma transacción que las mutaciones; una
+apertura repetida con idéntica evidencia no duplica casos.
+AssetActionCaseWorkspace expone casos, filtros, checklists,
+notas y decisiones.
+
+DONE y WORK_COMPLETED acreditan solamente trabajo humano
+documentado; NO prueban aplicación de parches, exposición,
+protección o remediación. Las decisiones no afectan CyberScore,
+SecurityFinding, Remediation, cuotas OSV ni inspecciones guardadas.
+
+### Aceptación
+
+Se incorporan pruebas unitarias de categorías, integridad,
+idempotencia, transiciones y permisos, además de integración
+PostgreSQL de aislamiento tenant, apertura, progreso, auditoría,
+reapertura y ausencia de mutaciones de hallazgos.
+El desarrollo y la aceptación offline no necesitan tenants de
+Google Workspace ni Microsoft 365 ni consultas LIVE de OSV.dev.
+Pendiente aceptación manual representativa, política de retención
+y las validaciones externas que sí requieren credenciales reales.
