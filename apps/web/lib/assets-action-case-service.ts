@@ -325,7 +325,11 @@ export async function openAssetAdviceCase(
       warning: "Existing review was returned; no duplicate case or audit was created.",
     };
   }
-  const created = await db.$transaction(async tx => {
+  let created: Awaited<ReturnType<typeof db.assetAdviceCase.findFirst<{
+    include: { steps: true };
+  }>>>;
+  try {
+    created = await db.$transaction(async tx => {
     const row = await tx.assetAdviceCase.create({ data: {
       organizationId: scope.organizationId,
       importId: command.importId,
@@ -369,7 +373,31 @@ export async function openAssetAdviceCase(
       },
     } });
     return row;
-  });
+    });
+  } catch (cause) {
+    if (cause && typeof cause === "object" &&
+        "code" in cause && cause.code === "P2002") {
+      const duplicate = await db.assetAdviceCase.findFirst({
+        where: {
+          organizationId: scope.organizationId,
+          inspectionId: command.inspectionId,
+          externalId: chosen.assetId,
+          normalizedProductKey: chosen.normalizedProductKey,
+        }, include: { steps: true },
+      });
+      if (duplicate &&
+          duplicate.evidenceFingerprint === chosen.evidenceFingerprint)
+        return {
+          schema: "cyberpilot.assets.advice.case.open.v1" as const,
+          replayed: true, case: mapCase(duplicate),
+          warning: "Concurrent identical opening was deduplicated by PostgreSQL.",
+        };
+      fail("CONFLICT",
+        "Another operator opened a case with different evidence.");
+    }
+    throw cause;
+  }
+  if (!created) fail("CONFLICT", "Case persistence did not return a record.");
   return {
     schema: "cyberpilot.assets.advice.case.open.v1" as const,
     replayed: false, case: mapCase(created),
