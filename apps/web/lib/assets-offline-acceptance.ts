@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { WorkInputError } from "./remediation-work-input";
 import { buildAssetAdviceRows } from "./assets-action-guidance";
-import type { AdviceSnapshot, PackageBinding } from "./assets-action-guidance";
+import type { AdviceSnapshot } from "./assets-action-guidance";
+import type { PackageBinding } from "./assets-osv-correlation";
 import type { CaseRow } from "./assets-action-case-service";
 
 export type AcceptanceGateId =
