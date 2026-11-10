@@ -372,6 +372,7 @@ export async function consumeSignedDispatch(
           keyId: verified.keyId,
           scheduleId: verified.scheduleId,
           expiresAt: verified.expiresAt,
+        acceptedAt: now,
         },
       });
       await tx.auditEvent.create({
