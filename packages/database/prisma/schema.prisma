@@ -243,6 +243,7 @@ model Organization {
   assetOsvReservations      AssetOsvQuotaReservation[]
   assetOsvSchedules         AssetOsvRenewalSchedule[]
   assetOsvScheduleRuns      AssetOsvRenewalRun[]
+  assetOsvDispatchNonces    AssetOsvDispatchNonce[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -1176,4 +1177,21 @@ model AssetOsvRenewalRun {
   @@unique([scheduleId, slotAt])
   @@index([organizationId, state, claimedAt])
   @@index([organizationId, scheduleId, slotAt])
+}
+
+/** Per-organization replay protection for authenticated service dispatches.
+ * Secrets and signatures are never persisted. Digest ties a nonce to one intent. */
+model AssetOsvDispatchNonce {
+  id String @id @default(cuid())
+  organizationId String
+  nonceDigest String @db.VarChar(64)
+  requestDigest String @db.VarChar(64)
+  keyId String @db.VarChar(100)
+  scheduleId String
+  acceptedAt DateTime @default(now())
+  expiresAt DateTime
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, nonceDigest])
+  @@index([organizationId, acceptedAt])
+  @@index([organizationId, expiresAt])
 }
