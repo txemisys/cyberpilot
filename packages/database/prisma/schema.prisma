@@ -245,6 +245,7 @@ model Organization {
   assetOsvScheduleRuns      AssetOsvRenewalRun[]
   assetOsvDispatchNonces    AssetOsvDispatchNonce[]
   assetOsvDispatchAlerts    AssetOsvDispatchAlert[]
+  assetAdviceCases         AssetAdviceCase[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -1225,4 +1226,54 @@ model AssetOsvDispatchAlert {
   @@index([organizationId, state, lastSeenAt])
   @@index([organizationId, severity, lastSeenAt])
   @@index([organizationId, createdAt])
+}
+
+/** Human review of declared-inventory OSV candidates, never a SecurityFinding. */
+model AssetAdviceCase {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  inspectionId String
+  evidenceFingerprint String @db.VarChar(64)
+  inventoryDigest String @db.VarChar(64)
+  inspectionDigest String @db.VarChar(64)
+  externalId String @db.VarChar(100)
+  normalizedProductKey String @db.VarChar(200)
+  softwareVersion String?
+  status String @default("OPEN")
+  category String
+  priority String
+  revision Int @default(1)
+  title String @db.VarChar(220)
+  rationale Json
+  actions Json
+  advisoryIds Json @default("[]")
+  openedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastDecisionAt DateTime?
+  lastDecisionReason String?
+  lastDecisionUserId String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  steps AssetAdviceCaseStep[]
+  @@unique([organizationId, inspectionId, externalId, normalizedProductKey], map: "AssetAdviceCase_org_inspection_asset_product")
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, importId])
+  @@index([organizationId, inspectionId])
+}
+/** A step tracks human work only; DONE never means verified vulnerability resolution. */
+model AssetAdviceCaseStep {
+  id String @id @default(cuid())
+  organizationId String
+  caseId String
+  actionCode String @db.VarChar(80)
+  status String @default("TODO")
+  revision Int @default(1)
+  note String?
+  completedAt DateTime?
+  completedByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  adviceCase AssetAdviceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  @@unique([caseId, actionCode])
+  @@index([organizationId, status])
 }
