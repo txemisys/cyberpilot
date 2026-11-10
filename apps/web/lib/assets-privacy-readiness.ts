@@ -320,7 +320,7 @@ export function assessPrivacyReadiness(
       "Owner hashes remain pseudonymous identifiers and require disposal review.",
       owner.reduce((n, row) => n + row.ownerHashCount, 0), 0,
       "Tenant-salted identifiers must not be treated as anonymous.",
-      identifiers(owner), policy.requireOwnerHashDisposalReview ? "REVIEW" : "PASS"),
+      identifiers(owner), "REVIEW"),
     gate("HISTORIC_INSPECTIONS", oldEvidence.length === 0,
       "Historic provider inspection evidence may outlive its intended purpose.",
       oldEvidence.length, 0,
