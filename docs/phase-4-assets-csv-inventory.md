@@ -807,3 +807,72 @@ ni aceptación LIVE de un proveedor externo.
 El registro de incidentes describe operaciones
 de la aplicación, no explotación, protección,
 aplicación de parches ni CyberScore.
+
+## Decimotercer incremento: ventanas de rotación de credenciales HMAC
+
+La configuración del dispatcher acepta opcionalmente para cada
+credencial de organización `notBefore`, `notAfter` y
+`state` (`ACTIVE`, `RETIRING` o `REVOKED`).
+Las entradas anteriores, que contenían exclusivamente
+`id`, `organizationId` y `secretHex`, siguen siendo
+válidas para mantener compatibilidad operativa.
+Todas las fechas admitidas se normalizan a ISO 8601 UTC
+con milisegundos; una ventana invertida es inválida.
+
+`verifySignedDispatch` exige, además de la firma
+HMAC-SHA256 y el aislamiento tenant ya existentes,
+que la clave sea admisible tanto en la fecha
+`issuedAt` como en el momento de verificación.
+Una clave `REVOKED` rechaza peticiones incluso si
+su firma es criptográficamente correcta. Una clave
+`RETIRING` sin límite `notAfter` se rechaza
+conservadoramente. Después del cutover, la clave
+retirada no recibe un período de gracia implícito.
+La unicidad del nonce persiste independientemente
+del estado o rotación de la clave.
+
+`assets-osv-key-rotation.ts` implementa evaluaciones
+por organización, sin contactos externos ni escritura
+de secretos, de ventanas de activación y expiración,
+solapamiento, cantidad máxima de claves concurrentes,
+uso de material criptográfico distinto, reclamaciones
+de scheduler sin resolver, reservas de cuota abiertas
+y peticiones firmadas recientemente.
+El plan de rotación incluye motivos bloqueantes,
+un digest SHA-256 de configuración **sin secretos**,
+estados antes/después y un itinerario PREPARE,
+VERIFY, OVERLAP, RETIRE, REVOKE con comprobaciones
+de operador y consideraciones de reversión.
+
+La API
+`GET/POST /api/organizations/{slug}/assets/osv-key-rotation`
+permite consultar solo IDs/ventanas y previsualizar
+la propuesta; exige rol administrativo y prohíbe
+leer el material de firma. Un reemplazo todavía
+no instalado se representa mediante una clave
+**sintética exclusivamente en memoria**, se marca
+explícitamente como no apto para aprobación y nunca
+se presenta como credencial disponible.
+
+El panel `AssetOsvKeyRotationWorkspace` expone
+las claves por ID, estados, posibles solapamientos,
+condiciones de bloqueo y plan de transición.
+La aplicación no modifica variables de entorno,
+secrets managers, credenciales reales ni ajustes
+de despliegue. La configuración y activación deben
+seguir un procedimiento de operaciones independiente.
+
+La batería de pruebas cubre validez temporal,
+rechazo inmediato de revocadas, incompatibilidad
+de claves de otros tenants, límites de solapamiento,
+detección de material reutilizado, bloqueo por
+claims/quota pendientes, reportes sin secretos
+y aceptación PostgreSQL de lectura multitenant
+sin consultas a OSV.dev.
+
+**Pendiente de aceptación:** rotación real de
+credenciales en un entorno de despliegue con
+gestor de secretos, gestión multi-réplica, rollback
+y aceptación LIVE. La rotación declarada aquí
+no instala scheduler, activa tráfico a proveedores,
+ni demuestra seguridad de endpoints o remediación.
