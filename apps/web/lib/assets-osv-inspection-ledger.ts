@@ -265,6 +265,7 @@ function parseStoredReport(value: unknown): OfficialOsvInspectionReport {
 export async function persistOsvInspection(
   scope: AssetScope, input: unknown,
   dependencies: OfficialOsvFetchDependencies = {},
+  actorType: "USER" | "SYSTEM" = "USER",
 ): Promise<OsvLedgerCommit> {
   if (!canManageWork(scope.role))
     throw new WorkInputError("FORBIDDEN",
@@ -314,7 +315,7 @@ export async function persistOsvInspection(
         data: {
           organizationId: scope.organizationId,
           inventoryImportId: command.inspection.importId,
-          actorUserId: scope.userId,
+          actorUserId: actorType === "SYSTEM" ? null : scope.userId,
           requestKey: command.requestKey,
           requestDigest: fingerprint,
           reportDigest: report.reportDigest,
@@ -351,7 +352,7 @@ export async function persistOsvInspection(
       await tx.auditEvent.create({
         data: {
           organizationId: scope.organizationId,
-          actorType: "USER", actorUserId: scope.userId,
+          actorType, actorUserId: actorType === "SYSTEM" ? null : scope.userId,
           action: "assets.osv.inspection.committed",
           resourceType: "AssetOsvInspection",
           resourceId: inspection.id,
