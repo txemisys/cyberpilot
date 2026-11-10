@@ -164,7 +164,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(saved.keyId).toBe(key.id);
       expect(await db.auditEvent.count({ where: {
         organizationId: org,
-        actorType: "SERVICE",
+        actorType: "SYSTEM",
         action: "assets.osv.dispatch.signature.accepted",
         resourceId: scheduleId,
       } })).toBe(1);
