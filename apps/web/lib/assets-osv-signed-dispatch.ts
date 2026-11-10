@@ -27,6 +27,9 @@ export type DispatchKey = {
   id: string;
   organizationId: string;
   secretHex: string;
+  notBefore?: string;
+  notAfter?: string;
+  state?: "ACTIVE" | "RETIRING" | "REVOKED";
 };
 export type DispatchKeyConfig = {
   enabled: boolean;
@@ -170,14 +173,33 @@ export function parseDispatchKeyConfig(
   const seen = new Set<string>();
   for (const row of data) {
     if (!isObject(row)) denied("Invalid scoped dispatcher key.");
-    only(row, ["id", "organizationId", "secretHex"]);
+    only(row, ["id", "organizationId", "secretHex",
+      "notBefore", "notAfter", "state"]);
     const id = text(row.id, "key ID", 100, /^[A-Za-z0-9_-]{8,100}$/);
     const organizationId = text(row.organizationId, "key organization",
       150, /^[A-Za-z0-9_-]{8,150}$/);
     const secretHex = hex(row.secretHex, "key material", 64);
     if (seen.has(id)) denied("Dispatcher key IDs must be unique.");
     seen.add(id);
-    keys.push({ id, organizationId, secretHex });
+    const state = row.state ?? "ACTIVE";
+    if (state !== "ACTIVE" && state !== "RETIRING" &&
+        state !== "REVOKED")
+      denied("Unsupported dispatcher key lifecycle state.");
+    const notBefore = row.notBefore === undefined ? undefined :
+      time(row.notBefore, "key notBefore").toISOString();
+    const notAfter = row.notAfter === undefined ? undefined :
+      time(row.notAfter, "key notAfter").toISOString();
+    if (notBefore && notAfter &&
+        new Date(notAfter).getTime() <= new Date(notBefore).getTime())
+      denied("Dispatcher key retirement must follow activation.");
+    keys.push({
+      id, organizationId, secretHex,
+      ...(notBefore ? { notBefore } : {}),
+      ...(notAfter ? { notAfter } : {}),
+      ...(row.state === undefined ? {} : {
+        state: state as "ACTIVE" | "RETIRING" | "REVOKED",
+      }),
+    });
   }
   return { enabled, keys };
 }
@@ -236,6 +258,29 @@ export function validateSignedDispatchTime(
       now.getTime() - issued > MAX_AGE + SKEW)
     denied("Signed dispatch is expired or outside clock tolerance.");
 }
+/**
+ * Key retirement never grants extra lifetime to an issued signature.
+ * Both the signing time and verification clock must lie within the
+ * same configured key interval. REVOKED blocks immediately.
+ * RETIRING only accepts requests issued before key.notAfter.
+ */
+export function dispatchKeyPermitsRequest(
+  key: DispatchKey, intent: SignedDispatchIntent,
+  now: Date,
+): boolean {
+  if (!Number.isFinite(now.getTime()) ||
+      key.state === "REVOKED") return false;
+  const issued = new Date(intent.issuedAt).getTime();
+  const notBefore = key.notBefore ?
+    new Date(key.notBefore).getTime() : -Infinity;
+  const notAfter = key.notAfter ?
+    new Date(key.notAfter).getTime() : Infinity;
+  if (key.state === "RETIRING" && !key.notAfter) return false;
+  if (!Number.isFinite(issued) || Number.isNaN(notBefore) ||
+      Number.isNaN(notAfter)) return false;
+  return issued >= notBefore && now.getTime() >= notBefore &&
+    issued < notAfter && now.getTime() < notAfter;
+}
 export function verifySignedDispatch(
   raw: unknown, keyId: unknown, signature: unknown,
   config: DispatchKeyConfig, now = new Date(),
@@ -247,7 +292,8 @@ export function verifySignedDispatch(
   if (typeof keyId !== "string" || keyId.length > 100)
     denied("Missing dispatch key identity.");
   const key = config.keys.find(row => row.id === keyId);
-  if (!key || !verifyDispatchSignature(intent, key, signature))
+  if (!key || !dispatchKeyPermitsRequest(key, intent, now) ||
+      !verifyDispatchSignature(intent, key, signature))
     denied("Signed OSV dispatch authentication failed.");
   const canonical = signedDispatchCanonical(intent);
   return {
@@ -266,7 +312,10 @@ export function inspectDispatchConfiguration(
   config: DispatchKeyConfig, organizationId: string,
 ): DispatchReadiness {
   const eligible = config.enabled ?
-    config.keys.filter(key => key.organizationId === organizationId)
+    config.keys.filter(key => key.organizationId === organizationId &&
+      key.state !== "REVOKED" &&
+      (!key.notBefore || new Date(key.notBefore).getTime() <= Date.now()) &&
+      (!key.notAfter || new Date(key.notAfter).getTime() > Date.now()))
       .map(key => key.id).sort() : [];
   return {
     schema: "cyberpilot.assets.osv.signed-dispatch.readiness.v1",
