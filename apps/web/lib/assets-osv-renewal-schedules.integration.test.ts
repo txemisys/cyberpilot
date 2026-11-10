@@ -186,8 +186,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         consentDigest: "f".repeat(64),
       }, createdAt)).rejects.toMatchObject({ code: "CONFLICT" });
       const actual = scheduleConsentDigest(org,
-        (await import("./assets-osv-renewal-schedules"))
-          .parseOsvScheduleConfig(config()));
+        parseOsvScheduleConfig(config()));
       const result = await changeOsvSchedule(admin, {
         scheduleId, expectedRevision: revision,
         operation: "ENABLE", confirmOutbound: true,
