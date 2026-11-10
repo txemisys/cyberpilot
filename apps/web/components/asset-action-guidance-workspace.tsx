@@ -75,8 +75,12 @@ function Metric({ label, value }: { label: string; value: number }) {
     <strong>{value}</strong><p>{label}</p>
   </div>;
 }
-function GuidanceCard({ row }: { row: Advice }) {
+function GuidanceCard({ row, busy, canManage, onOpen }: {
+  row: Advice; busy: boolean; canManage: boolean;
+  onOpen: (row: Advice, reason: string) => Promise<void>;
+}) {
   const [showEvidence, setShowEvidence] = useState(false);
+  const [openingReason, setOpeningReason] = useState("");
   return <article style={{
     border: "1px solid #8885", borderRadius: 9,
     padding: 14, marginBlock: 10,
@@ -124,6 +128,24 @@ function GuidanceCard({ row }: { row: Advice }) {
     {showEvidence && <p style={{ overflowWrap: "anywhere" }}>
       <code>{row.evidenceFingerprint}</code>
     </p>}
+    {canManage && row.priority !== "INFORMATION" &&
+      <fieldset disabled={busy} style={{
+        border: "1px solid #8885", borderRadius: 8, padding: 10,
+      }}>
+        <legend>Open a human review directly from this evidence</legend>
+        <label>Why does this candidate require investigation?
+          <textarea rows={3} maxLength={1000} value={openingReason}
+            onChange={event => setOpeningReason(event.target.value)}
+            placeholder="Describe the observed evidence and authorized investigation"/>
+        </label>
+        <button type="button" disabled={busy ||
+          openingReason.trim().length < 20}
+          onClick={() => void onOpen(row, openingReason)}>
+          Open audited review case
+        </button>
+        <p>Server recomputes the exact candidate fingerprint before
+          creating any work. A review is not a verified finding.</p>
+      </fieldset>}
     <p><small>
       Candidate review only. Not a confirmed exploit, verified
       vulnerability, remediated endpoint or safety assessment.
@@ -148,6 +170,7 @@ export function AssetActionGuidanceWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [opened, setOpened] = useState<string | null>(null);
   const filters = useMemo(() => ({
     onlyReviewable, status, ageDays, pageSize,
   }), [onlyReviewable, status, ageDays, pageSize]);
@@ -199,6 +222,46 @@ export function AssetActionGuidanceWorkspace({
   }
   function resetPage() {
     setOffset(0); setResult(null); setError(null);
+  }
+  async function openFromEvidence(row: Advice, reason: string) {
+    if (!canManage || busy || !result) return;
+    let mappings: unknown;
+    try {
+      mappings = JSON.parse(bindings);
+      if (!Array.isArray(mappings))
+        throw new Error("Mappings must be a JSON array.");
+    } catch (cause) {
+      setError(message(cause)); return;
+    }
+    setBusy(true); setOpened(null); setError(null);
+    try {
+      const response = await fetch("/api/organizations/" +
+        encodeURIComponent(slug) + "/assets/action-cases", {
+        method: "POST", cache: "no-store", credentials: "same-origin",
+        headers: {
+          Accept: "application/json", "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          importId: result.importId, inspectionId: result.inspectionId,
+          evidenceFingerprint: row.evidenceFingerprint,
+          bindings: mappings, reason,
+        }),
+      });
+      const resultBody: unknown = await response.json();
+      if (!response.ok) throw new Error(
+        (resultBody as { error?: string }).error ??
+        "Unable to open evidence-backed review case.");
+      const created = resultBody as {
+        replayed: boolean; case: { id: string };
+      };
+      setOpened((created.replayed ? "Existing" : "New") +
+        " audited review case " + created.case.id +
+        " is available in the case register below.");
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setBusy(false);
+    }
   }
   function copyReport() {
     if (!result) return;
@@ -300,6 +363,7 @@ export function AssetActionGuidanceWorkspace({
         {busy ? "Evaluating stored evidence…" : "Prepare action guidance"}
       </button>
     </fieldset>
+    {opened && <p role="status">{opened}</p>}
     {result && <section>
       <h3>Evidence-backed review summary</h3>
       <p>Source snapshot {result.importId}.
@@ -333,7 +397,9 @@ export function AssetActionGuidanceWorkspace({
         result.totalRows} matching rows.
         Stored evidence is read-only.</p>
       {result.rows.map(row =>
-        <GuidanceCard key={row.id} row={row}/>)}
+        <GuidanceCard key={row.id} row={row}
+          busy={busy} canManage={canManage}
+          onOpen={openFromEvidence}/>)}
       {result.rows.length === 0 &&
         <p>No cases match these filters in the bounded inspection.
           This is not a statement that the inventory is safe.</p>}
