@@ -337,7 +337,7 @@ export function assessPrivacyReadiness(
       oldCase.length, 0,
       "A completed task does not imply the associated personal data may be retained indefinitely.",
       identifiers(oldCase),
-      policy.requireCaseDataRetentionReview ? "REVIEW" : "PASS"),
+      "REVIEW"),
     gate("BACKUP_PROCESS", false,
       "Backup deletion and recovery boundaries need a validated operational procedure.",
       0, 1,
