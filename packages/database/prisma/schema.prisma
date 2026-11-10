@@ -241,6 +241,8 @@ model Organization {
   assetOsvQueries           AssetOsvQueryRecord[]
   assetOsvQuotaDays         AssetOsvQuotaDay[]
   assetOsvReservations      AssetOsvQuotaReservation[]
+  assetOsvSchedules         AssetOsvRenewalSchedule[]
+  assetOsvScheduleRuns      AssetOsvRenewalRun[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -989,6 +991,7 @@ model AssetInventoryImport {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   devices AssetInventoryDevice[]
   osvInspections AssetOsvInspection[]
+  osvSchedules AssetOsvRenewalSchedule[]
   @@unique([organizationId, idempotencyKey])
   @@index([organizationId, createdAt])
   @@index([organizationId, state, createdAt])
@@ -1117,4 +1120,60 @@ model AssetOsvQuotaReservation {
   @@unique([organizationId, requestKey])
   @@index([organizationId, startedAt])
   @@index([quotaDayId, state])
+}
+
+/** Explicit organization-authorized recurring provider renewal definition.
+ * Stored but disabled by default. No automatic cron is installed by schema. */
+model AssetOsvRenewalSchedule {
+  id String @id @default(cuid())
+  organizationId String
+  inventoryImportId String
+  sourceInspectionId String
+  createdByUserId String
+  name String
+  enabled Boolean @default(false)
+  cadenceMinutes Int
+  nextDueAt DateTime
+  policy Json
+  inspection Json
+  allowNewPackages Boolean @default(false)
+  allowIncompleteInventory Boolean @default(false)
+  outboundConsent Boolean @default(false)
+  consentedAt DateTime?
+  consentDigest String @db.VarChar(64)
+  revision Int @default(1)
+  lastAttemptAt DateTime?
+  lastSucceededAt DateTime?
+  lastRunId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventoryImport AssetInventoryImport @relation(fields: [inventoryImportId], references: [id], onDelete: Cascade)
+  runs AssetOsvRenewalRun[]
+  @@index([organizationId, enabled, nextDueAt])
+  @@index([organizationId, inventoryImportId])
+}
+
+/** Durable scheduler claim with one slot per schedule/UTC cadence.
+ * Terminal failures never trigger implicit network retries. */
+model AssetOsvRenewalRun {
+  id String @id @default(cuid())
+  organizationId String
+  scheduleId String
+  slotAt DateTime
+  state String @default("CLAIMED")
+  commandDigest String @db.VarChar(64)
+  claimToken String @db.VarChar(64)
+  claimExpiresAt DateTime
+  requestedByUserId String?
+  inspectionId String?
+  result Json?
+  errorCode String?
+  claimedAt DateTime @default(now())
+  completedAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  schedule AssetOsvRenewalSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  @@unique([scheduleId, slotAt])
+  @@index([organizationId, state, claimedAt])
+  @@index([organizationId, scheduleId, slotAt])
 }
