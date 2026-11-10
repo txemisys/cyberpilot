@@ -437,6 +437,7 @@ export async function previewOsvRenewal(
 export type RenewalExecutionDeps = {
   now?: () => Date;
   official?: OfficialOsvFetchDependencies;
+  actorType?: "USER" | "SYSTEM";
 };
 export async function executeOsvRenewal(
   scope: AssetScope, input: unknown,
@@ -458,7 +459,7 @@ export async function executeOsvRenewal(
   const ledger: OsvLedgerCommit = await persistOsvInspection(scope, {
     requestKey: command.requestKey,
     inspection: { ...command.inspection, dryRun: false },
-  }, deps.official);
+  }, deps.official, deps.actorType ?? "USER");
   let comparison: OsvChangeReport | null = null;
   try {
     comparison = await inspectOsvHistoryDelta(scope, {
