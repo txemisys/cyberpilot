@@ -736,3 +736,74 @@ permitir cualquier tráfico externo autónomo.
 Las pruebas CI con proveedores inyectados verifican
 el código sin depender de tenants de Google Workspace,
 Microsoft 365 u otros proveedores externos.
+
+## Duodécimo incremento: incidentes persistentes y revisión operativa OSV
+
+El registro de incidentes del despachador OSV se implementa
+con `AssetOsvDispatchAlert` y la migración
+`20261110163000_osv_dispatch_alert_triage`. Cada registro
+contiene organización, código, sujeto único, severidad,
+estado, revisión, primera y última observación, digest
+canónico de evidencia, número de observaciones, motivos
+y responsables humanos de reconocimiento y cierre.
+PostgreSQL obliga la unicidad
+`(organizationId,code,subjectKey)` e incorpora
+checks de severidad, estado y revisión positiva.
+
+El servicio `assets-osv-dispatch-alerts.ts` convierte
+los diagnósticos locales de `assets-osv-dispatch-observability`
+en observaciones con huellas estables. Los avisos
+generales del tenant tienen sujeto `tenant`; los
+avisos de solicitudes firmadas se separan por el
+SHA-256 de la petición, nunca por secreto o firma.
+
+**El escaneo se inicia manualmente**, no mediante cron.
+No contacta OSV.dev, ni crea peticiones externas,
+ni libera cuotas. Se limita a historiales completos
+y acotados; si el diagnóstico está truncado, rechaza
+persistir inferencias parciales. Evidencia idéntica
+no duplica eventos ni incrementa los contadores.
+Si la evidencia cambia, se actualiza el incidente
+con CAS de revisión y AuditEvent. Un incidente
+reconocido retiene su reconocimiento; uno resuelto
+se reabre ante evidencia distinta. La ausencia de
+una alerta en el escaneo no certifica que desapareció
+el problema.
+
+El ciclo de revisión del operador es:
+`OPEN → ACKNOWLEDGED → RESOLVED`, con reapertura
+manual `RESOLVED → OPEN` cuando corresponde.
+Cada transición requiere rol ADMIN/OWNER,
+revisión esperada, digest exacto de evidencia,
+motivo de 20-500 caracteres y registro de auditoría
+en la misma transacción que la modificación.
+Reconocer no significa resolver, y resolver no
+implica remediación de CVE ni seguridad de endpoints.
+
+La API
+`/api/organizations/{slug}/assets/osv-dispatch-alerts`
+implementa `GET` (lista paginada con filtros),
+`POST` (escaneo diagnóstico local) y
+`PATCH` (transición de revisión).
+Los controles comprueban RBAC y aislamiento
+por organización, tamaños acotados, cuerpos JSON
+y revisión de escritura optimista.
+
+La interfaz `AssetOsvDispatchIncidentWorkspace`
+permite evaluar señales, comparar digests,
+revisar evidencias, reconocer, documentar
+resoluciones, reabrir incidentes y navegar
+históricos sin enviar consultas OSV.
+Se incluyen pruebas unitarias de parser,
+huellas, transiciones y cobertura, junto con
+pruebas PostgreSQL de aislamiento tenant,
+deduplicación, auditoría, revisión CAS,
+preservación de reconocimientos y reapertura
+ante observaciones nuevas.
+
+**Limitaciones:** no hay envío automático de
+alertas por correo/pager, scheduler autónomo
+ni aceptación LIVE de un proveedor externo.
+El registro de incidentes describe operaciones
+de la aplicación, no explotación, protección,
+aplicación de parches ni CyberScore.
