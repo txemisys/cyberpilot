@@ -215,6 +215,16 @@ describe("OSV key cutover analysis", () => {
     expect(preview.after.keys).toHaveLength(2);
     expect(preview.rolloutStages).toHaveLength(5);
   });
+  it("never reports accepting keys when the dispatcher is disabled", () => {
+    const disabled = inspectRotationInventory({
+      enabled: false, keys: [old, replacement],
+    }, tenant, now);
+    expect(disabled.activeKeyCount).toBe(0);
+    expect(disabled.keys.every(item =>
+      !item.currentlyAccepting && !item.acceptsAtActivation)).toBe(true);
+    expect(disabled.keys.every(item =>
+      item.observations.join(" ").includes("disabled"))).toBe(true);
+  });
   it("reports retiring and revoked keys as non-accepting when appropriate", () => {
     const result = inspectRotationKey({
       ...old, state: "REVOKED",
