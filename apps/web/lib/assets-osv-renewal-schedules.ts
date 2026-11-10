@@ -548,6 +548,8 @@ export type ScheduleRunDependencies = {
   now?: () => Date;
   preview?: typeof previewOsvRenewal;
   execute?: typeof executeOsvRenewal;
+  /** Only the authenticated internal signed-dispatch boundary uses SERVICE. */
+  actorType?: "USER" | "SERVICE";
 };
 export async function executeDueOsvSchedule(
   scope: AssetScope, input: unknown,
@@ -614,8 +616,9 @@ export async function executeDueOsvSchedule(
       where: { id: item.id }, data: { lastRunId: created.id },
     });
     await tx.auditEvent.create({ data: {
-      organizationId: scope.organizationId, actorType: "USER",
-      actorUserId: scope.userId,
+      organizationId: scope.organizationId,
+      actorType: dependencies.actorType === "SERVICE" ? "SERVICE" : "USER",
+      actorUserId: dependencies.actorType === "SERVICE" ? null : scope.userId,
       action: "assets.osv.schedule.run.claimed",
       resourceType: "AssetOsvRenewalRun", resourceId: created.id,
       metadata: { schema: RUN_SCHEMA, scheduleId, slotAt,
@@ -694,8 +697,9 @@ export async function executeDueOsvSchedule(
       });
     }
     await tx.auditEvent.create({ data: {
-      organizationId: scope.organizationId, actorType: "USER",
-      actorUserId: scope.userId,
+      organizationId: scope.organizationId,
+      actorType: dependencies.actorType === "SERVICE" ? "SERVICE" : "USER",
+      actorUserId: dependencies.actorType === "SERVICE" ? null : scope.userId,
       action: "assets.osv.schedule.run." + state.toLowerCase(),
       resourceType: "AssetOsvRenewalRun", resourceId: run.id,
       metadata: {
