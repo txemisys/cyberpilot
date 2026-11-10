@@ -4,6 +4,7 @@ import {
   inspectOsvForensicTimeline,
 } from "../../../../../../lib/assets-osv-dispatch-forensics";
 import { WorkInputError, canManageWork } from "../../../../../../lib/remediation-work-input";
+import { verifyOsvForensicReport } from "../../../../../../lib/assets-osv-forensic-verification";
 
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
@@ -52,15 +53,19 @@ async function body(request: NextRequest) {
 export async function GET(_request: NextRequest, { params }: Context) {
   try {
     const user = await scope((await params).slug);
-    return NextResponse.json(await inspectOsvForensicTimeline(
-      user), { headers });
+    const report = await inspectOsvForensicTimeline(user);
+    return NextResponse.json({
+      ...report, verification: verifyOsvForensicReport(report),
+    }, { headers });
   } catch (cause) { return fail(cause); }
 }
 export async function POST(request: NextRequest, { params }: Context) {
   try {
     const user = await scope((await params).slug);
     const command = await body(request);
-    return NextResponse.json(await inspectOsvForensicTimeline(
-      user, command), { headers });
+    const report = await inspectOsvForensicTimeline(user, command);
+    return NextResponse.json({
+      ...report, verification: verifyOsvForensicReport(report),
+    }, { headers });
   } catch (cause) { return fail(cause); }
 }
