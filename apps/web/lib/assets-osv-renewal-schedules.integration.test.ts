@@ -4,6 +4,7 @@ import { db } from "@cyberpilot/database";
 import { importAssetInventory } from "./assets-inventory-service";
 import {
   createOsvSchedule, changeOsvSchedule, listOsvSchedules,
+  parseOsvScheduleConfig,
   previewDueOsvSchedule, executeDueOsvSchedule,
   listOsvScheduleRuns, scheduleConsentDigest,
 } from "./assets-osv-renewal-schedules";
