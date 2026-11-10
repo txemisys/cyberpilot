@@ -14,6 +14,7 @@ import { AssetOsvWorkerOperations } from "../../../../components/asset-osv-worke
 import { AssetOsvSignedDispatchOperations } from "../../../../components/asset-osv-signed-dispatch-operations";
 import { AssetOsvDispatchIncidentWorkspace } from "../../../../components/asset-osv-dispatch-incident-workspace";
 import { AssetOsvKeyRotationWorkspace } from "../../../../components/asset-osv-key-rotation-workspace";
+import { AssetOsvDispatchPreflightWorkspace } from "../../../../components/asset-osv-dispatch-preflight-workspace";
 
 type Context = { params: Promise<{ slug: string }> };
 export default async function AssetInventoryPage({ params }: Context) {
@@ -43,6 +44,7 @@ export default async function AssetInventoryPage({ params }: Context) {
       <AssetOsvSignedDispatchOperations slug={slug} canManage={canManage} />
       <AssetOsvDispatchIncidentWorkspace slug={slug} canManage={canManage} />
       <AssetOsvKeyRotationWorkspace slug={slug} organizationId={membership.organization.id} canManage={canManage} />
+      <AssetOsvDispatchPreflightWorkspace slug={slug} canManage={canManage} />
     </section>
   </main>;
 }
