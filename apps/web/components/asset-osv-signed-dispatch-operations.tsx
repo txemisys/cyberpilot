@@ -73,7 +73,7 @@ export function AssetOsvSignedDispatchOperations({
   const [alertAge, setAlertAge] = useState(45);
   const [failureThreshold, setFailureThreshold] = useState(3);
   const [report, setReport] = useState<Report | null>(null);
-  const [error, setError] = useState<unknown>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(false);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
@@ -90,7 +90,7 @@ export function AssetOsvSignedDispatchOperations({
     void load(url).then(data => {
       if (!cancelled) { setReport(data); setError(null); }
     }).catch(cause => {
-      if (!cancelled) { setError(cause); setReport(null); }
+      if (!cancelled) { setError(cause instanceof Error ? cause : new Error("Signed dispatch diagnostic failed.")); setReport(null); }
     }).finally(() => {
       if (!cancelled) setLoading(false);
     });
