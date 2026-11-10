@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../../lib/organizations";
 import { inspectAssetOfflineAcceptance } from "../../../../../../lib/assets-offline-acceptance-service";
 import { WorkInputError } from "../../../../../../lib/remediation-work-input";
+import { verifyOfflineAcceptanceReport } from "../../../../../../lib/assets-offline-acceptance-verification";
 
 type Context = { params: Promise<{ slug: string }> };
 const headers = {
@@ -45,7 +46,11 @@ export async function POST(request: NextRequest, { params }: Context) {
       organizationId: membership.organization.id,
       userId: session.user.id, role: membership.role,
     }, value);
-    return NextResponse.json(assessment, { headers });
+    const verification = verifyOfflineAcceptanceReport(assessment);
+    if (!verification.valid)
+      throw new WorkInputError("CONFLICT",
+        "Offline acceptance report failed internal integrity verification.");
+    return NextResponse.json({ ...assessment, verification }, { headers });
   } catch (cause) { return failure(cause); }
 }
 export async function GET() {
