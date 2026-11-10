@@ -325,7 +325,7 @@ export async function openAssetAdviceCase(
       warning: "Existing review was returned; no duplicate case or audit was created.",
     };
   }
-  let created: typeof previous;
+  let created: Parameters<typeof mapCase>[0] | null = null;
   try {
     created = await db.$transaction(async tx => {
     const row = await tx.assetAdviceCase.create({ data: {
