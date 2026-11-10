@@ -325,9 +325,7 @@ export async function openAssetAdviceCase(
       warning: "Existing review was returned; no duplicate case or audit was created.",
     };
   }
-  let created: Awaited<ReturnType<typeof db.assetAdviceCase.findFirst<{
-    include: { steps: true };
-  }>>>;
+  let created: typeof previous;
   try {
     created = await db.$transaction(async tx => {
     const row = await tx.assetAdviceCase.create({ data: {
