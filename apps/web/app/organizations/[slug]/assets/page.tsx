@@ -12,6 +12,7 @@ import { AssetOsvRenewalWorkspace } from "../../../../components/asset-osv-renew
 import { AssetOsvScheduleWorkspace } from "../../../../components/asset-osv-schedule-workspace";
 import { AssetOsvWorkerOperations } from "../../../../components/asset-osv-worker-operations";
 import { AssetOsvSignedDispatchOperations } from "../../../../components/asset-osv-signed-dispatch-operations";
+import { AssetOsvDispatchIncidentWorkspace } from "../../../../components/asset-osv-dispatch-incident-workspace";
 
 type Context = { params: Promise<{ slug: string }> };
 export default async function AssetInventoryPage({ params }: Context) {
@@ -39,6 +40,7 @@ export default async function AssetInventoryPage({ params }: Context) {
       <AssetOsvScheduleWorkspace slug={slug} canManage={canManage} />
       <AssetOsvWorkerOperations slug={slug} canManage={canManage} />
       <AssetOsvSignedDispatchOperations slug={slug} canManage={canManage} />
+      <AssetOsvDispatchIncidentWorkspace slug={slug} canManage={canManage} />
     </section>
   </main>;
 }
