@@ -660,3 +660,79 @@ un trigger cron, worker autónomo o secreto de despliegue.**
 `externalWorkerInstalled:false` son explícitos.
 Se requiere aceptación operativa y LIVE del proveedor
 antes de autorizar tráfico recurrente automático.
+
+## Undécimo incremento: despacho de servicio firmado, aislamiento y telemetría
+
+El endpoint interno `POST /api/internal/osv/signed-dispatch` se
+implementa **desactivado por defecto**. Solo existe capacidad
+de despacho si el operador configura explícitamente
+`CYBERPILOT_OSV_SIGNED_DISPATCH_ENABLED=true` y un JSON de
+claves por organización en `CYBERPILOT_OSV_DISPATCH_KEYS`
+administrado por el gestor de secretos de su entorno. La
+configuración contiene entradas con `id`, `organizationId`
+y `secretHex` (32 bytes aleatorios representados como
+64 caracteres hexadecimales). No se incluye ninguna
+credencial real en el repositorio, la migración o la UI.
+
+Cada petición usa el contrato
+`cyberpilot.assets.osv.signed-dispatch.v1` con el ID y
+slug de organización, ID de agenda, revisión esperada,
+`issuedAt`, `expiresAt`, nonce único y autorización
+expresa de despacho. Se limita a 4 KiB y al método POST
+JSON. Se requieren las cabeceras `x-cyberpilot-osv-key-id`
+y `x-cyberpilot-osv-signature`; esta última contiene el
+HMAC-SHA256 hexadecimal, calculado sobre el texto
+canónico que incluye versión, método, ruta y todos los
+atributos relevantes. La comparación de firmas se realiza
+con `timingSafeEqual` después de comprobar la longitud.
+
+Las firmas caducan en como máximo **120 segundos** y se
+acepta un desfase máximo de reloj de 30 segundos. Las
+claves están limitadas a una organización. Una firma
+correcta no autoriza cambiar agendas, consentimientos,
+cuotas, hallazgos o CyberScore: solo reclamar una agenda
+*ya habilitada*, consentida, vencida y con la revisión
+vigente. El camino de ejecución conserva los controles
+de cuota, frescura, auditoría y franjas únicas existentes.
+
+La migración `20261110150000_osv_signed_dispatch_nonces`
+introduce `AssetOsvDispatchNonce`, con unicidad por
+`(organizationId, nonceDigest)`. Se consume el nonce
+dentro de una transacción PostgreSQL, junto con un
+`AuditEvent` de tipo `SYSTEM`. Se persisten únicamente
+hashes de nonce y petición, ID de clave y horario;
+**no se almacenan la firma ni el secreto**. Un nonce
+consumido no se reutiliza, ni aunque falle después la
+consulta a OSV.dev. El resultado de inspecciones
+creadas desde esta vía se atribuye asimismo al actor
+`SYSTEM` y no a un usuario humano ficticio.
+
+`assets-osv-dispatch-observability.ts` y
+`GET /api/organizations/{slug}/assets/osv-dispatch-observability`
+aportan diagnósticos de solo lectura y tenant-scoped:
+claves configuradas (únicamente IDs), nonces aceptados,
+resultados de agenda, claims abiertos, fallos, resultados
+indeterminados y umbrales de alerta. La correlación
+entre una firma y un resultado se basa en proximidad
+temporal y se declara expresamente **orientativa**.
+El panel administrativo muestra los registros, problemas
+y posibles acciones sin ejecutar reintentos.
+
+Las pruebas incorporan validación estricta de claves,
+HMAC, firma ligada a organización y franja, timestamps,
+límite de caducidad, gestión de errores, controles
+PostgreSQL de nonce único, atribución SYSTEM, RBAC,
+aislamiento multitenant, consentimiento y observabilidad.
+
+**Limitaciones pendientes:** no hay un emisor desplegado
+de peticiones firmadas, barrido cron, alerta enviada a
+correo/pager, provisión real de secretos ni despliegue
+operativo aceptado. La interfaz expone alertas bajo
+demanda pero no las entrega proactivamente. El operador
+debe configurar HTTPS, key rotation, monitorización,
+gestión de incidentes y aceptación LIVE antes de
+permitir cualquier tráfico externo autónomo.
+
+Las pruebas CI con proveedores inyectados verifican
+el código sin depender de tenants de Google Workspace,
+Microsoft 365 u otros proveedores externos.
