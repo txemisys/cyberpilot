@@ -18,6 +18,7 @@ import { AssetOsvDispatchPreflightWorkspace } from "../../../../components/asset
 import { AssetOsvDispatchForensicsWorkspace } from "../../../../components/asset-osv-dispatch-forensics-workspace";
 import { AssetActionGuidanceWorkspace } from "../../../../components/asset-action-guidance-workspace";
 import { AssetActionCaseWorkspace } from "../../../../components/asset-action-case-workspace";
+import { AssetOfflineAcceptanceWorkspace } from "../../../../components/asset-offline-acceptance-workspace";
 
 type Context = { params: Promise<{ slug: string }> };
 export default async function AssetInventoryPage({ params }: Context) {
@@ -51,6 +52,7 @@ export default async function AssetInventoryPage({ params }: Context) {
       <AssetOsvDispatchForensicsWorkspace slug={slug} canManage={canManage} />
       <AssetActionGuidanceWorkspace slug={slug} canManage={canManage} />
       <AssetActionCaseWorkspace slug={slug} canManage={canManage} />
+      <AssetOfflineAcceptanceWorkspace slug={slug} canManage={canManage} />
     </section>
   </main>;
 }
