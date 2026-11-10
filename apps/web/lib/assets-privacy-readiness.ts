@@ -129,7 +129,7 @@ function number(value: unknown, name: string, lo: number, hi: number) {
   return value;
 }
 function flag(raw: Record<string, unknown>, name: string) {
-  const value = raw[name] ?? true;
+  const value = raw[name] === undefined ? true : raw[name];
   if (typeof value !== "boolean")
     invalid("Privacy policy flag must be boolean: " + name + ".");
   return value;
