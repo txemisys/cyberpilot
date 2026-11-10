@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { WorkInputError } from "./remediation-work-input";
 import { buildAssetAdviceRows } from "./assets-action-guidance";
+import { normalizeInventoryProduct } from "./assets-csv-inventory";
 import type { AdviceSnapshot } from "./assets-action-guidance";
 import type { PackageBinding } from "./assets-osv-correlation";
 import type { CaseRow } from "./assets-action-case-service";
@@ -256,8 +257,10 @@ export function evaluateAssetOfflineAcceptance(
     row.status === "REVIEW_POSSIBLE_ADVISORY");
   const withoutReview = possible.filter(row =>
     !caseKeys.has(row.assetId + "\u0000" + row.normalizedProductKey));
+  const mappedProducts = new Set(dataset.bindings.map(binding =>
+    normalizeInventoryProduct(binding.inventoryProduct)));
   const unmapped = recommendations.filter(row =>
-    row.status === "REVIEW_MISSING_MAPPING");
+    !mappedProducts.has(row.normalizedProductKey));
   const unknown = recommendations.filter(row =>
     !["REVIEW_POSSIBLE_ADVISORY",
       "NO_POSITIVE_MATCH_IN_SCOPED_INSPECTION"].includes(row.status));
