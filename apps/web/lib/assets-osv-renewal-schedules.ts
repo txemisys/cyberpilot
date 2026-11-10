@@ -652,7 +652,10 @@ export async function executeDueOsvSchedule(
           inspection: { ...request.inspection, dryRun: false },
           dryRun: false, confirmOutbound: true,
           expectedPlanDigest: plan.planDigest,
-        }, dependencies.now ? { now: dependencies.now } : {},
+        }, {
+          ...(dependencies.now ? { now: dependencies.now } : {}),
+          ...(dependencies.actorType ? { actorType: dependencies.actorType } : {}),
+        },
       );
       state = "COMPLETE";
     }
