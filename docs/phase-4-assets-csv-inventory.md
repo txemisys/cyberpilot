@@ -517,3 +517,76 @@ consume cuota atómica y mantienen su estado en el ledger
 de evidencias declaradas. Las diferencias OSV no acreditan
 parcheado, seguridad del endpoint, reducción del riesgo,
 explotación ni resultado del CyberScore.
+
+## Noveno incremento: políticas recurrentes con consentimiento y reclamación única
+
+Se implementa la infraestructura persistente de programaciones OSV
+con una separación deliberada entre *definir*, *autorizar*,
+*previsualizar* y *ejecutar* una franja vencida.
+
+Los nuevos modelos PostgreSQL `AssetOsvRenewalSchedule` y
+`AssetOsvRenewalRun` están en la migración
+`20261110100000_osv_renewal_schedule`. Cada definición
+registra organización, snapshot, inspección fuente, equivalencias
+de paquetes, frecuencia, configuración de frescura, permisos
+específicos, consentimiento versionado, siguiente vencimiento,
+revision y auditoría. Nace **desactivada**, sin consentimiento.
+Se incluyen restricciones SQL de frecuencia, consentimiento
+y estados y una clave única `(scheduleId, slotAt)`.
+
+`apps/web/lib/assets-osv-renewal-schedules.ts` ofrece creación,
+listado acotado, activación explícita vinculada por SHA-256 al
+contenido exacto del plan y organización, desactivación
+inmediata para futuros slots, reconfiguración solo si está
+deshabilitado, lectura de históricos, previsualización
+sin red, y despacho único de una franja vencida.
+
+La ruta `/api/organizations/{slug}/assets/osv-schedules` utiliza
+`GET` (lista/preview/history), `POST` (crear desactivada),
+`PATCH` (activar/revocar/reconfigurar mediante revisión
+optimista) y `PUT` (despacho de un único vencimiento
+con confirmación del administrador). Todas las operaciones
+están limitadas por tenant y requieren ADMIN/OWNER.
+
+La ejecución crea en una transacción una reclamación
+duradera `CLAIMED`, avanza al siguiente slot futuro
+sin generar ráfagas retrospectivas y registra un AuditEvent.
+El control `revision` junto con `UPDATE ... WHERE` y el
+índice único de slot permite **a lo sumo un despacho por
+franja** aunque dos operadores ejecuten simultáneamente.
+Después vuelve a revisar frescura, consulta anterior,
+cuota y aprobación. Solo el plan elegible pasa a la
+renovación manual ya existente, que reserva cuota atómica
+antes de consultar OSV.dev. Se registra el resultado
+`COMPLETE`, `BLOCKED` o `FAILED` y una auditoría
+independiente. No se reintenta automáticamente un
+resultado fallido.
+
+Se ofrece una nueva interfaz `AssetOsvScheduleWorkspace`
+para preparar políticas, seleccionar origen e inventario,
+autorizar la activación, revisar presupuestos y bloqueos,
+despachar manualmente una franja y consultar el diario
+de resultados.
+
+**Límite operativo esencial:** no se instala un cron,
+worker de barrido autónomo ni tarea recurrente del sistema.
+La planificación persiste y se calculan vencimientos,
+pero la ejecución requiere una petición administrativa
+explícita. Esta elección conserva el consentimiento y
+evita activar una fuente externa sin un control de
+despliegue verificado. Antes de habilitar un scheduler
+real se necesitan identidad de servicio limitada,
+monitoreo/alertas, recuperación auditada de claims
+abandonados, política de despliegue y aceptación LIVE
+de OSV.dev.
+
+Los tests cubren parser y seguridad de consentimiento,
+cálculo de franjas sin catch-up descontrolado, identidad
+idempotente de slot, permisos, aislamiento de tenant,
+creación desactivada, previsualización sin escrituras,
+revisión optimista, dos despachos PostgreSQL concurrentes,
+revocación, resultado persistido y AuditEvent.
+
+Ni la definición, ni el despacho, ni la variación de IDs
+OSV acreditan seguridad, vulnerabilidad explotable o
+remediación verificada en un dispositivo.
