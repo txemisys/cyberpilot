@@ -269,7 +269,8 @@ export function dispatchKeyPermitsRequest(
   now: Date,
 ): boolean {
   if (!Number.isFinite(now.getTime()) ||
-      key.state === "REVOKED") return false;
+      key.state === "REVOKED" ||
+      key.organizationId !== intent.organizationId) return false;
   const issued = new Date(intent.issuedAt).getTime();
   const notBefore = key.notBefore ?
     new Date(key.notBefore).getTime() : -Infinity;
