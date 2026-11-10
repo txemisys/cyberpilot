@@ -315,7 +315,7 @@ export function assessPrivacyReadiness(
       "Hostnames may contain directly or indirectly identifying values.",
       host.reduce((n, row) => n + row.hostnameCount, 0), 0,
       "Removing direct owners does not make hostname data anonymous.",
-      identifiers(host), policy.requireHostnameReview ? "REVIEW" : "PASS"),
+      identifiers(host), "REVIEW"),
     gate("OWNER_HASH_PII", owner.length === 0,
       "Owner hashes remain pseudonymous identifiers and require disposal review.",
       owner.reduce((n, row) => n + row.ownerHashCount, 0), 0,
