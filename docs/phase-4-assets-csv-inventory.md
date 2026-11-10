@@ -590,3 +590,73 @@ revocación, resultado persistido y AuditEvent.
 Ni la definición, ni el despacho, ni la variación de IDs
 OSV acreditan seguridad, vulnerabilidad explotable o
 remediación verificada en un dispositivo.
+
+## Décimo incremento: recuperación de claims y preparación de worker seguro
+
+`assets-osv-run-recovery.ts` implementa la detección de
+`AssetOsvRenewalRun` atascados en `CLAIMED`, con filtros
+por organización, antigüedad tras `claimExpiresAt`, límite
+de resultados y lectura correlacionada de la posible
+reserva de cuota y de la inspección ya persistida.
+
+La previsualización es **solo lectura** y no ejecuta
+consultas a OSV.dev. Los resultados muestran la franja,
+el vencimiento del claim, la idempotencia determinista,
+el digest del comando, el estado de cuota y la posible
+inspección asociada. Un run antiguo puede tener su
+informe persistido aunque el scheduler nunca haya
+terminado de registrar el resultado.
+
+La clasificación `UNKNOWN` exige rol ADMIN/OWNER,
+el ID exacto confirmado dos veces, digest esperado,
+expiración efectiva, demora mínima de investigación,
+motivo explícito y aceptación del resultado remoto
+desconocido. Utiliza `updateMany` condicional dentro
+de la misma transacción que crea `AuditEvent`, con
+protección ante carreras y cambio terminal concurrente.
+Las repeticiones ya clasificadas no crean otra auditoría.
+
+**UNKNOWN nunca significa que el proveedor no recibió
+la petición.** No se liberan franjas únicas, no se
+reembolsan cuotas, no se vuelve a consultar OSV.dev
+y no se modifica el estado de un dispositivo.
+El resultado se conserva para investigación humana.
+
+`assets-osv-worker-readiness.ts` ofrece un informe
+acotado por tenant con número de calendarios,
+consentimientos, vencimientos, claims atascados,
+cuotas sin liquidar, estados desconocidos, capacidad
+atómica restante y condiciones bloqueantes. Vuelve
+a calcular el digest canónico de cada configuración
+para evitar tratar una cadena SHA bien formada como
+autorización válida.
+
+Se propone asimismo un contrato declarativo de
+identidad de servicio con permisos mínimos:
+leer vencimientos, reclamar una franja, registrar
+resultado y reservar cuota. No concede permisos
+para activar calendarios, ampliar cuotas, cambiar
+hallazgos ni modificar CyberScore. Requiere
+identidad real auditada, firma de despacho, límites
+por tenant y aceptación del despliegue.
+
+Las rutas nuevas
+`GET/POST /api/organizations/{slug}/assets/osv-run-recovery`
+y `GET /api/organizations/{slug}/assets/osv-worker-readiness`
+requieren autorización administrativa, validan
+parámetros y tamaño y no permiten consultar datos
+de organizaciones ajenas.
+
+El panel `asset-osv-worker-operations.tsx` permite
+revisar incidentes y su procedencia, confirmar
+recuperaciones y consultar bloqueos para un futuro
+worker. Se añaden tests unitarios de validación,
+frescura y privilegios, y PostgreSQL de carreras,
+idempotencia, auditoría, cuotas y RBAC.
+
+**NO se ha creado una identidad de servicio real, ni
+un trigger cron, worker autónomo o secreto de despliegue.**
+`automationReady:false` y
+`externalWorkerInstalled:false` son explícitos.
+Se requiere aceptación operativa y LIVE del proveedor
+antes de autorizar tráfico recurrente automático.
