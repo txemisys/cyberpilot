@@ -649,7 +649,7 @@ export async function executeDueOsvSchedule(
           inspection: { ...request.inspection, dryRun: false },
           dryRun: false, confirmOutbound: true,
           expectedPlanDigest: plan.planDigest,
-        }, { now: dependencies.now },
+        }, dependencies.now ? { now: dependencies.now } : {},
       );
       state = "COMPLETE";
     }
