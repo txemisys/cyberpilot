@@ -2,6 +2,9 @@ import { createHash } from "node:crypto";
 import { db } from "@cyberpilot/database";
 import { canManageWork, WorkInputError } from "./remediation-work-input";
 import type { AssetScope } from "./assets-inventory-service";
+import {
+  parseOsvScheduleConfig, scheduleConsentDigest,
+} from "./assets-osv-renewal-schedules";
 
 /**
  * Readiness is deliberately diagnostic. This module does not grant a
@@ -242,10 +245,25 @@ export async function inspectOsvWorkerReadiness(
   const failed = claims.filter(x => x.state === "FAILED").length;
   const candidates: OsvWorkerReadinessEntry[] = [];
   for (const schedule of schedules) {
-    // This is a precondition detector, not a consent attestation.
-    // The authoritative digest is verified again at the dispatch boundary.
-    const consistent = schedule.consentDigest.length === 64 &&
-      /^[a-f0-9]{64}$/.test(schedule.consentDigest);
+    // Reconstruct the canonical consent-bearing policy. Never mistake a
+    // merely well-formed SHA-256 for proof of schedule authorization.
+    let consistent = false;
+    try {
+      const config = parseOsvScheduleConfig({
+        name: schedule.name,
+        inventoryImportId: schedule.inventoryImportId,
+        sourceInspectionId: schedule.sourceInspectionId,
+        cadenceMinutes: schedule.cadenceMinutes,
+        inspection: schedule.inspection,
+        policy: schedule.policy,
+        allowNewPackages: schedule.allowNewPackages,
+        allowIncompleteInventory: schedule.allowIncompleteInventory,
+      });
+      consistent = scheduleConsentDigest(
+        scope.organizationId, config) === schedule.consentDigest;
+    } catch {
+      consistent = false;
+    }
     candidates.push(evaluateWorkerSchedule(
       schedule, now, active.has(schedule.inventoryImportId),
       consistent, stalled, quotas.length, policy));
