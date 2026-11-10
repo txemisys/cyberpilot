@@ -101,6 +101,7 @@ export async function inspectAssetOfflineAcceptance(
       where: {
         organizationId: scope.organizationId,
         resourceType: "AssetAdviceCase",
+        action: "assets.advice.case.opened",
         resourceId: { in: caseIds },
       },
       select: { resourceId: true }, distinct: ["resourceId"],
