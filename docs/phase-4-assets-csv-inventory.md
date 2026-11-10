@@ -876,3 +876,88 @@ gestor de secretos, gestión multi-réplica, rollback
 y aceptación LIVE. La rotación declarada aquí
 no instala scheduler, activa tráfico a proveedores,
 ni demuestra seguridad de endpoints o remediación.
+
+## Ronda doble CC — preflight firmado y reconciliación forense sin tenants externos
+
+### Incremento 1 — preflight de admisión
+
+`assets-osv-dispatch-preflight.ts` y
+`GET/POST/PUT /api/organizations/{slug}/assets/osv-dispatch-preflight`
+implementan un preflight **solo lectura** para administradores de
+CyberPilot. Comprueba autorización de la agenda, digest canónico del
+consentimiento, existencia de inventario COMMITTED e inspección fuente
+COMPLETE, vencimiento permitido, intervalos atrasados, claims abiertos,
+reservas de cuota, incidentes críticos, saldo diario de presupuesto y
+existencia de credencial HMAC habilitada y vinculada a la organización.
+
+Cada condición produce `PASS`, `WARN` o `BLOCK`,
+con evidencia local y separación de condiciones obligatorias y
+recomendaciones. Los filtros se validan y los conjuntos de agendas
+se limitan. Un informe se identifica mediante SHA-256 del
+contenido, pero este hash por sí solo no demuestra autenticidad
+externa, autoriza despachos ni verifica el proveedor.
+
+El desafío HMAC generado bajo petición de administrador prueba,
+en memoria, una firma sintética válida y las denegaciones de
+firma modificada, otro tenant y petición caducada. No envía
+ninguna solicitud HTTP de despacho, no consume nonce,
+no reserva cuota, no modifica una agenda y no instala cron.
+La admisión real **repite todos los controles** en la frontera
+del despacho; el preflight no es una reserva ni una autorización.
+
+El panel `AssetOsvDispatchPreflightWorkspace` muestra
+condiciones por agenda, blockers, controles de presupuesto,
+ventanas temporales y el resultado del desafío sin secretos.
+
+### Incremento 2 — línea de evidencia y verificación
+
+`assets-osv-dispatch-forensics.ts` reconstruye un grafo
+local y tenant-scoped de peticiones firmadas aceptadas,
+claims persistentes, reservas de cuota, inspecciones
+OSV y eventos de auditoría. Las relaciones
+`EXACT_INSPECTION`, `EXACT_REQUEST_KEY` y
+`EXACT_AUDIT_RESOURCE` se distinguen expresamente
+de `TIME_ADJACENT_ONLY`, que es una coincidencia
+temporal orientativa y **no prueba causalidad**.
+
+El analizador detecta claims estancados, resultados
+UNKNOWN, inspecciones ausentes de la ventana, recuentos
+imposibles, cuotas sin liquidar, peticiones sin
+claim observable y asociaciones ambiguas.
+No transforma la ausencia de registros en una afirmación
+de que OSV.dev no ha recibido una consulta.
+El informe está limitado por ventana, tamaño y
+colecciones; si la política requiere completitud,
+se rechaza una consulta truncada en vez de
+presentarla como cobertura suficiente.
+
+`assets-osv-forensic-verification.ts` comprueba los
+hashes SHA-256 de nodos y reporte, integridad
+de referencias, conteos, orden canónico y
+ausencia de efectos externos declarados.
+Estos fingerprints son controles de integridad
+local, **no firmas de origen**.
+`GET/POST /api/organizations/{slug}/assets/osv-dispatch-forensics`
+incorpora el veredicto de verificación en la respuesta.
+
+El panel `AssetOsvDispatchForensicsWorkspace`
+permite elegir ventanas, fuentes, límites,
+filtrar anomalías, distinguir aristas exactas
+de heurísticas, examinar evidencias y copiar un
+JSON local. El JSON contiene identificadores
+operativos; debe circular únicamente por
+canales autorizados de respuesta a incidentes.
+
+Se añaden pruebas unitarias y PostgreSQL de
+digest, relaciones, anomalías, RBAC, aislamiento
+entre organizaciones, ventanas y lectura sin efectos
+secundarios. Ninguno de estos mecanismos
+requiere tenants Google Workspace/Microsoft 365
+ni credenciales LIVE de OSV.dev.
+
+**Límites de aceptación:** no existe scheduler
+autónomo, monitor de eventos recurrente ni
+validación real del proveedor. Las pruebas
+no acreditan remediación, exposición efectiva,
+explotabilidad ni seguridad de un dispositivo,
+y no modifican CyberScore ni findings.
