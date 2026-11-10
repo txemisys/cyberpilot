@@ -313,15 +313,35 @@ export async function consumeSignedDispatch(
   if (!schedule)
     conflict("The authorized schedule is not currently claimable.");
   try {
-    await db.assetOsvDispatchNonce.create({
-      data: {
-        organizationId: verified.organizationId,
-        nonceDigest: verified.nonceDigest,
-        requestDigest: verified.requestDigest,
-        keyId: verified.keyId,
-        scheduleId: verified.scheduleId,
-        expiresAt: verified.expiresAt,
-      },
+    await db.$transaction(async tx => {
+      await tx.assetOsvDispatchNonce.create({
+        data: {
+          organizationId: verified.organizationId,
+          nonceDigest: verified.nonceDigest,
+          requestDigest: verified.requestDigest,
+          keyId: verified.keyId,
+          scheduleId: verified.scheduleId,
+          expiresAt: verified.expiresAt,
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          organizationId: verified.organizationId,
+          actorType: "SERVICE",
+          action: "assets.osv.dispatch.signature.accepted",
+          resourceType: "AssetOsvRenewalSchedule",
+          resourceId: verified.scheduleId,
+          metadata: {
+            schema: "cyberpilot.assets.osv.signed-dispatch.audit.v1",
+            requestDigest: verified.requestDigest,
+            nonceDigest: verified.nonceDigest,
+            keyId: verified.keyId,
+            expiresAt: verified.expiresAt.toISOString(),
+            scheduleRevision: verified.expectedRevision,
+            networkResult: "UNKNOWN_AT_AUTHENTICATION",
+          },
+        },
+      });
     });
   } catch (cause) {
     if (cause && typeof cause === "object" &&
