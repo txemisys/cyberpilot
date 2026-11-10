@@ -343,7 +343,7 @@ export function assessPrivacyReadiness(
       0, 1,
       "Deleting rows in PostgreSQL is not proof of deleting copies from backups or exports.",
       identifiers(imports),
-      policy.requireBackupDeletionProcedure ? "REVIEW" : "PASS"),
+      "REVIEW"),
     gate("PURGE_DEPENDENCIES", bad.length === 0,
       "Purge candidates must be internally coherent and linked data assessed.",
       bad.length, 0,
