@@ -327,7 +327,7 @@ export async function consumeSignedDispatch(
       await tx.auditEvent.create({
         data: {
           organizationId: verified.organizationId,
-          actorType: "SERVICE",
+          actorType: "SYSTEM",
           action: "assets.osv.dispatch.signature.accepted",
           resourceType: "AssetOsvRenewalSchedule",
           resourceId: verified.scheduleId,
@@ -365,7 +365,7 @@ export async function executeSignedOsvDispatch(
     scheduleId: verified.scheduleId,
     expectedRevision: verified.expectedRevision,
     confirmDispatch: true,
-  }, { now: () => now, actorType: "SERVICE" });
+  }, { now: () => now, actorType: "SYSTEM" });
   return {
     schema: receiptSchema,
     organizationId: verified.organizationId,
