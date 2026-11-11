@@ -88,6 +88,7 @@ export type OperationalCloseoutInput = {
     stepsRecorded: number;
     blockedSteps: number;
     sourceIdentityMatches: boolean;
+    sourceDigest: string | null;
   };
   independent: {
     reviewCount: number;
@@ -101,6 +102,7 @@ export type OperationalCloseoutInput = {
     complete: boolean;
     blockers: number;
     reviewEvents: number;
+    digest: string | null;
   };
   releaseAudit: {
     checked: boolean;
@@ -470,8 +472,8 @@ export function buildOperationalCloseout(
     evaluatedAt: input.evaluatedAt,
     sourceDigests: {
       closeout: input.dossier.digest,
-      operatorSource: input.operator.id ? input.operator.id : null,
-      audit: input.audit.checked ? input.operator.id : null,
+      operatorSource: input.operator.sourceDigest,
+      audit: input.audit.digest,
     },
     stages, dependencies, actions,
     overview: {
@@ -681,6 +683,7 @@ export async function inspectOperationalCloseout(
       integrity: operatorCheck?.valid ?? false,
       stepsRecorded: steps?.completed ?? 0,
       blockedSteps: steps?.blocked ?? 0,
+      sourceDigest: operator?.sourceDigest ?? null,
       sourceIdentityMatches: !!operator &&
         operator.importId === dossier.importId &&
         operator.inspectionId === dossier.inspectionId &&
@@ -702,6 +705,7 @@ export async function inspectOperationalCloseout(
         audit.reviewAuditComplete || false,
       blockers: audit?.blockers ?? 1,
       reviewEvents: audit?.totalReviewEvents ?? 0,
+      digest: audit?.digest ?? null,
     },
     releaseAudit: {
       checked: !!releaseAudit,
