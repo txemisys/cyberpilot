@@ -614,7 +614,8 @@ export function inspectScenarioMatrixCoverage(
     untestedGateIds,
     unexpectedlyEligible, unexpectedlyBlocked,
     verdict: reasons.length === 0 ? "COMPLETE_REFERENCE_SET" :
-      report.failed > 0 || unexpectedlyEligible.length > 0 ?
+      !verifyOfflineScenarioMatrix(report).valid || report.failed > 0 ||
+       unexpectedlyEligible.length > 0 ?
         "FAILED" : "PARTIAL_REFERENCE_SET",
     reasons,
   };
