@@ -382,7 +382,8 @@ export function assessRetentionExceptions(report: PrivacyReadinessReport,
   return selectedGates.map(gate => {
     const match = entries.find(entry => entry.gateId === gate.id) ?? null;
     return {
-      gateId: gate.id, severity: gate.severity,
+      gateId: gate.id,
+      severity: gate.severity === "BLOCK" ? "BLOCK" : "REVIEW",
       rationale: gate.rationale, addressedBy: match,
       status: match ? "DOCUMENTED_EXCEPTION" : "UNRESOLVED",
     };
