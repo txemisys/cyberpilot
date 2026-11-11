@@ -5,7 +5,8 @@ import type { AssetScope } from "./assets-inventory-service";
 import { inspectAssetOfflineAcceptance } from "./assets-offline-acceptance-service";
 import { verifyOfflineAcceptanceReport } from "./assets-offline-acceptance-verification";
 import { inspectAssetPrivacyReadiness } from "./assets-privacy-readiness-service";
-import { verifyPersistedAssetReleaseReview } from "./assets-release-review-verification";
+import { verifyPersistedAssetReleaseReview,
+  decodeReleaseSnapshot } from "./assets-release-review-verification";
 import { parseScenarioMatrixOptions, runOfflineScenarioMatrix,
   inspectScenarioMatrixCoverage, verifyOfflineScenarioMatrix,
 } from "./assets-offline-scenario-matrix";
@@ -260,7 +261,7 @@ export async function collectReleaseEvidence(scope: AssetScope,
   };
 }
 function snapshotJson(value: unknown) {
-  return JSON.parse(JSON.stringify(value));
+  return { canonical: JSON.stringify(value) };
 }
 export function mayAcceptOffline(evidence: Evidence,
   acknowledgements: ReleaseAcknowledgement[]) {
@@ -282,6 +283,8 @@ function rowView(row: {
 }) {
   return {
     ...row, verification: verifyPersistedAssetReleaseReview(row),
+    acceptanceSnapshot: decodeReleaseSnapshot(row.acceptanceSnapshot),
+    privacySnapshot: decodeReleaseSnapshot(row.privacySnapshot),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     decidedAt: row.decidedAt?.toISOString() ?? null,
@@ -395,10 +398,10 @@ export async function transitionAssetReleaseReview(scope: AssetScope,
   // Replay the original evaluation clock when checking the persisted
   // evidence identity. A new timestamp changes signed report digests even
   // when no source record changed, so the original clock is essential.
-  const original = row.acceptanceSnapshot as {
+  const original = decodeReleaseSnapshot(row.acceptanceSnapshot) as {
     evaluatedAt?: unknown;
-  };
-  if (typeof original.evaluatedAt !== "string" ||
+  } | null;
+  if (!original || typeof original.evaluatedAt !== "string" ||
       !Number.isFinite(Date.parse(original.evaluatedAt)))
     fail("CONFLICT", "Stored acceptance evaluation clock is invalid.");
   const source = {
