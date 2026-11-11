@@ -248,6 +248,7 @@ model Organization {
   assetAdviceCases         AssetAdviceCase[]
   assetReleaseReviews      AssetReleaseReview[]
   assetRetentionReviews    AssetRetentionReview[]
+  assetOfflineAcceptanceRuns AssetOfflineAcceptanceRun[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -1350,3 +1351,35 @@ model AssetRetentionReview {
   @@index([organizationId, nextReviewAt])
 }
 
+
+/**
+ * A witnessed offline acceptance checklist tied to an evidence dossier.
+ * Its status never substitutes for a responsible person's signoff.
+ */
+model AssetOfflineAcceptanceRun {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  inspectionId String
+  idempotencyKey String
+  dossierDigest String @db.VarChar(64)
+  sourceDigest String @db.VarChar(64)
+  state String @default("DRAFT")
+  revision Int @default(1)
+  operatorUserId String
+  openingReason String
+  steps Json
+  limitations Json
+  humanAcknowledgements Json
+  completedSteps Int @default(0)
+  blockedSteps Int @default(0)
+  startedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submittedAt DateTime?
+  submittedByUserId String?
+  submittedReason String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, importId, inspectionId])
+  @@index([organizationId, state, updatedAt])
+}
