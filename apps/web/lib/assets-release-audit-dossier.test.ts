@@ -33,7 +33,7 @@ function row(operation: string, revision: number, overrides:
   };
   return {
     id: "audit_" + revision, organizationId: org,
-    actorType: "USER", actorUserId: "actor_demo123",
+    actorType: "USER", actorUserId: "actor_demo123" as string | null,
     action, resourceType: "AssetReleaseReview",
     resourceId: sourceId, occurredAt: new Date(
       stamp.getTime() + revision * 1000),
