@@ -27,6 +27,7 @@ import { AssetRetentionReviewWorkspace } from "../../../../components/asset-rete
 import { AssetOfflineCloseoutDossierWorkspace } from "../../../../components/asset-offline-closeout-dossier-workspace";
 import { AssetOfflineAcceptanceRunWorkspace } from "../../../../components/asset-offline-acceptance-run-workspace";
 import { AssetEvidenceIndependentReviewWorkspace } from "../../../../components/asset-evidence-independent-review-workspace";
+import { AssetAcceptanceAuditReconciliationWorkspace } from "../../../../components/asset-acceptance-audit-reconciliation-workspace";
 
 type Context = { params: Promise<{ slug: string }> };
 export default async function AssetInventoryPage({ params }: Context) {
@@ -69,6 +70,7 @@ export default async function AssetInventoryPage({ params }: Context) {
       <AssetOfflineCloseoutDossierWorkspace slug={slug} canManage={canManage} />
       <AssetOfflineAcceptanceRunWorkspace slug={slug} canManage={canManage} />
       <AssetEvidenceIndependentReviewWorkspace slug={slug} canManage={canManage} />
+      <AssetAcceptanceAuditReconciliationWorkspace slug={slug} canManage={canManage} />
     </section>
   </main>;
 }
