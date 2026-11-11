@@ -42,7 +42,7 @@ type Dossier = {
   completeEventSet: boolean;
   events: AuditEvent[];
   revisions: Array<{
-    revision: number; operation: string;
+    revision: number; eventId: string; operation: string;
     from: string | null; to: string;
     actorUserId: string | null; occurredAt: string;
     evidenceBundleDigest: string; changeSummary: string[];
