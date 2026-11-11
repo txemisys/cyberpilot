@@ -1122,3 +1122,52 @@ validación de eliminación/retención de backups y las
 integraciones LIVE todavía excluidas de esta fase
 offline. La fusión del PR #211 permanece sujeta a
 la aceptación de producto y a todos los workflows.
+
+
+## Registro de aceptación humana offline (AssetReleaseReview, PR #211)
+
+La ruta administrativa `/api/organizations/[slug]/assets/release-reviews`
+implementa lectura paginada (`GET`), apertura `PENDING` (`POST`) y transición
+con revisión CAS (`PATCH`). Cada decisión se vincula al tenant y usuario
+autenticados; no se permite especificar `organizationId` ni `actorUserId` desde
+el cuerpo de la petición. Las operaciones requieren rol ADMIN u OWNER, incluyen
+límites de entrada y devuelven `Cache-Control: private, no-store`.
+
+Estados: `PENDING → IN_REVIEW → ACCEPTED_OFFLINE`, o rechazo explícito
+`REJECTED`, con `REOPENED → IN_REVIEW` tras reabrir una decisión cerrada.
+Una aceptación requiere razón humana, seis acknowledgements independientes,
+políticas de aceptación y privacidad sin bloqueos, 13/13 escenarios sintéticos
+pasados con cobertura completa y coincidencia de procedencia. El conjunto
+de fixtures ejecutables es **sintético**, nunca aceptación de inventarios reales
+ni test LIVE de OSV.dev.
+
+La evidencia almacenada incluye snapshot de aceptación offline, snapshot de
+privacidad, resumen de escenarios y digests SHA-256 de inventario, inspección,
+aceptación, privacidad, escenario, políticas y bundle versionado. Los digests
+no son firmas externas; la verificación independiente detecta cambios locales
+en snapshots, identidad y decisiones. Se evalúa con el reloj original para
+comparar la evidencia persistida y con la fecha actual para no reutilizar una
+aprobación antigua si hoy aparece una caducidad o un bloqueo. Los propios
+eventos del registro de liberación quedan excluidos del recuento de auditoría
+del readiness de privacidad para impedir un ciclo autoinvalidante; las
+operaciones del registro **sí** tienen su propia auditoría en la misma
+transacción de la escritura del review.
+
+El panel `AssetReleaseReviewWorkspace` muestra procedencia, exclusiones,
+estados, revisiones, alertas y exportación JSON, y no permite marcar
+acknowledgements automáticamente. Un estado `ACCEPTED_OFFLINE` **no**
+certifica remediación, seguridad de endpoint, escaneos de todos los activos,
+disponibilidad LIVE de proveedores, borrado de backups ni aprobación legal.
+La política de privacidad/retención debe pasar por revisión humana efectiva
+y el registro no sustituye las autorizaciones externas que correspondan.
+
+### Aceptación aún exigida antes de fusionar
+
+- Confirmar TypeScript, migraciones, PostgreSQL, tests, build y los cinco
+  workflows del **mismo HEAD**.
+- Ejecutar recorrido manual reproducible con inventarios representativos,
+  inspección OSV previamente guardada, casos humanos, análisis offline,
+  privacidad/retención y la decisión humana registrada; retener sus evidencias.
+- Exigir revisión real de privacidad/retención, incluyendo procedimiento de
+  backup y copias exportadas. La matriz sintética no suple esta revisión.
+- Mantener el PR en Draft y sin fusionar hasta cerrar estos pasos.
