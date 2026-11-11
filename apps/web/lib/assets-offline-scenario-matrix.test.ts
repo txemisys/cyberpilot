@@ -104,7 +104,7 @@ describe("Fase 4 executable offline acceptance reference matrix", () => {
     report.resultsDigest = "a".repeat(64);
     expect(verifyOfflineScenarioMatrix(report).valid).toBe(false);
     expect(inspectScenarioMatrixCoverage(report).verdict)
-      .toBe("PARTIAL_REFERENCE_SET");
+      .toBe("FAILED");
   });
   it("calls partial suites incomplete even when every selected case passes", () => {
     const report = runOfflineScenarioMatrix(parseScenarioMatrixOptions({
