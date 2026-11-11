@@ -11,6 +11,10 @@ import {
 } from "./assets-offline-acceptance-run-service";
 import { inspectOfflineCloseoutDossier } from
   "./assets-offline-closeout-dossier";
+import { inspectAcceptanceAuditReconciliation } from
+  "./assets-acceptance-audit-reconciliation";
+import { inspectOperationalCloseout } from
+  "./assets-phase4-operational-closeout";
 
 describe.skipIf(!process.env.DATABASE_URL)(
   "PostgreSQL Fase 4 witnessed human closeout and conservative audit", () => {
@@ -281,6 +285,64 @@ describe.skipIf(!process.env.DATABASE_URL)(
         organizationId, resourceId: runId,
         action: "assetAcceptance.run.block_step",
       } })).toBe(1);
+    });
+    it("reconciles the real PostgreSQL operator audit without signing off", async () => {
+      const report = await inspectAcceptanceAuditReconciliation(admin, {
+        runId, maximumRunEvents: 100,
+        maximumReviewEvents: 100,
+      }, now);
+      expect(report).toMatchObject({
+        organizationId, runId,
+        state: "BLOCKED", revision: 4,
+        totalRunEvents: 4, totalReviewEvents: 0,
+        runAuditComplete: true, reviewAuditComplete: true,
+        localAuditIntegrityVerified: true,
+        readyForIndependentHumanDecision: false,
+        externallySigned: false, legallyApproved: false,
+        mergeAuthorized: false, noDatabaseWrites: true,
+      });
+      await expect(inspectAcceptanceAuditReconciliation(member, {
+        runId,
+      }, now)).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(inspectAcceptanceAuditReconciliation(outsider, {
+        runId,
+      }, now)).rejects.toMatchObject({ code: "MISSING" });
+    });
+    it("constructs the real tenant operational closeout without external approval", async () => {
+      const before = await db.auditEvent.count({
+        where: { organizationId },
+      });
+      const result = await inspectOperationalCloseout(admin, {
+        ...source(), runId, maxAuditEvents: 100,
+      }, now);
+      expect(result).toMatchObject({
+        organizationId, importId, inspectionId,
+        operatorRunId: runId,
+        localDatabaseWrites: 0,
+        liveProviderRequests: 0,
+        mergeAuthorized: false,
+        legalSignoffVerified: false,
+        backupDeletionVerified: false,
+      });
+      expect(result.overview.blocked).toBeGreaterThan(0);
+      expect(result.stages.find(s => s.area === "OPERATOR_WALKTHROUGH")
+        ?.state).toBe("BLOCKED");
+      expect(result.stages.find(s => s.area === "LIVE_EXCLUSION")
+        ?.state).toBe("EXCLUDED");
+      expect(await db.auditEvent.count({
+        where: { organizationId },
+      })).toBe(before);
+      await expect(inspectOperationalCloseout(member, {
+        ...source(), runId,
+      }, now)).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(inspectOperationalCloseout(outsider, {
+        ...source(), runId,
+      }, now)).rejects.toMatchObject({ code: "MISSING" });
+    });
+    it("rejects a mismatched operator run selection from another import", async () => {
+      await expect(inspectOperationalCloseout(admin, {
+        ...source(), importId: "other-import-12345", runId,
+      }, now)).rejects.toMatchObject({ code: "MISSING" });
     });
     it("reconstructs bounded event history and leaves real approvals pending", async () => {
       const result = await inspectOperatorRunStatus(admin, runId, now);
