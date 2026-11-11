@@ -246,6 +246,7 @@ model Organization {
   assetOsvDispatchNonces    AssetOsvDispatchNonce[]
   assetOsvDispatchAlerts    AssetOsvDispatchAlert[]
   assetAdviceCases         AssetAdviceCase[]
+  assetReleaseReviews      AssetReleaseReview[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -1276,4 +1277,41 @@ model AssetAdviceCaseStep {
   adviceCase AssetAdviceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
   @@unique([caseId, actionCode])
   @@index([organizationId, status])
+}
+
+
+/**
+ * Scoped manual offline acceptance record. It never authorizes external
+ * dispatch, certifies legal compliance or verifies endpoint remediation.
+ */
+model AssetReleaseReview {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  inspectionId String
+  inventoryDigest String @db.VarChar(64)
+  inspectionDigest String @db.VarChar(64)
+  acceptanceDigest String @db.VarChar(64)
+  privacyDigest String @db.VarChar(64)
+  scenarioDigest String @db.VarChar(64)
+  evidenceBundleDigest String @db.VarChar(64)
+  policyDigest String @db.VarChar(64)
+  state String @default("PENDING")
+  revision Int @default(1)
+  operatorUserId String
+  operatorReason String
+  operatorAcknowledgements Json
+  exclusions Json
+  acceptanceSnapshot Json
+  privacySnapshot Json
+  scenarioSummary Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  decidedAt DateTime?
+  decidedByUserId String?
+  decisionReason String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, importId, inspectionId])
+  @@index([organizationId, state, updatedAt])
+  @@index([organizationId, createdAt])
 }
