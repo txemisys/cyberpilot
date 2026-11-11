@@ -539,3 +539,81 @@ export function verifyOfflineScenarioMatrix(report: ScenarioMatrixReport): {
     noSideEffects, scenarioCoverageValid, reasons,
   };
 }
+
+/**
+ * Independently correlate matrix outcomes with their configured safety gates.
+ * A suite that only executes "clean" fixtures cannot establish fail-closed
+ * behavior, even if every executed fixture succeeds.
+ */
+export type ScenarioMatrixCoverage = {
+  referenceCount: number;
+  requiredFailureReferences: number;
+  executedFailureReferences: number;
+  executedPassingReferences: number;
+  exceptionCases: number;
+  advisoryCases: number;
+  protectedGateIds: string[];
+  untestedGateIds: string[];
+  unexpectedlyEligible: string[];
+  unexpectedlyBlocked: string[];
+  verdict: "COMPLETE_REFERENCE_SET" | "PARTIAL_REFERENCE_SET" | "FAILED";
+  reasons: string[];
+};
+export function inspectScenarioMatrixCoverage(
+  report: ScenarioMatrixReport,
+): ScenarioMatrixCoverage {
+  const required = SCENARIO_IDS.filter(id =>
+    !expectations[id].expectedAccepted);
+  const passing = report.results.filter(row => row.expectedAccepted);
+  const failure = report.results.filter(row => !row.expectedAccepted);
+  const mandatory = new Set<string>();
+  const exercised = new Set<string>();
+  for (const id of SCENARIO_IDS) {
+    for (const gate of expectations[id].expectedBlockedGateIds)
+      mandatory.add(gate);
+  }
+  for (const result of report.results) {
+    if (!result.passed) continue;
+    for (const gate of result.actualBlockers)
+      exercised.add(gate);
+  }
+  const unexpectedlyEligible = report.results.filter(result =>
+    !result.expectedAccepted && result.observedAccepted === true)
+    .map(result => result.id);
+  const unexpectedlyBlocked = report.results.filter(result =>
+    result.expectedAccepted && result.observedAccepted === false)
+    .map(result => result.id);
+  const untestedGateIds = [...mandatory].filter(gate =>
+    !exercised.has(gate)).sort();
+  const reasons: string[] = [];
+  if (!verifyOfflineScenarioMatrix(report).valid)
+    reasons.push("The scenario report's canonical provenance failed verification.");
+  if (report.failed > 0)
+    reasons.push("One or more selected acceptance fixtures failed.");
+  if (unexpectedlyEligible.length)
+    reasons.push("A mandatory negative case was incorrectly release eligible.");
+  if (unexpectedlyBlocked.length)
+    reasons.push("A reference positive scenario was unexpectedly blocked.");
+  const complete = report.results.length === SCENARIO_IDS.length &&
+    report.results.every(result => SCENARIO_IDS.includes(result.id)) &&
+    untestedGateIds.length === 0;
+  if (!complete)
+    reasons.push("The executed matrix does not cover every declared reference case and safety gate.");
+  return {
+    referenceCount: SCENARIO_IDS.length,
+    requiredFailureReferences: required.length,
+    executedFailureReferences: failure.length,
+    executedPassingReferences: passing.length,
+    exceptionCases: report.results.filter(row =>
+      row.observedException).length,
+    advisoryCases: report.results.filter(row =>
+      row.expectedAdvisories.length).length,
+    protectedGateIds: [...exercised].sort(),
+    untestedGateIds,
+    unexpectedlyEligible, unexpectedlyBlocked,
+    verdict: reasons.length === 0 ? "COMPLETE_REFERENCE_SET" :
+      report.failed > 0 || unexpectedlyEligible.length > 0 ?
+        "FAILED" : "PARTIAL_REFERENCE_SET",
+    reasons,
+  };
+}
