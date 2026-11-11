@@ -58,7 +58,7 @@ describe("Fase 4 witnessed offline operator checklist contract", () => {
   it.each([
     { importId: "" },
     { importId: "../foreign" },
-    { inspectionId: "short" },
+    { inspectionId: "bad" },
     { idempotencyKey: "x" },
     { bindings: "[]" },
     { reason: "short" },
