@@ -52,7 +52,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
     });
     const change = (operation: string, revision: number,
       extra: Record<string, unknown> = {}) => ({
-      ...source(), runId, operation,
+      bindings, acceptancePolicy: {}, privacyPolicy: {},
+      runId, operation,
       expectedRevision: revision,
       expectedDossierDigest: dossierDigest,
       reason, stepCode: null,
