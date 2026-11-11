@@ -249,6 +249,7 @@ model Organization {
   assetReleaseReviews      AssetReleaseReview[]
   assetRetentionReviews    AssetRetentionReview[]
   assetOfflineAcceptanceRuns AssetOfflineAcceptanceRun[]
+  assetEvidenceReviews AssetEvidenceReview[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -1382,4 +1383,30 @@ model AssetOfflineAcceptanceRun {
   @@unique([organizationId, idempotencyKey])
   @@index([organizationId, importId, inspectionId])
   @@index([organizationId, state, updatedAt])
+}
+
+/** Independent human inspection of one operator-provided evidence reference.
+ * This is a review of local declarations, never an external signature. */
+model AssetEvidenceReview {
+  id String @id @default(cuid())
+  organizationId String
+  acceptanceRunId String
+  stepCode String
+  sourceRunRevision Int
+  evidenceDigest String @db.VarChar(64)
+  reviewState String @default("NOT_CHECKED")
+  revision Int @default(1)
+  originalOperatorUserId String
+  reviewerUserId String
+  reviewerReason String
+  referenceLocation String?
+  referenceObservedAt DateTime?
+  crossCheckedIdentifiers Json
+  limitations Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, acceptanceRunId, stepCode])
+  @@index([organizationId, reviewState, updatedAt])
+  @@index([organizationId, acceptanceRunId])
 }
