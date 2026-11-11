@@ -18,6 +18,8 @@ function run(changes: Record<string, unknown> = {}) {
     inspectionId: "inspect-demo01",
     revision: 1, state: "DRAFT", sourceDigest: hash,
     dossierDigest: hash, operatorUserId: "admin-demo01",
+    idempotencyKey: "audit-source-demo01", openingReason: reason,
+    limitations: [], humanAcknowledgements: [], updatedAt: now,
     steps: initialOperatorSteps(),
     completedSteps: 0, blockedSteps: 0, startedAt: now,
     submittedAt: null, submittedByUserId: null, submittedReason: null,
