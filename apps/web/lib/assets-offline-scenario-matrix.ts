@@ -174,7 +174,7 @@ const expectations: Record<ScenarioCategory, ScenarioExpectation> = {
   },
   FOREIGN_TENANT: {
     id: "FOREIGN_TENANT", expectedAccepted: false,
-    expectedBlockedGateIds: ["TENANT_ISOLATION"],
+    expectedBlockedGateIds: ["TENANT_ISOLATION", "CANDIDATE_PROVENANCE"],
     expectedAdvisoryGateIds: [],
     expectedAdviceStatuses: ["REVIEW_POSSIBLE_ADVISORY"],
     shouldThrow: false,
