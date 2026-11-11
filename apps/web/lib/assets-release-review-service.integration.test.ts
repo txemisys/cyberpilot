@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { db } from "@cyberpilot/database";
+import { inspectReleaseAuditDossier,
+  verifyReleaseAuditDossier } from "./assets-release-audit-dossier";
 import { importAssetInventory } from "./assets-inventory-service";
 import type { AssetScope } from "./assets-inventory-service";
 import {
@@ -231,6 +233,30 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(await db.securityFinding.count({
         where: { organizationId },
       })).toBe(0);
+    });
+    it("reconstructs real transaction audits across all human CAS revisions", async () => {
+      const dossier = await inspectReleaseAuditDossier(admin, {
+        reviewId, maximumEvents: 100,
+        includeMetadata: true, includeDecisionReasons: false,
+      }, now);
+      expect(dossier.persistedState).toBe("REOPENED");
+      expect(dossier.persistedRevision).toBe(4);
+      expect(dossier.totalEvents).toBe(4);
+      expect(dossier.revisions.map(row => row.revision))
+        .toEqual([1, 2, 3, 4]);
+      expect(dossier.revisions.map(row => row.operation))
+        .toEqual(["CREATED", "START_REVIEW", "REJECT", "REOPEN"]);
+      expect(dossier.auditConsistent).toBe(true);
+      expect(dossier.evidenceConsistent).toBe(true);
+      expect(dossier.acceptanceRecorded).toBe(false);
+      expect(dossier.liveProviderChecked).toBe(false);
+      expect(verifyReleaseAuditDossier(dossier).valid).toBe(true);
+      await expect(inspectReleaseAuditDossier(reader, {
+        reviewId,
+      }, now)).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(inspectReleaseAuditDossier(outsider, {
+        reviewId,
+      }, now)).rejects.toMatchObject({ code: "MISSING" });
     });
     it("never exposes a foreign review through a forged ID", async () => {
       await expect(transitionAssetReleaseReview(outsider,
