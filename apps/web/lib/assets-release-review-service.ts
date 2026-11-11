@@ -388,21 +388,37 @@ export async function transitionAssetReleaseReview(scope: AssetScope,
   const target = releaseTarget(row.state as ReleaseState, command.operation);
   if (!target)
     fail("CONFLICT", "Illegal release review lifecycle transition.");
-  const evidence = await collectReleaseEvidence(scope, {
+  // Replay the original evaluation clock when checking the persisted
+  // evidence identity. A new timestamp changes signed report digests even
+  // when no source record changed, so the original clock is essential.
+  const original = row.acceptanceSnapshot as {
+    evaluatedAt?: unknown;
+  };
+  if (typeof original.evaluatedAt !== "string" ||
+      !Number.isFinite(Date.parse(original.evaluatedAt)))
+    fail("CONFLICT", "Stored acceptance evaluation clock is invalid.");
+  const source = {
     importId: row.importId, inspectionId: row.inspectionId,
     bindings: command.bindings,
     acceptancePolicy: command.acceptancePolicy,
     privacyPolicy: command.privacyPolicy,
-  }, now);
+  };
+  const historical = await collectReleaseEvidence(
+    scope, source, new Date(original.evaluatedAt));
+  if (command.operation !== "REOPEN" &&
+      !equalsDigest(row.evidenceBundleDigest,
+        historical.evidenceBundleDigest))
+    fail("CONFLICT", "Release source evidence or policy changed; reopen explicitly.");
+  // Also inspect the present time: historical replay must not make a stale
+  // inspection or an overdue privacy obligation appear currently eligible.
+  const evidence = await collectReleaseEvidence(scope, source, now);
   if (command.operation === "ACCEPT_OFFLINE" &&
       !mayAcceptOffline(evidence, command.acknowledgements))
-    fail("CONFLICT", "Mandatory evidence blockers or operator acknowledgements remain.");
+    fail("CONFLICT", "Mandatory current evidence blockers or acknowledgements remain.");
   if (command.operation === "ACCEPT_OFFLINE" &&
-      !equalsDigest(row.evidenceBundleDigest, evidence.evidenceBundleDigest))
-    fail("CONFLICT", "Evidence or policy changed; reopen with a new assessment.");
-  if (command.operation !== "REOPEN" &&
-      !equalsDigest(row.evidenceBundleDigest, evidence.evidenceBundleDigest))
-    fail("CONFLICT", "Release assessment became stale; reopen explicitly.");
+      (!equalsDigest(historical.inventoryDigest, evidence.inventoryDigest) ||
+       !equalsDigest(historical.inspectionDigest, evidence.inspectionDigest)))
+    fail("CONFLICT", "Inventory or inspection source changed during review.");
   const updated = await db.$transaction(async tx => {
     const result = await tx.assetReleaseReview.updateMany({
       where: {
