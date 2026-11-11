@@ -4,7 +4,8 @@ import type { AssetScope } from "./assets-inventory-service";
 import { WorkInputError, canManageWork } from "./remediation-work-input";
 import { inspectOfflineCloseoutDossier,
   verifyCloseoutDossier } from "./assets-offline-closeout-dossier";
-import { verifyOperatorRun, verifyOperatorSteps } from
+import { verifyOperatorRun, verifyOperatorSteps,
+  stableSourceIdentity } from
   "./assets-offline-acceptance-run-service";
 import { summarizeIndependentReviews } from
   "./assets-evidence-independent-review";
@@ -683,7 +684,10 @@ export async function inspectOperationalCloseout(
       sourceIdentityMatches: !!operator &&
         operator.importId === dossier.importId &&
         operator.inspectionId === dossier.inspectionId &&
-        /^[a-f0-9]{64}$/.test(operator.sourceDigest),
+        equal(operator.sourceDigest, stableSourceIdentity(dossier, {
+          acceptancePolicy: command.acceptancePolicy,
+          privacyPolicy: command.privacyPolicy,
+        })),
     },
     independent: {
       reviewCount: reviews.length,
