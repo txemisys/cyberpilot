@@ -1227,3 +1227,86 @@ aceptar explícitamente políticas de privacidad/retención aplicables,
 confirmar procedimientos de backup y copias exportadas y conservar la
 evidencia de esa aceptación. Sin esos hitos, se mantiene el PR en Draft,
 sin fusionar, y ninguna función se declara LIVE.
+
+
+## CC 11/11/2026 — preparación de cierre offline reproducible y recorrido humano
+
+### C1: expediente integral de cierre, sin efectos secundarios
+
+`assets-offline-closeout-dossier.ts` reúne exclusivamente fuentes
+persistidas del mismo tenant: inventario CSV, inspección OSV guardada,
+correlación y casos auditados, evaluación offline, privacidad y retención,
+registro de decisión humana, dossier forense de auditoría y los trece
+escenarios sintéticos de regresión. Produce un gatebook explícito
+con estados `PASS`, `BLOCK`, `REVIEW`, `EXCLUDED`, digests locales,
+manifiesto de procedencia y plan de actuaciones.
+
+La API `POST /api/organizations/[slug]/assets/offline-closeout-dossier`
+exige ADMIN/OWNER, IDs exactos, bindings explícitos, políticas acotadas,
+respuestas no-store y ningún acceso al proveedor. La consola
+`AssetOfflineCloseoutDossierWorkspace` ofrece filtros, diferencias de
+origen, exportación del expediente y checklist local claramente marcado
+como **no verificado**. Los indicadores `offlineProductAccepted`,
+`mergeAuthorized`, `liveProviderValidated`, `legalSignoffConfirmed`
+y `backupErasureConfirmed` permanecen explícitamente `false`.
+
+Un dossier con gates verdes **no** sustituye un recorrido real ni una
+decisión humana. Las exclusiones LIVE permanecen explícitas.
+
+### C2: ejecución presenciada del checklist offline
+
+`AssetOfflineAcceptanceRun` contiene un registro auditado de una ejecución
+de nueve tareas: validación CSV, alcance, OSV persistido, casos,
+controles offline, privacidad, retención/backups, auditoría de liberación
+y recorrido manual. Su migración es
+`20261111130000_asset_offline_acceptance_runs`.
+
+`assets-offline-acceptance-run-service.ts` aplica RBAC ADMIN/OWNER,
+idempotencia, límites de tamaño, nueve pasos fijos, referencias concretas
+de evidencia, motivos de operador, compare-and-swap y auditoría en la
+misma transacción PostgreSQL. Los estados `DRAFT`, `IN_PROGRESS`,
+`BLOCKED`, `EVIDENCE_CAPTURED` y `REOPENED` nunca equivalen a una
+aprobación externa. `SUBMIT_FOR_INDEPENDENT_REVIEW` exige nueve pasos
+documentados y controles actuales sin bloqueo, y aun así solo registra
+que la evidencia está preparada para **revisión independiente**.
+
+La API `GET/POST/PATCH/PUT /api/organizations/[slug]/assets/offline-acceptance-runs`
+separa listado, creación, cambios CAS y lectura de auditoría/manifiesto;
+todas las solicitudes permanecen vinculadas al tenant autenticado y
+no usan un proveedor externo. La consola administrativa
+`AssetOfflineAcceptanceRunWorkspace` permite registrar observaciones,
+IDs de evidencia, responsables, bloqueos, reaperturas, reconocimientos
+no preseleccionados y exportación del historial.
+
+**No existe ninguna operación que marque la fase como fusionable,
+autorice un borrado de backups, declare legalmente aprobada una política
+o finja una firma humana.** Las referencias introducidas manualmente
+son declaraciones sujetas a verificación independiente.
+
+### Protocolo para aceptación final
+
+1. Usar inventario controlado y representativo y recopilar su origen,
+   cobertura, consentimiento operativo y versiones documentadas.
+2. Importar el CSV y generar o seleccionar una inspección OSV *persistida*;
+   preservar IDs exactos y snapshots para reproducir el resultado.
+3. Recorrer acciones guiadas y casos humanos, comprobar fingerprints,
+   estados, checklist, auditoría y cobertura incompleta/UNKNOWN.
+4. Generar el dossier `offline-closeout-dossier` y registrar todos
+   los blockers, gates de revisión y exclusiones LIVE.
+5. Documentar responsable de privacidad/retención y procedimientos de
+   backups, copias exportadas, períodos de restauración y excepciones.
+6. Ejecutar en la aplicación el checklist de nueve pasos con operador
+   identificado, explicación suficiente y referencia verificable de
+   cada elemento observado; no registrar evidencia no obtenida.
+7. Revisar y exportar el expediente y el manifiesto de auditoría, con
+   controles de tenant, identidad, completitud y revisión CAS.
+8. Obtener el visto bueno real de los responsables competentes fuera
+   de cualquier fixture, registrar claramente limitaciones y rechazo
+   si faltan aprobaciones; la automatización nunca lo suple.
+9. Verificar los cinco workflows sobre el HEAD definitivo y fusionar
+   solo después de la autorización de producto correspondiente.
+
+Las políticas de retención, el signoff legal y el ciclo de copias de
+seguridad no se consideran aprobados por un digest, un checklist
+marcado o un resultado sintético. El PR permanece en Draft hasta
+completar los pasos humanos pendientes.
