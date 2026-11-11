@@ -77,20 +77,26 @@ export async function inspectAssetPrivacyReadiness(
         by: ["inventoryImportId"], where,
         _count: { _all: true },
       }),
+      // Exclude this release register\u2019s own audit events to avoid
+      // self-invalidating the evidence fingerprint upon creating a review.
+      // The register audit is independently verified through its own ledger.
       db.auditEvent.count({
         where: {
-          ...where, action: { startsWith: "assets." },
+          ...where, action: { startsWith: "assets.",
+            not: { startsWith: "assets.release.review." } },
         },
       }),
       db.auditEvent.count({
         where: {
-          ...where, action: { startsWith: "assets." },
+          ...where, action: { startsWith: "assets.",
+            not: { startsWith: "assets.release.review." } },
           actorUserId: { not: null },
         },
       }),
       db.auditEvent.count({
         where: {
-          ...where, action: { startsWith: "assets." },
+          ...where, action: { startsWith: "assets.",
+            not: { startsWith: "assets.release.review." } },
           resourceId: { not: null },
         },
       }),
