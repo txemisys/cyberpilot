@@ -42,6 +42,7 @@ const base: OperationalCloseoutInput = {
     complete: false, integrity: false,
     stepsRecorded: 0, blockedSteps: 0,
     sourceIdentityMatches: false,
+    sourceDigest: null,
   },
   independent: {
     reviewCount: 0, independentlyMatched: 0,
@@ -50,6 +51,7 @@ const base: OperationalCloseoutInput = {
   audit: {
     checked: false, integrity: false,
     complete: false, blockers: 1, reviewEvents: 0,
+    digest: null,
   },
   releaseAudit: {
     checked: false, valid: false, events: 0,
@@ -155,7 +157,7 @@ describe("Fase 4 human operational closeout decision board", () => {
         state: "EVIDENCE_CAPTURED", revision: 11,
         complete: true, integrity: true,
         stepsRecorded: 9, blockedSteps: 0,
-        sourceIdentityMatches: true },
+        sourceIdentityMatches: true, sourceDigest: digest },
       independent: {
         reviewCount: 9, independentlyMatched: 9,
         readyForHumanSignoff: true, mismatchCount: 0,
@@ -163,6 +165,7 @@ describe("Fase 4 human operational closeout decision board", () => {
       audit: {
         checked: true, integrity: true,
         complete: true, blockers: 0, reviewEvents: 9,
+        digest,
       },
       releaseAudit: {
         checked: true, valid: true, events: 3,
