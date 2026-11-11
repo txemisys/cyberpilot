@@ -418,12 +418,14 @@ function runScenario(id: ScenarioCategory,
     gate.level === "BLOCK").map(gate => gate.id) ?? [];
   const actualAdvisory = report?.gates.filter(gate =>
     gate.level === "ADVISORY").map(gate => gate.id) ?? [];
+  const blockedIds = new Set<string>(actualBlocked);
+  const advisoryIds = new Set<string>(actualAdvisory);
   const missingBlockers = expected.expectedBlockedGateIds.filter(gate =>
-    !actualBlocked.includes(gate));
+    !blockedIds.has(gate));
   const unexpectedBlockers = actualBlocked.filter(gate =>
     !expected.expectedBlockedGateIds.includes(gate));
   const missingAdvisories = expected.expectedAdvisoryGateIds.filter(gate =>
-    !actualAdvisory.includes(gate));
+    !advisoryIds.has(gate));
   const missingAdviceStatuses = expected.expectedAdviceStatuses.filter(status =>
     !actualStatuses.includes(status));
   if (expected.shouldThrow !== observedException)
