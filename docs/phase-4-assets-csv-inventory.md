@@ -1171,3 +1171,59 @@ y el registro no sustituye las autorizaciones externas que correspondan.
 - Exigir revisión real de privacidad/retención, incluyendo procedimiento de
   backup y copias exportadas. La matriz sintética no suple esta revisión.
 - Mantener el PR en Draft y sin fusionar hasta cerrar estos pasos.
+
+
+## CC 11/11/2026: trazabilidad forense y revisión de retención (sin tenants externos)
+
+### C1 — Dossier de auditoría de decisiones humanas
+
+- Motor `assets-release-audit-dossier.ts`: reconstrucción read-only de todos los
+  `AuditEvent` vinculados al `AssetReleaseReview` del tenant, sin promover
+  estados desconocidos ni crear eventos para suplir lagunas. Contrasta
+  secuencias CAS, estados, decisiones, actores, motivos, digests y cobertura.
+- API administrativa `POST /api/organizations/[slug]/assets/release-audit-dossier`,
+  limitada por tamaño y número de eventos, acceso ADMIN/OWNER y no-store.
+- Consola `AssetReleaseAuditDossierWorkspace`: selección de revisión,
+  timeline, incidencias, evidencias, correcciones propuestas y exportación JSON.
+- El `digest` del dossier prueba consistencia local, no autoría o firma externa.
+  Un log local consistente tampoco representa aceptación humana externa, proveedor
+  LIVE, parche aplicado, aprobación de retención o eliminación de backup.
+
+### C2 — Registro administrativo de excepciones de privacidad y retención
+
+- Prisma `AssetRetentionReview` y migración
+  `20261111124500_asset_retention_reviews`: unicidad por organización/import,
+  estado CAS, fechas de revisión, snapshots JSONB de evidencia con bytes
+  canónicos, digests, responsables y limitaciones. La relación se acota
+  a la organización; se comprueba el inventario en la evaluación del servidor.
+- Servicio `assets-retention-review-service.ts`: lee el informe real
+  `inspectAssetPrivacyReadiness` del tenant sin proveedores ni escrituras,
+  exige un inventario presente, correlaciona cada gate de revisión/bloqueo
+  con excepciones documentadas y responsables/fechas futuras, y permite
+  transiciones humanas `PENDING → IN_REVIEW → DOCUMENTED_WITH_EXCEPTIONS`
+  o `REJECTED`, con reapertura explícita. Un documento con excepciones
+  **no** convierte gates de privacidad en PASS.
+- API `GET/POST/PATCH/PUT /api/organizations/[slug]/assets/retention-reviews`,
+  donde PUT es previsualización read-only y los demás métodos gestionan
+  registro, lista y CAS auditado, siempre ADMIN/OWNER y sin caché.
+- Consola `AssetRetentionReviewWorkspace`: política, acknowledgements
+  sin preseleccionar, excepciones por gate, responsable, razón, referencia
+  externa, fechas y procedimiento de backups, historial de estado y exportación.
+- Las acciones de auditoría `assetRetention.review.*` se mantienen
+  fuera del recuento `assets.*` del motor original de privacidad, de modo
+  que documentar el resultado no altera su propia entrada de evaluación;
+  las decisiones quedan registradas transaccionalmente con actor y tenant.
+- `DOCUMENTED_WITH_EXCEPTIONS` indica únicamente que un responsable
+  describió excepciones, no que se hayan resuelto, autorizado por un DPO,
+  eliminado copias ni cumplido un mandato legal. Requiere validación
+  independiente y revisión operativa humana posterior.
+
+### Condiciones de aceptación pendientes
+
+Los motores y fixtures offline sirven para preparación y validación técnica.
+El cierre real requiere ejecutar un recorrido manual con inventarios
+representativos y datos controlados, verificar las personas responsables,
+aceptar explícitamente políticas de privacidad/retención aplicables,
+confirmar procedimientos de backup y copias exportadas y conservar la
+evidencia de esa aceptación. Sin esos hitos, se mantiene el PR en Draft,
+sin fusionar, y ninguna función se declara LIVE.
