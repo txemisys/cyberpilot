@@ -116,11 +116,14 @@ function stateValid(row: ReleaseVerificationSubject) {
   const decided = row.state === "ACCEPTED_OFFLINE" ||
     row.state === "REJECTED";
   if (decided !== (row.decidedAt !== null) ||
-      decided !== (row.decidedByUserId !== null) ||
-      decided !== (row.decisionReason !== null))
+      decided !== (row.decidedByUserId !== null))
     return false;
-  if (decided && (!row.decidedByUserId ||
-      !row.decisionReason || row.decisionReason.length < 20))
+  // In-progress and reopened reviews retain the latest human transition
+  // reason, even though those transitions are not terminal decisions.
+  if (row.decisionReason !== null &&
+      row.decisionReason.length < 20)
+    return false;
+  if (decided && (!row.decidedByUserId || !row.decisionReason))
     return false;
   if (row.state === "ACCEPTED_OFFLINE" &&
       !acknowledged(row.operatorAcknowledgements))
