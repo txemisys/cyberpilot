@@ -23,6 +23,7 @@ import { AssetPrivacyReadinessWorkspace } from "../../../../components/asset-pri
 import { AssetOfflineScenarioMatrixWorkspace } from "../../../../components/asset-offline-scenario-matrix-workspace";
 import { AssetReleaseReviewWorkspace } from "../../../../components/asset-release-review-workspace";
 import { AssetReleaseAuditDossierWorkspace } from "../../../../components/asset-release-audit-dossier-workspace";
+import { AssetRetentionReviewWorkspace } from "../../../../components/asset-retention-review-workspace";
 
 type Context = { params: Promise<{ slug: string }> };
 export default async function AssetInventoryPage({ params }: Context) {
@@ -61,6 +62,7 @@ export default async function AssetInventoryPage({ params }: Context) {
       <AssetOfflineScenarioMatrixWorkspace slug={slug} canManage={canManage} />
       <AssetReleaseReviewWorkspace slug={slug} canManage={canManage} />
       <AssetReleaseAuditDossierWorkspace slug={slug} canManage={canManage} />
+      <AssetRetentionReviewWorkspace slug={slug} canManage={canManage} />
     </section>
   </main>;
 }
