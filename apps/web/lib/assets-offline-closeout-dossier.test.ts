@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { evaluateAssetOfflineAcceptance } from "./assets-offline-acceptance";
+import { evaluateAssetOfflineAcceptance,
+  parseAcceptancePolicy } from "./assets-offline-acceptance";
 import { fixtureForScenario, runOfflineScenarioMatrix,
   parseScenarioMatrixOptions, inspectScenarioMatrixCoverage,
 } from "./assets-offline-scenario-matrix";
@@ -12,10 +13,10 @@ import type { CloseoutReleaseEvidence,
   CloseoutRetentionEvidence } from "./assets-offline-closeout-dossier";
 
 const now = new Date("2026-11-11T12:00:00.000Z");
-const organizationId = "scenario-fixtures";
+const organizationId = "synthetic-assets-acceptance";
 const fixture = fixtureForScenario("CLEAN_REVIEW", now);
-const acceptance = evaluateAssetOfflineAcceptance(fixture.dataset,
-  fixture.policy);
+const acceptance = evaluateAssetOfflineAcceptance(fixture,
+  parseAcceptancePolicy({}));
 const p = {
   organizationId,
   evaluatedAt: now.toISOString(),
@@ -34,7 +35,7 @@ const p = {
       rationale: "Human signoff still required.",
       affectedImportIds: [] },
   ],
-} as PrivacyReadinessReport;
+} as unknown as PrivacyReadinessReport;
 const absentRelease: CloseoutReleaseEvidence = {
   present: false, reviewId: null, revision: null, state: "MISSING",
   digest: null, verified: false, independentIssues: [],
