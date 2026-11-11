@@ -130,8 +130,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
       });
       reviewId = result.review.id;
       bundleDigest = result.review.evidenceBundleDigest;
-      expect(result.review.scenarioSummary.synthetic).toBe(true);
-      expect(result.review.scenarioSummary.totalExecuted).toBe(13);
+      expect(result.review.scenarioSummary).toMatchObject({
+        synthetic: true, totalExecuted: 13,
+      });
       expect(await db.auditEvent.count({
         where: { organizationId, resourceId: reviewId,
           action: "assets.release.review.created" },
