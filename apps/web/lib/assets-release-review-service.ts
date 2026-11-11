@@ -5,6 +5,7 @@ import type { AssetScope } from "./assets-inventory-service";
 import { inspectAssetOfflineAcceptance } from "./assets-offline-acceptance-service";
 import { verifyOfflineAcceptanceReport } from "./assets-offline-acceptance-verification";
 import { inspectAssetPrivacyReadiness } from "./assets-privacy-readiness-service";
+import { verifyPersistedAssetReleaseReview } from "./assets-release-review-verification";
 import { parseScenarioMatrixOptions, runOfflineScenarioMatrix,
   inspectScenarioMatrixCoverage, verifyOfflineScenarioMatrix,
 } from "./assets-offline-scenario-matrix";
@@ -280,7 +281,8 @@ function rowView(row: {
   decidedByUserId: string | null; decisionReason: string | null;
 }) {
   return {
-    ...row, createdAt: row.createdAt.toISOString(),
+    ...row, verification: verifyPersistedAssetReleaseReview(row),
+    createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     decidedAt: row.decidedAt?.toISOString() ?? null,
     caution: "Human offline decision only; LIVE, remediation, and legal approval are not implied.",
@@ -380,6 +382,8 @@ export async function transitionAssetReleaseReview(scope: AssetScope,
     where: { id: command.reviewId, organizationId: scope.organizationId },
   });
   if (!row) fail("MISSING", "Release review not found in this tenant.");
+  if (!verifyPersistedAssetReleaseReview(row).verified)
+    fail("CONFLICT", "Stored release review failed independent integrity verification.");
   if (row.revision !== command.expectedRevision)
     fail("CONFLICT", "Release review revision has changed.");
   if (!equalsDigest(row.evidenceBundleDigest,
