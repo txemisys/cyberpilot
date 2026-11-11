@@ -114,6 +114,11 @@ type Run = {
   sourceDigest: string;
   dossierDigest: string;
   operatorUserId: string;
+  idempotencyKey: string;
+  openingReason: string;
+  limitations: unknown;
+  humanAcknowledgements: unknown;
+  updatedAt: Date;
   steps: unknown;
   completedSteps: number;
   blockedSteps: number;
@@ -351,12 +356,7 @@ export function reconstructAcceptanceAudit(input: {
   const { run, reviews, runEvents, reviewEvents } = input;
   if (!Number.isFinite(input.checkedAt.getTime()))
     fail("INVALID", "Reconciliation evaluation clock is invalid.");
-  const initial = verifyOperatorRun({
-    ...run, idempotencyKey: "verified-in-database",
-    openingReason: "Original human explanation is stored outside this view.",
-    limitations: [], humanAcknowledgements: [],
-    startedAt: input.checkedAt, updatedAt: input.checkedAt,
-  });
+  const initial = verifyOperatorRun(run);
   const steps = verifyOperatorSteps(run.steps);
   const issues: ReconciliationIssue[] = [];
   if (!initial.valid || !steps.valid)
