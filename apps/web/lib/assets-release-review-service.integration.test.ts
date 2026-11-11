@@ -128,6 +128,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
         organizationId, state: "PENDING", revision: 1,
         operatorUserId: adminId,
       });
+      expect(result.review.verification.reasons).toEqual([]);
       reviewId = result.review.id;
       bundleDigest = result.review.evidenceBundleDigest;
       expect(result.review.scenarioSummary).toMatchObject({
