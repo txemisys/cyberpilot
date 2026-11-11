@@ -61,6 +61,24 @@ function eq(a: unknown, b: unknown): boolean {
     return false;
   return timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
 }
+/**
+ * PostgreSQL JSONB normalizes object key ordering. SHA-256 reports in the
+ * existing engines hash JSON.stringify insertion order; the original bytes
+ * must therefore be retained as an immutable JSON string inside JSONB.
+ * Do not validate the decoded JSONB object by re-stringifying its keys.
+ */
+export function decodeReleaseSnapshot(value: unknown): unknown {
+  const envelope = object(value);
+  if (!envelope || typeof envelope.canonical !== "string" ||
+      envelope.canonical.length > 2_000_000)
+    return null;
+  try {
+    const result: unknown = JSON.parse(envelope.canonical);
+    return object(result) ? result : null;
+  } catch {
+    return null;
+  }
+}
 function privacyDigestValid(value: unknown): boolean {
   const v = object(value);
   if (!v) return false;
@@ -112,8 +130,10 @@ function stateValid(row: ReleaseVerificationSubject) {
 export function verifyPersistedAssetReleaseReview(
   row: ReleaseVerificationSubject,
 ): ReleaseVerificationResult {
-  const acceptance = object(row.acceptanceSnapshot);
-  const privacy = object(row.privacySnapshot);
+  const decodedAcceptance = decodeReleaseSnapshot(row.acceptanceSnapshot);
+  const decodedPrivacy = decodeReleaseSnapshot(row.privacySnapshot);
+  const acceptance = object(decodedAcceptance);
+  const privacy = object(decodedPrivacy);
   const scenario = object(row.scenarioSummary);
   const source = object(acceptance?.source);
   const acceptancePolicy = object(acceptance?.policy);
@@ -151,8 +171,8 @@ export function verifyPersistedAssetReleaseReview(
     Array.isArray(scenario?.missingGates) &&
     scenario.missingGates.length === 0;
   const snapshotDigestsValid =
-    acceptanceDigestValid(row.acceptanceSnapshot) &&
-    privacyDigestValid(row.privacySnapshot) &&
+    acceptanceDigestValid(decodedAcceptance) &&
+    privacyDigestValid(decodedPrivacy) &&
     eq(acceptance?.reportDigest, row.acceptanceDigest) &&
     eq(privacy?.digest, row.privacyDigest);
   const policyDigestValid = !!acceptancePolicy && !!privacyPolicy &&
