@@ -247,6 +247,7 @@ model Organization {
   assetOsvDispatchAlerts    AssetOsvDispatchAlert[]
   assetAdviceCases         AssetAdviceCase[]
   assetReleaseReviews      AssetReleaseReview[]
+  assetRetentionReviews    AssetRetentionReview[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -1315,3 +1316,37 @@ model AssetReleaseReview {
   @@index([organizationId, state, updatedAt])
   @@index([organizationId, createdAt])
 }
+
+/**
+ * Administrative retention/privacy review for a customer-declared import.
+ * DOCUMENTED_WITH_EXCEPTIONS is not legal approval or verified backup erasure.
+ */
+model AssetRetentionReview {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  state String @default("PENDING")
+  revision Int @default(1)
+  sourceDigest String @db.VarChar(64)
+  privacyDigest String @db.VarChar(64)
+  policyDigest String @db.VarChar(64)
+  assessmentAt DateTime
+  snapshot Json
+  requestedByUserId String
+  initialReason String
+  reviewedByUserId String?
+  decisionReason String?
+  acknowledgements Json
+  exceptions Json
+  backupDisposition String @default("UNVERIFIED")
+  personalDataDisposition String @default("REQUIRES_REVIEW")
+  nextReviewAt DateTime?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, importId])
+  @@index([organizationId, state, updatedAt])
+  @@index([organizationId, nextReviewAt])
+}
+
