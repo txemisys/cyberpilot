@@ -541,7 +541,7 @@ async function sourceDossier(scope: AssetScope,
     fail("CONFLICT", "Source dossier failed independent validation.");
   return dossier;
 }
-function stableSourceIdentity(dossier: Awaited<ReturnType<typeof sourceDossier>>,
+export function stableSourceIdentity(dossier: Awaited<ReturnType<typeof sourceDossier>>,
   command: Pick<OperatorRunCreate, "acceptancePolicy" | "privacyPolicy">) {
   // Dossier digests contain timestamps. Stable identity intentionally uses
   // source snapshots and the explicitly selected policy inputs instead.
