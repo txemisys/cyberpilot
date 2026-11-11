@@ -541,12 +541,28 @@ async function sourceDossier(scope: AssetScope,
     fail("CONFLICT", "Source dossier failed independent validation.");
   return dossier;
 }
+function stableSourceIdentity(dossier: Awaited<ReturnType<typeof sourceDossier>>,
+  command: Pick<OperatorRunCreate, "acceptancePolicy" | "privacyPolicy">) {
+  // Dossier digests contain timestamps. Stable identity intentionally uses
+  // source snapshots and the explicitly selected policy inputs instead.
+  return sha({
+    schema: "cyberpilot.assets.operator.run.source.identity.v1",
+    organizationId: dossier.organizationId,
+    importId: dossier.importId,
+    inspectionId: dossier.inspectionId,
+    inventoryDigest: dossier.inventory.inventoryDigest,
+    inspectionDigest: dossier.inventory.inspectionDigest,
+    acceptancePolicy: command.acceptancePolicy,
+    privacyPolicy: command.privacyPolicy,
+  });
+}
 export async function createOperatorAcceptanceRun(
   scope: AssetScope, raw: unknown, now = new Date(),
 ) {
   manager(scope);
   const command = parseOperatorRunCreate(raw);
   const dossier = await sourceDossier(scope, command, now);
+  const identity = stableSourceIdentity(dossier, command);
   const where = { organizationId: scope.organizationId,
     idempotencyKey: command.idempotencyKey };
   const existing = await db.assetOfflineAcceptanceRun.findUnique({
@@ -555,7 +571,7 @@ export async function createOperatorAcceptanceRun(
   if (existing) {
     if (existing.importId !== command.importId ||
         existing.inspectionId !== command.inspectionId ||
-        !equal(existing.sourceDigest, dossier.sourceDigest))
+        !equal(existing.sourceDigest, identity))
       fail("CONFLICT", "Idempotency key already belongs to different source evidence.");
     return { replayed: true, run: view(existing) };
   }
@@ -567,7 +583,7 @@ export async function createOperatorAcceptanceRun(
           importId: command.importId, inspectionId: command.inspectionId,
           idempotencyKey: command.idempotencyKey,
           dossierDigest: dossier.digest,
-          sourceDigest: dossier.sourceDigest,
+          sourceDigest: identity,
           state: "DRAFT", revision: 1,
           operatorUserId: scope.userId, openingReason: command.reason,
           steps: JSON.parse(JSON.stringify(initialOperatorSteps())),
@@ -586,7 +602,7 @@ export async function createOperatorAcceptanceRun(
         metadata: {
           schema: "cyberpilot.assets.operator.acceptance.audit.v1",
           importId: command.importId, inspectionId: command.inspectionId,
-          dossierDigest: dossier.digest, sourceDigest: dossier.sourceDigest,
+          dossierDigest: dossier.digest, sourceDigest: identity,
           revision: 1, state: "DRAFT", reason: command.reason,
           signedOff: false, mergeAuthorized: false,
         },
@@ -601,7 +617,7 @@ export async function createOperatorAcceptanceRun(
     });
     if (row && row.importId === command.importId &&
         row.inspectionId === command.inspectionId &&
-        equal(row.sourceDigest, dossier.sourceDigest))
+        equal(row.sourceDigest, identity))
       return { replayed: true, run: view(row) };
     if (row)
       fail("CONFLICT", "Concurrent run uses different source evidence.");
@@ -632,7 +648,8 @@ export async function changeOperatorAcceptanceRun(
   }, now);
   // Source identity digest excludes the evaluation timestamp; the full
   // dossier digest includes it and therefore changes on every inspection.
-  const sourceMatches = equal(current.sourceDigest, dossier.sourceDigest);
+  const identity = stableSourceIdentity(dossier, command);
+  const sourceMatches = equal(current.sourceDigest, identity);
   if (!sourceMatches && command.operation !== "REOPEN")
     fail("CONFLICT", "Source evidence changed; reopen before proceeding.");
   const oldSteps = verifyOperatorSteps(current.steps).items;
@@ -646,7 +663,7 @@ export async function changeOperatorAcceptanceRun(
     steps, true, sourceMatches);
   const target = nextOperatorRunState(current.state as OperatorRunStatus,
     command.operation, steps,
-    readiness.canSubmitForIndependentReview);
+    readiness.canSubmitForIndependentReview && dossier.counts.blocked === 0);
   if (!target)
     fail("CONFLICT", "Illegal run transition or incomplete human checklist.");
   const completed = steps.filter(s =>
@@ -664,7 +681,7 @@ export async function changeOperatorAcceptanceRun(
         steps: JSON.parse(JSON.stringify(steps)),
         completedSteps: completed, blockedSteps: blocked,
         dossierDigest: dossier.digest,
-        sourceDigest: dossier.sourceDigest,
+        sourceDigest: identity,
         limitations: command.limitations,
         humanAcknowledgements: command.acknowledgements,
         submittedAt: target === "EVIDENCE_CAPTURED" ? now : null,
@@ -691,7 +708,7 @@ export async function changeOperatorAcceptanceRun(
         evidenceId: command.evidenceId,
         completed, blocked,
         reason: command.reason,
-        sourceDigest: dossier.sourceDigest,
+        sourceDigest: identity,
         dossierDigest: dossier.digest,
         signedOff: false,
         mergeAuthorized: false,
