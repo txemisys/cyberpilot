@@ -1310,3 +1310,83 @@ Las políticas de retención, el signoff legal y el ciclo de copias de
 seguridad no se consideran aprobados por un digest, un checklist
 marcado o un resultado sintético. El PR permanece en Draft hasta
 completar los pasos humanos pendientes.
+
+
+## CC 11/11/2026 — conciliación forense y tablero de cierre operativo
+
+### Bloque C1: conciliación de las dos cadenas de auditoría CAS
+
+El nuevo motor `assets-acceptance-audit-reconciliation.ts` comprueba
+de forma independiente y **solo lectura** la cronología completa del
+registro de recorrido humano `AssetOfflineAcceptanceRun` y de cada
+`AssetEvidenceReview` independiente. Construye dos secuencias de eventos
+CAS vinculadas al tenant, rechazando silencios de auditoría, revisiones
+duplicadas, ausentes, fuera de orden, referencias cambiadas, decisiones
+sin actor, auto-revisión, estados incompatibles y claims externos
+no corroborados.
+
+La ruta `POST /api/organizations/[slug]/assets/acceptance-audit-reconciliation`
+requiere ADMIN/OWNER, un ID exacto, límite de eventos de 1 a 1000 por
+cadena y entrada JSON máxima de 8 KiB. Si el histórico supera el límite,
+se rechaza en lugar de presentar datos truncados como aceptación. La
+interfaz `AssetAcceptanceAuditReconciliationWorkspace` permite filtrar
+incidencias, estados por revisor, ver líneas temporales CAS y exportar
+informe, digests y playbook manual. Ningún evento se reescribe ni se
+crea para suplir huecos.
+
+La verificación de hashes y eventos locales prueba únicamente
+consistencia interna dentro de los límites definidos; **no** autentica
+identidad externa, no demuestra remedio, no valida un proveedor
+LIVE, no concede cumplimiento legal ni autoriza fusión.
+
+### Bloque C2: mapa de dependencias para el cierre de producto offline
+
+`assets-phase4-operational-closeout.ts` evalúa catorce áreas:
+inventario declarado, OSV guardado, casos humanos, matriz sintética,
+privacidad, retención, backups/exportaciones, recorrido de operador,
+verificación independiente, revisión de liberación, auditoría CAS,
+aceptación humana de producto, estado CI del HEAD y exclusión LIVE.
+
+Cada área presenta `PASS_LOCAL`, `BLOCKED`, `HUMAN_REVIEW` o
+`EXCLUDED`, responsable funcional, referencia de evidencia,
+precondiciones y siguiente actuación. Los estados locales `PASS_LOCAL`
+no conceden autorizaciones legales ni prueban decisiones humanas.
+El bloque calcula dependencias insatisfechas, mapa por responsables y
+expediente JSON con huella SHA-256 e indicadores conservadores.
+
+La ruta `POST /api/organizations/[slug]/assets/phase4-operational-closeout`
+y el componente `AssetPhase4OperationalCloseoutWorkspace` ofrecen
+acceso administrativo tenant-scoped, read-only y no-store.
+CI y GitHub se consideran `HUMAN_REVIEW` dentro de esta herramienta
+porque su servicio solo consulta PostgreSQL: **no consulta el estado
+autoritativo del HEAD**. La verificación GitHub se efectúa separadamente
+sobre el commit real.
+
+Pruebas Vitest cubren validación de entrada, permisos, sabotajes de
+dossier, revisión independiente, dependencias y ausencia de
+aprobaciones ficticias. La integración PostgreSQL reutiliza un
+inventario y una inspección persistida de prueba, contrasta auditoría
+CAS, aislamiento entre organizaciones y ausencia de escrituras en
+consultas forenses.
+
+**Límite de esta entrega:** preparar material y diagnosticar lo
+pendiente no ejecuta el recorrido presencial real ni reemplaza al
+operador, al responsable de privacidad/retención, al propietario
+de backups o a la autorización de fusión. Si falta aprobación, la
+acción queda abierta; no se generan declaraciones positivas ficticias.
+
+### Criterios finales
+
+- Ejecutar manualmente un flujo representativo CSV → inspection →
+  acciones → casos humanos → dossier → operator run → revisión separada.
+- Comprobar personalmente la procedencia y contenido de referencias
+  aportadas por operadores y registrar cualquier disputa o caducidad.
+- Obtener responsables reales para privacidad, retención y backups,
+  incluidos plazos, exportaciones y excepciones; conservar decisiones.
+- Verificar las cadenas CAS de operación y revisor sin anomalías,
+  y mantener cualquier caso parcial con resultado no aceptado.
+- Confirmar CI, Security, Local stack E2E, LAB y Backup restore rehearsal
+  sobre el **mismo HEAD** antes de valorar la fusión.
+- Mantener el PR #211 en Draft sin fusionar mientras esos hitos humanos
+  permanezcan sin resolver. Ningún tenant externo ni LIVE es necesario
+  para el alcance offline definido.
