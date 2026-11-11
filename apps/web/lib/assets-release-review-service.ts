@@ -348,7 +348,7 @@ export async function createAssetReleaseReview(scope: AssetScope,
         exclusions: command.exclusions,
         acceptanceSnapshot: snapshotJson(evidence.acceptance),
         privacySnapshot: snapshotJson(evidence.privacy),
-        scenarioSummary: snapshotJson(evidence.scenarioSummary),
+        scenarioSummary: JSON.parse(JSON.stringify(evidence.scenarioSummary)),
       } });
       await tx.auditEvent.create({ data: {
         organizationId: scope.organizationId,
@@ -444,7 +444,7 @@ export async function transitionAssetReleaseReview(scope: AssetScope,
         policyDigest: evidence.policyDigest,
         acceptanceSnapshot: snapshotJson(evidence.acceptance),
         privacySnapshot: snapshotJson(evidence.privacy),
-        scenarioSummary: snapshotJson(evidence.scenarioSummary),
+        scenarioSummary: JSON.parse(JSON.stringify(evidence.scenarioSummary)),
         operatorAcknowledgements: command.acknowledgements,
         decidedAt: ["ACCEPTED_OFFLINE", "REJECTED"].includes(target)
           ? now : null,
