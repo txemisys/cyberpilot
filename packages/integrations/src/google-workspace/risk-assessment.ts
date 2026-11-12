@@ -1,3 +1,4 @@
+import { canonicalGoogleHash } from "./canonical-json";
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
   CAPABILITIES, buildEvidenceRecords, verifyObservation,
@@ -260,7 +261,7 @@ function equal(a: unknown, b: unknown) {
     timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
 }
 function hash(value: unknown) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  return canonicalGoogleHash(value);
 }
 export function parseGoogleAssessmentPolicy(
   raw: unknown = {}, now = new Date(),
