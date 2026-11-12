@@ -1106,3 +1106,24 @@ export type {
   V2HistoricalIssue, V2HistoryReconciliation,
   V2ModelRegistryEntry, V2VersionCompatibility,
 } from "./multisource-v2-history";
+
+export {
+  buildV2AdapterScope, convertLegacyV1Evidence,
+  createV2AdapterBatch, buildV2Intake,
+  assembleV2Intake, reviewV2IntakeSourceReadiness,
+  importV2SourceAuditManifest,
+} from "./multisource-v2-adapters";
+export type {
+  V2AdapterContext, V2AdapterRawFinding,
+  V2AdapterObservation, V2AdapterBatch,
+  V2MultiSourceIntake, V2AdapterResult,
+} from "./multisource-v2-adapters";
+export {
+  buildV2ExecutiveReport, verifyV2ExecutiveReport,
+  exportV2Report, verifyV2ReportExport,
+  compareV2ExecutiveReports,
+} from "./multisource-v2-report";
+export type {
+  V2ReportSection, V2ExecutiveReport,
+  V2ReportAudit, V2ReportExport,
+} from "./multisource-v2-report";
