@@ -1172,3 +1172,25 @@ export type {
   BaselineReportV2Export, BaselineReportV2Audit,
   BaselineActionPlanV2, BaselineReportDeltaV2,
 } from "./baseline-offline-report-v2";
+
+export {
+  buildExposureBaselineV2Bridge,
+  verifyExposureBaselineV2Bridge,
+  compareExposureBaselineV2Bridges,
+  exposureBaselineV2CrossSignals,
+} from "./exposure-baseline-v2-bridge";
+export type {
+  V2BridgeSource, V2BridgeProjection,
+  V2CrossSignal, V2BridgeComparison,
+} from "./exposure-baseline-v2-bridge";
+export {
+  buildPhase2OfflinePortfolio,
+  verifyPhase2OfflinePortfolio,
+  comparePhase2Portfolios,
+  exportPhase2Portfolio,
+} from "./exposure-baseline-v2-portfolio";
+export type {
+  Phase2PortfolioInput, Phase2PortfolioPriority,
+  Phase2PortfolioDomain, Phase2Portfolio,
+  Phase2PortfolioVerification, Phase2PortfolioDelta,
+} from "./exposure-baseline-v2-portfolio";
