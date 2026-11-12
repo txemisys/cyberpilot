@@ -180,7 +180,7 @@ function isPrivateIpv4(ip: string): boolean {
   if (parts.length !== 4 || parts.some(x =>
     !/^\d{1,3}$/.test(x) || +x > 255))
     return true;
-  const [a, b, c, d] = parts.map(Number);
+  const [a, b, c, d] = parts.map(Number) as [number, number, number, number];
   if (a === 0 || a === 10 || a === 127 || a >= 224 ||
       a === 169 && b === 254 ||
       a === 172 && b >= 16 && b <= 31 ||
