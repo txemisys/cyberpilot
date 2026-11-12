@@ -351,7 +351,7 @@ export function MultiSourceV2Workspace({
               !baselineId || currentId === baselineId}>
             Comparar</button>
         </div>
-        {comparison && <pre style={{
+        {comparison !== null && <pre style={{
           maxHeight: 320, overflow: "auto",
           fontSize: 12,
         }}>{JSON.stringify(comparison, null, 2)}</pre>}
