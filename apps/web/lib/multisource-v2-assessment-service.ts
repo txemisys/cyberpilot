@@ -128,7 +128,7 @@ export function parseV2ServiceCommand(
   if (x.exportFormat !== undefined) {
     if (!["JSON", "MARKDOWN", "CSV"].includes(String(x.exportFormat)))
       fail("Unsupported report format.");
-    command.exportFormat = x.exportFormat as V2ServiceCommand["exportFormat"];
+    command.exportFormat = x.exportFormat as "JSON" | "CSV" | "MARKDOWN";
   }
   return command;
 }
