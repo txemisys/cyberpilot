@@ -228,6 +228,7 @@ model Organization {
   findings                 SecurityFinding[]
   domains                  Domain[]
   securityScores           SecurityScore[]
+  multiSourceV2Assessments MultiSourceV2Assessment[]
   remediations             Remediation[]
   securityEvidence         SecurityEvidence[]
   remediationWorkItems      RemediationWorkItem[]
@@ -1473,4 +1474,43 @@ model GoogleEvidenceSnapshot {
   @@unique([organizationId, connectionId, sourceDigest])
   @@index([organizationId, connectionId, observedAt])
   @@index([organizationId, expiresAt])
+}
+
+
+/**
+ * Opt-in, independent CyberScore v2 storage. Historical SecurityScore rows
+ * are never rewritten or migrated; UNKNOWN risk is nullable by design.
+ */
+model MultiSourceV2Assessment {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  snapshotId            String
+  modelId               String   @db.VarChar(80)
+  modelRevision         Int      @default(1)
+  evaluatedAt           DateTime
+  score                 Int?
+  status                String   @db.VarChar(48)
+  coveragePercent       Int
+  riskPoints            Float
+  verifiedControls      Int
+  totalControls         Int
+  manifestDigest        String   @db.VarChar(64)
+  coverageDigest        String   @db.VarChar(64)
+  scoreDigest           String   @db.VarChar(64)
+  reportDigest          String   @db.VarChar(64)
+  manifest              Json
+  coverage              Json
+  scoreDetails          Json
+  report                Json
+  sourceClass           String   @db.VarChar(32)
+  createdById           String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, snapshotId])
+  @@index([organizationId, evaluatedAt])
+  @@index([organizationId, status, evaluatedAt])
+  @@index([organizationId, modelId, modelRevision])
 }
