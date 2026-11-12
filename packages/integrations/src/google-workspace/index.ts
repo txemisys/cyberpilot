@@ -80,3 +80,17 @@ export type {
   GoogleLabQueryResult, GoogleLabOperatorSummary,
   GoogleLabTransitionReceipt,
 } from "./onboarding-orchestrator";
+
+export {
+  translateGoogleEvidence, translateGoogleFindings,
+  buildNeutralGoogleCoverage, buildNeutralGoogleBundle,
+  verifyNeutralGoogleBundle, compareNeutralGoogleBundles,
+  verifyNeutralGoogleComparison, neutralGoogleCsv,
+  neutralGoogleJson,
+} from "./neutral-evidence";
+export type {
+  NeutralGoogleState, NeutralGoogleDomain,
+  NeutralGoogleControl, NeutralGoogleFinding,
+  NeutralGoogleCoverage, NeutralGoogleBundle,
+  NeutralGoogleComparison,
+} from "./neutral-evidence";
