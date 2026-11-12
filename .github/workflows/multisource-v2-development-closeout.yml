@@ -60,19 +60,22 @@ jobs:
 
       - name: Assert legacy v1 is untouched in source contract
         run: |
-          node -e "
+          node <<'NODE'
           const fs = require('node:fs');
           const v1 = fs.readFileSync('packages/risk-engine/src/evidence.ts', 'utf8');
           const v2 = fs.readFileSync('packages/risk-engine/src/multisource-v2-contract.ts', 'utf8');
           const sql = fs.readFileSync('packages/database/prisma/migrations/20261112150000_multisource_cyberscore_v2/migration.sql', 'utf8');
-          if (!v1.includes('SecurityEvidenceV1') ||
-              !v2.includes('historicalCyberScoreTouched: false') ||
-              !sql.includes('CREATE TABLE "MultiSourceV2Assessment"') ||
-              /(?:ALTER|DROP|TRUNCATE)\s+TABLE\s+"?SecurityScore"?/i.test(sql)) {
+          const assertions = {
+            originalContractPreserved: v1.includes('SecurityEvidenceV1'),
+            v2NoLegacyMutation: v2.includes('historicalCyberScoreTouched: false'),
+            independentTable: sql.includes('CREATE TABLE "MultiSourceV2Assessment"'),
+            legacyTableNotModified: !/(?:ALTER|DROP|TRUNCATE)\s+TABLE\s+"?SecurityScore"?/i.test(sql),
+          };
+          console.log(assertions);
+          if (Object.values(assertions).some(value => value !== true))
             throw new Error('V2 contract violated historical-score migration boundary');
-          }
           console.log('MULTISOURCE_V2_OFFLINE_AB_PASS=true');
-          "
+          NODE
 
       - name: Generate unsigned technical A+B summary
         run: |
