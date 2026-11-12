@@ -1,0 +1,65 @@
+name: Phase 4 development closeout
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/web/lib/assets-**'
+      - 'apps/web/app/api/organizations/**/assets/**'
+      - 'apps/web/components/asset-**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/phase4-development-closeout.yml'
+      - 'scripts/phase4-development-acceptance.mjs'
+      - 'scripts/phase4-development-acceptance.test.mjs'
+      - 'scripts/phase4-workflow-closeout.mjs'
+      - 'scripts/phase4-workflow-closeout.test.mjs'
+      - 'docs/phase-4-**'
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: phase4-closeout-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  attest-offline-development:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          package-manager-cache: false
+
+      - name: Verify independent workflow checker tests
+        run: node --test scripts/phase4-workflow-closeout.test.mjs
+
+      - name: Validate exact-HEAD cross-workflow development acceptance
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PHASE4_PR_NUMBER: ${{ github.event.pull_request.number }}
+          PHASE4_COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+          PHASE4_MAX_ATTEMPTS: '100'
+          PHASE4_RETRY_SECONDS: '10'
+        run: node scripts/phase4-workflow-closeout.mjs
+
+      - name: Upload unsigned development closeout evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: phase4-development-closeout-verdict
+          path: .artifacts/phase4-workflow-closeout.json
+          if-no-files-found: ignore
+          retention-days: 30
