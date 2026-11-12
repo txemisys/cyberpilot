@@ -1,3 +1,4 @@
+import { canonicalGoogleHash } from "./canonical-json";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { CAPABILITIES, type GoogleCapability } from "./directory-contract";
 
@@ -169,7 +170,7 @@ function reject(
   code: GoogleLabError["code"], reason: string,
 ): never { throw new GoogleLabError(code, reason); }
 function hash(x: unknown) {
-  return createHash("sha256").update(JSON.stringify(x)).digest("hex");
+  return canonicalGoogleHash(x);
 }
 function same(a: unknown, b: unknown) {
   return typeof a === "string" && typeof b === "string" &&
