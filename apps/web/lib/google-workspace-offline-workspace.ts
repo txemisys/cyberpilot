@@ -1,3 +1,4 @@
+import { db } from "@cyberpilot/database";
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
   GoogleLabError, GoogleLabOnboardingService,
@@ -239,6 +240,17 @@ export class GoogleOfflineWorkspace {
     raw: unknown,
     now: Date = new Date(),
   ): Promise<GoogleWorkspaceResponse> {
+    role(scope);
+    const membership = await db.membership.findFirst({
+      where: {
+        organizationId: scope.organizationId,
+        userId: scope.actorUserId,
+      },
+      select: { role: true },
+    });
+    if (!membership || membership.role !== scope.role)
+      throw new GoogleLabError("FORBIDDEN",
+        "Current Google LAB organization membership is required.");
     const request = parseGoogleWorkspaceRequest(raw);
     const evaluatedAt = request.evaluatedAt ?? now.toISOString();
     datetime(evaluatedAt);
