@@ -28,3 +28,29 @@ export type {
   GoogleTransportEnvironment, GoogleApiPage,
   GooglePartialCollection, GoogleCollectionResult,
 } from "./transport";
+
+export {
+  parseGoogleAssessmentPolicy, classifyGoogleCoverage,
+  buildGooglePreviewScore, detectGoogleFindings,
+  assessGoogleWorkspace, verifyGoogleRiskAssessment,
+  googleRemediationPlan, googleAssessmentManifest,
+} from "./risk-assessment";
+export type {
+  GoogleRuleId, GoogleFindingStatus, GoogleFinding,
+  GoogleCoverageItem, GoogleScore, GoogleRiskAssessment,
+  GoogleAssessmentPolicy,
+} from "./risk-assessment";
+export {
+  summarizeGoogleReportCoverage, buildGoogleReportSections,
+  buildGoogleExecutiveReport, verifyGoogleExecutiveReport,
+  exportGoogleReportJson, exportGoogleReportMarkdown,
+  diffGoogleReports, verifyGoogleReportDiff,
+  buildGoogleHistory, verifyGoogleHistory,
+  inspectGoogleOfflineFixture,
+} from "./assessment-report";
+export type {
+  WorkspaceReportSectionId, GoogleReportSection,
+  GoogleReportFinding, WorkspaceCoverageSummary,
+  GoogleReportExport, GoogleReportDiff,
+  GoogleHistoryPoint, GoogleHistorySeries,
+} from "./assessment-report";
