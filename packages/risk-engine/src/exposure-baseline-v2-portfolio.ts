@@ -418,7 +418,7 @@ export function verifyPhase2OfflinePortfolio(
   if (!localDigestVerified) issues.push("PORTFOLIO_DIGEST_MISMATCH");
   const sourcesBound = portfolio.sources.every(source =>
     source.kind === "EXPOSURE" ?
-      portfolio.exposureReports.some(x => x.digest ===
+      portfolio.exposureReports.some(x => x.assessmentDigest ===
         source.digest && x.snapshotId === source.snapshotId) :
       portfolio.baselineReport?.sourceDigest === source.digest &&
         portfolio.baselineReport.snapshotId === source.snapshotId);
