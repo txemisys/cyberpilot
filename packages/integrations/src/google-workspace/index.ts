@@ -94,3 +94,8 @@ export type {
   NeutralGoogleCoverage, NeutralGoogleBundle,
   NeutralGoogleComparison,
 } from "./neutral-evidence";
+
+export {
+  CanonicalGoogleJsonError, canonicalGoogleJson,
+  canonicalGoogleHash, canonicalGoogleEqual,
+} from "./canonical-json";
