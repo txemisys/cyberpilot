@@ -6,6 +6,7 @@ import { inventoryDmarcTxtRecords, extractDmarcPolicy,
   extractDmarcPercentage, extractDmarcAlignment } from "./exposure-dmarc";
 import { inventoryDkimTxtRecords } from "./exposure-dkim";
 import { inventoryHttpSecurityHeaders } from "./exposure-http";
+import { tlsNameMatches } from "./exposure-tls-names";
 import { inspectRedirect,
   inventoryResponseHeaders } from "./exposure-http-observation";
 
@@ -329,7 +330,8 @@ export function validateExposureOfflineEnvelope(
           item.resolvedAddresses).valid &&
           item.status === "OBSERVED" ||
         item.finalAddress !== null &&
-          !isPublicExposureAddress(item.finalAddress))
+          (!isPublicExposureAddress(item.finalAddress) ||
+           !item.resolvedAddresses.includes(item.finalAddress)))
       errors.push("HTTP_SCOPE_OR_ADDRESS_INVALID");
   }
   if (a && authorizationStatus(a, input.assessedAt) !== "VERIFIED")
@@ -486,8 +488,12 @@ function evaluateTls(input: ExposureOfflineEnvelope): ExposureCheck {
   let interpretation: ExposureCheck["interpretation"] =
     "NOT_DETERMINED";
   if (main) {
+    const hostnameMatched = tlsNameMatches(
+      main.hostname, main.certificateDnsNames);
+    details.hostnameMatched = hostnameMatched;
     if (main.certificatePresent === false ||
-        main.validatedByTrustedCA === false) {
+        main.validatedByTrustedCA === false ||
+        hostnameMatched === "NO_MATCH") {
       interpretation = "RISK";
       risky = { severity: "HIGH",
         title: "TLS trust or certificate invalid",
