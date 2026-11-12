@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   evaluateGoogleScenarioAcceptance,
@@ -35,6 +37,23 @@ describe("Phase 5 Google Workspace A+B acceptance policy", () => {
     const result = await runPhase5DevelopmentAcceptance({
       organizationId, checkedAt,
     });
+    if (process.env.PHASE5_WRITE_ARTIFACTS === "true") {
+      const target = join(process.cwd(), ".artifacts");
+      mkdirSync(target, { recursive: true });
+      writeFileSync(join(target,
+        "phase5-google-development-acceptance.json"),
+        JSON.stringify({
+          schema: "cyberpilot.google.phase5.ci.attestation.v1",
+          generatedAt: checkedAt,
+          organizationId, matrix: result.matrix,
+          gate: result.gate, manifest: result.manifest,
+          technicalPass: result.technicalPass,
+          verified: result.verified,
+          googleLiveValidated: false,
+          customerConsentVerified: false,
+          githubMergeAuthorized: false,
+        }, null, 2) + "\\n", "utf8");
+    }
     expect(result.verified).toBe(true);
     expect(result.technicalPass).toBe(true);
     expect(result.gate.gates).toHaveLength(21);
