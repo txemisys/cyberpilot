@@ -1081,3 +1081,28 @@ export type {
   V2ScopeEvaluation, V2Conflict,
   V2DeduplicatedEvidence,
 } from "./multisource-v2-coverage";
+
+export {
+  defaultV2ModelPolicy, parseV2ModelPolicy,
+  v2RiskPointsForSeverity, assessV2ScoreEligibility,
+  selectV2ScoreFindings, calculateV2RiskContributions,
+  calculateMultiSourceCyberScoreV2, explainV2Score,
+  compareV2Scores, summarizeV2ScoreExecutive,
+} from "./multisource-v2-score";
+export type {
+  V2ModelPolicy, V2ScoreEligibility,
+  V2FindingSelection, V2ScoreDriver,
+  V2ScoreComparison,
+} from "./multisource-v2-score";
+export {
+  sha256V2, v2ModelRegistry, compareV2ModelVersions,
+  createV2HistoryEntry, inspectV2HistoryEntry,
+  reconcileV2History, createV2HistoricalTimeline,
+  compareV2TimelineToV1, scoreV2HistorySignals,
+  historyV2EvidenceManifest,
+} from "./multisource-v2-history";
+export type {
+  V2HistoryEntry, V2HistoricalTimeline,
+  V2HistoricalIssue, V2HistoryReconciliation,
+  V2ModelRegistryEntry, V2VersionCompatibility,
+} from "./multisource-v2-history";
