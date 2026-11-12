@@ -1,0 +1,108 @@
+name: Multi-source CyberScore v2 development closeout
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/risk-engine/src/multisource-v2-*'
+      - 'packages/risk-engine/src/index.ts'
+      - 'apps/web/lib/multisource-v2-*'
+      - 'apps/web/components/multisource-v2-*'
+      - 'apps/web/app/organizations/**/multisource-v2/**'
+      - 'apps/web/app/api/organizations/**/multisource-v2/**'
+      - 'packages/database/prisma/**'
+      - 'docs/phase-1-multisource-v2.md'
+      - '.github/workflows/multisource-v2-development-closeout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: multisource-v2-closeout-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-opt-in-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          package-manager-cache: false
+
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck risk engine
+        run: pnpm --filter @cyberpilot/risk-engine typecheck
+
+      - name: Test tenant-safe control coverage and deduplication
+        run: pnpm --filter @cyberpilot/risk-engine exec vitest run src/multisource-v2-coverage.test.ts
+
+      - name: Test SHA-256, model history and score gates
+        run: pnpm --filter @cyberpilot/risk-engine exec vitest run src/multisource-v2-score.test.ts
+
+      - name: Test M365-independent source intake and executive reporting
+        run: pnpm --filter @cyberpilot/risk-engine exec vitest run src/multisource-v2-integration.test.ts
+
+      - name: Assert legacy v1 is untouched in source contract
+        run: |
+          node -e "
+          const fs = require('node:fs');
+          const v1 = fs.readFileSync('packages/risk-engine/src/evidence.ts', 'utf8');
+          const v2 = fs.readFileSync('packages/risk-engine/src/multisource-v2-contract.ts', 'utf8');
+          const sql = fs.readFileSync('packages/database/prisma/migrations/20261112150000_multisource_cyberscore_v2/migration.sql', 'utf8');
+          if (!v1.includes('SecurityEvidenceV1') ||
+              !v2.includes('historicalCyberScoreTouched: false') ||
+              !sql.includes('CREATE TABLE "MultiSourceV2Assessment"') ||
+              /(?:ALTER|DROP|TRUNCATE)\s+TABLE\s+"?SecurityScore"?/i.test(sql)) {
+            throw new Error('V2 contract violated historical-score migration boundary');
+          }
+          console.log('MULTISOURCE_V2_OFFLINE_AB_PASS=true');
+          "
+
+      - name: Generate unsigned technical A+B summary
+        run: |
+          mkdir -p .artifacts
+          node -e "
+          const fs = require('node:fs');
+          const output = {
+            schema: 'cyberpilot.multisource.v2.technical.acceptance.v1',
+            source: 'AUTOMATED_GITHUB_ACTIONS',
+            organizationMode: 'NO_M365_REQUIRED',
+            controlCoverageTestsPassed: true,
+            historyAndScoringTestsPassed: true,
+            reportAndSourceIntakeTestsPassed: true,
+            independentRiskEngineTypecheckPassed: true,
+            legacyScoreSchemaUnchanged: true,
+            customerTenantAuthenticated: false,
+            businessApprovalAttested: false,
+            liveProviderValidated: false,
+            githubMergeAuthorized: false,
+            head: process.env.GITHUB_SHA,
+          };
+          fs.writeFileSync('.artifacts/multisource-v2-technical-acceptance.json',
+            JSON.stringify(output, null, 2) + String.fromCharCode(10));
+          "
+
+      - name: Publish unsigned v2 development evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: multisource-v2-development-acceptance
+          path: .artifacts/multisource-v2-technical-acceptance.json
+          if-no-files-found: ignore
+          retention-days: 30
