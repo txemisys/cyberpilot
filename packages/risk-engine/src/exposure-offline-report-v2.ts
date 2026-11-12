@@ -145,7 +145,7 @@ export function buildExposureReportV2(
     };
   });
   const actions = [
-    ...assessment.findings.sort((a, b) =>
+    ...[...assessment.findings].sort((a, b) =>
       severityRank[b.severity] - severityRank[a.severity] ||
       a.id.localeCompare(b.id)).map(finding => ({
       id: "act-" + finding.id,
