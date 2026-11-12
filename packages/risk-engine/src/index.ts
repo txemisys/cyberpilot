@@ -1150,3 +1150,25 @@ export type {
   ExposureReportSection, ExposureReport, ExposureReportAudit,
   ExposureReportExport, ExposureReportDelta,
 } from "./exposure-offline-report-v2";
+
+export {
+  validateBaselineV2Submission, assessBaselineOfflineV2,
+  verifyBaselineOfflineV2, compareBaselineOfflineV2,
+  baselineV2DomainGaps,
+} from "./baseline-offline-v2";
+export type {
+  BaselineV2EvidenceStatus, BaselineV2Priority,
+  BaselineV2Question, BaselineV2DomainSummary,
+  BaselineV2Action, BaselineV2Assessment,
+  BaselineV2AssessmentOptions, BaselineV2ValidationResult,
+} from "./baseline-offline-v2";
+export {
+  buildBaselineReportV2, verifyBaselineReportV2,
+  exportBaselineReportV2, buildBaselineActionPlanV2,
+  compareBaselineReportsV2, verifyBaselineActionPlanV2,
+} from "./baseline-offline-report-v2";
+export type {
+  BaselineReportV2Section, BaselineReportV2,
+  BaselineReportV2Export, BaselineReportV2Audit,
+  BaselineActionPlanV2, BaselineReportDeltaV2,
+} from "./baseline-offline-report-v2";
