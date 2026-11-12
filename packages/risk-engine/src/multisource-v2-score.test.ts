@@ -117,6 +117,37 @@ describe("CyberScore v2 opt-in scoring safety", () => {
     expect(score.coveragePercent).toBe(100);
     expect(score.eligibleForProductHealthBadge).toBe(false);
   });
+  it("applies uncertainty penalty to eligible partially covered 5-control scoring", () => {
+    const trusted = defaultV2Controls().filter(c =>
+      c.scope === "ORGANIZATION" &&
+      c.acceptedSources.includes("MICROSOFT_365")).slice(0, 5);
+    expect(trusted).toHaveLength(5);
+    const additional = defaultV2Controls().find(c =>
+      c.id === "BACKUP_POLICY")!;
+    const manifest = emptyV2Manifest(org, at,
+      "eligible-partial-12345", [...trusted, additional]);
+    trusted.forEach((control, i) => {
+      const pair = link(controls[0]!.id, i + 1);
+      manifest.evidence.push({
+        ...pair.e, evidenceId: "proof-" + (i + 1),
+        controlId: control.id, domain: control.domain,
+      });
+      manifest.scopes.push({
+        ...pair.s, domain: control.domain,
+      });
+    });
+    manifest.sourceDigests = [sha];
+    const score = calculateMultiSourceCyberScoreV2(manifest);
+    const coverage = computeV2Coverage(manifest);
+    expect(coverage.verifiedControls).toBe(5);
+    expect(coverage.coveragePercent).toBeLessThan(100);
+    expect(score.score).not.toBeNull();
+    expect(score.score).toBeLessThan(100);
+    expect(score.score).toBe(score.scoreRange.min);
+    expect(score.scoreRange.max).toBe(100);
+    expect(score.legacyCyberScoreRecomputed).toBe(false);
+    expect(score.eligibleForProductHealthBadge).toBe(false);
+  });
   it("excludes findings with no verified link", () => {
     const data = make();
     const row = link(controls[0]!.id, 1);
