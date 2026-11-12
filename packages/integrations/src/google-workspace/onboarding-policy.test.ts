@@ -170,7 +170,7 @@ describe("Google LAB onboarding repository boundary", () => {
     expect(result.created).toBe(true);
     const initialView = await service.get(scope,
       "google-lab-12345", day(1));
-    expect(initialView.connection.liveProviderConnected).toBe(false);
+    expect(initialView.connection.realProviderConnected).toBe(false);
     const issued = await service.mutate(scope,
       command("ISSUE_CHALLENGE", 0, 1));
     const accepted = await service.mutate(scope,
