@@ -347,6 +347,7 @@ export function buildGooglePreviewScore(
        LOW: 2, INFO: 0, UNKNOWN: 0 }[f.severity]), 0);
   const complete = usable.length === CAPABILITIES.length &&
     observation.source !== "SYNTHETIC_FIXTURE" &&
+    observation.users.length > 0 &&
     unknowns.length === 0;
   const percent = Math.round(100 * usable.length / CAPABILITIES.length);
   // A partial score has misleading semantics, so never emit one.
@@ -402,7 +403,7 @@ export function detectGoogleFindings(
       schema: "cyberpilot.google.finding.v1",
       id: identifier, organizationId: observation.organizationId,
       provider: "GOOGLE_WORKSPACE", ruleId,
-      subjectHash: hash(observation.organizationId + ":" + subject),
+      subjectHash: subjectHash(observation.organizationId, subject),
       status, severity: rule.severity,
       title: rule.title, explanation: rule.explanation,
       remediation: rule.remediation, verification: rule.verification,
