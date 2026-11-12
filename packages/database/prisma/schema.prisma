@@ -235,6 +235,21 @@ model Organization {
   workChecklistEntries      WorkChecklistEntry[]
   workEvidenceLinks         WorkEvidenceLink[]
   workHandoffs              WorkHandoff[]
+  assetInventoryImports     AssetInventoryImport[]
+  assetInventoryDevices     AssetInventoryDevice[]
+  assetOsvInspections       AssetOsvInspection[]
+  assetOsvQueries           AssetOsvQueryRecord[]
+  assetOsvQuotaDays         AssetOsvQuotaDay[]
+  assetOsvReservations      AssetOsvQuotaReservation[]
+  assetOsvSchedules         AssetOsvRenewalSchedule[]
+  assetOsvScheduleRuns      AssetOsvRenewalRun[]
+  assetOsvDispatchNonces    AssetOsvDispatchNonce[]
+  assetOsvDispatchAlerts    AssetOsvDispatchAlert[]
+  assetAdviceCases         AssetAdviceCase[]
+  assetReleaseReviews      AssetReleaseReview[]
+  assetRetentionReviews    AssetRetentionReview[]
+  assetOfflineAcceptanceRuns AssetOfflineAcceptanceRun[]
+  assetEvidenceReviews AssetEvidenceReview[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -957,4 +972,441 @@ model IntegrityEscalation {
   @@unique([organizationId, taskId, dedupeKey])
   @@index([organizationId, state, dueAt])
   @@index([organizationId, taskId, openedAt])
+}
+
+enum AssetImportState {
+  COMMITTED
+  RETIRED
+}
+
+model AssetInventoryImport {
+  id String @id @default(cuid())
+  organizationId String
+  actorUserId String?
+  idempotencyKey String
+  payloadDigest String @db.VarChar(64)
+  sourceLabel String
+  state AssetImportState @default(COMMITTED)
+  schemaVersion Int @default(1)
+  declaredCount Int
+  importedCount Int
+  duplicateCount Int
+  unknownVersionCount Int
+  advisorySources Json @default("[]")
+  createdAt DateTime @default(now())
+  retiredAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  devices AssetInventoryDevice[]
+  osvInspections AssetOsvInspection[]
+  osvSchedules AssetOsvRenewalSchedule[]
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, state, createdAt])
+}
+
+model AssetInventoryDevice {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  externalId String
+  hostname String?
+  ownerHash String? @db.VarChar(64)
+  platform String
+  osName String
+  osVersion String?
+  softwareName String @default("")
+  softwareVersion String?
+  observedAt DateTime
+  sourceRow Int
+  normalizedProductKey String @default("")
+  versionStatus String
+  freshnessStatus String
+  advisoryStatus String
+  advisoryIds Json @default("[]")
+  confidence String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  import AssetInventoryImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  @@unique([importId, externalId, normalizedProductKey], map: "AssetInvDevice_import_external_product_key")
+  @@index([organizationId, externalId, observedAt])
+  @@index([organizationId, platform, osName])
+  @@index([organizationId, importId])
+}
+
+/**
+ * Immutable outcome of an administrator-authorized OSV inspection.
+ * Stores normalized query reports, not raw provider traffic or device IDs.
+ * A replay key is scoped to one organization and one command fingerprint.
+ */
+model AssetOsvInspection {
+  id String @id @default(cuid())
+  organizationId String
+  inventoryImportId String
+  actorUserId String?
+  requestKey String
+  requestDigest String @db.VarChar(64)
+  reportDigest String @db.VarChar(64)
+  status String
+  provider String @default("OSV_DEV_API")
+  coverage String @default("DECLARED_NOT_VERIFIED")
+  report Json
+  queryCount Int
+  completedCount Int
+  possibleCount Int
+  providerOnlyCount Int
+  createdAt DateTime @default(now())
+  completedAt DateTime
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventoryImport AssetInventoryImport @relation(fields: [inventoryImportId], references: [id], onDelete: Cascade)
+  queries AssetOsvQueryRecord[]
+  @@unique([organizationId, requestKey])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, inventoryImportId, createdAt])
+}
+
+model AssetOsvQueryRecord {
+  id String @id @default(cuid())
+  organizationId String
+  inspectionId String
+  queryKey String @db.VarChar(64)
+  ecosystem String
+  packageName String
+  version String
+  providerStatus String
+  providerDigest String? @db.VarChar(64)
+  checkedAt DateTime?
+  possibleIds Json @default("[]")
+  providerOnlyIds Json @default("[]")
+  withdrawnIds Json @default("[]")
+  unresolvedIds Json @default("[]")
+  observationCount Int
+  pageCount Int
+  recordedAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inspection AssetOsvInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  @@unique([inspectionId, queryKey])
+  @@index([organizationId, ecosystem, packageName, version])
+  @@index([organizationId, inspectionId])
+}
+
+/** Per-tenant UTC-day hard reservation counters. Reservations are charged
+ * before outbound network requests and are never refunded automatically. */
+model AssetOsvQuotaDay {
+  id String @id @default(cuid())
+  organizationId String
+  utcDay DateTime @db.Date
+  inspectionLimit Int @default(20)
+  requestLimit Int @default(200)
+  inspectionsReserved Int @default(0)
+  requestsReserved Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reservations AssetOsvQuotaReservation[]
+  @@unique([organizationId, utcDay])
+  @@index([organizationId, updatedAt])
+}
+
+/** Append-only reservation journal: failure still consumes conservatively
+ * the reserved request budget because the provider may have received it. */
+model AssetOsvQuotaReservation {
+  id String @id @default(cuid())
+  organizationId String
+  quotaDayId String
+  requestKey String
+  requestDigest String @db.VarChar(64)
+  inventoryImportId String
+  reservedRequests Int
+  state String @default("RESERVED")
+  actualRequests Int @default(0)
+  errorCode String?
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  quotaDay AssetOsvQuotaDay @relation(fields: [quotaDayId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, requestKey])
+  @@index([organizationId, startedAt])
+  @@index([quotaDayId, state])
+}
+
+/** Explicit organization-authorized recurring provider renewal definition.
+ * Stored but disabled by default. No automatic cron is installed by schema. */
+model AssetOsvRenewalSchedule {
+  id String @id @default(cuid())
+  organizationId String
+  inventoryImportId String
+  sourceInspectionId String
+  createdByUserId String
+  name String
+  enabled Boolean @default(false)
+  cadenceMinutes Int
+  nextDueAt DateTime
+  policy Json
+  inspection Json
+  allowNewPackages Boolean @default(false)
+  allowIncompleteInventory Boolean @default(false)
+  outboundConsent Boolean @default(false)
+  consentedAt DateTime?
+  consentDigest String @db.VarChar(64)
+  revision Int @default(1)
+  lastAttemptAt DateTime?
+  lastSucceededAt DateTime?
+  lastRunId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventoryImport AssetInventoryImport @relation(fields: [inventoryImportId], references: [id], onDelete: Cascade)
+  runs AssetOsvRenewalRun[]
+  @@index([organizationId, enabled, nextDueAt])
+  @@index([organizationId, inventoryImportId])
+}
+
+/** Durable scheduler claim with one slot per schedule/UTC cadence.
+ * Terminal failures never trigger implicit network retries. */
+model AssetOsvRenewalRun {
+  id String @id @default(cuid())
+  organizationId String
+  scheduleId String
+  slotAt DateTime
+  state String @default("CLAIMED")
+  commandDigest String @db.VarChar(64)
+  claimToken String @db.VarChar(64)
+  claimExpiresAt DateTime
+  requestedByUserId String?
+  inspectionId String?
+  result Json?
+  errorCode String?
+  claimedAt DateTime @default(now())
+  completedAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  schedule AssetOsvRenewalSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  @@unique([scheduleId, slotAt])
+  @@index([organizationId, state, claimedAt])
+  @@index([organizationId, scheduleId, slotAt])
+}
+
+/** Per-organization replay protection for authenticated service dispatches.
+ * Secrets and signatures are never persisted. Digest ties a nonce to one intent. */
+model AssetOsvDispatchNonce {
+  id String @id @default(cuid())
+  organizationId String
+  nonceDigest String @db.VarChar(64)
+  requestDigest String @db.VarChar(64)
+  keyId String @db.VarChar(100)
+  scheduleId String
+  acceptedAt DateTime @default(now())
+  expiresAt DateTime
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, nonceDigest])
+  @@index([organizationId, acceptedAt])
+  @@index([organizationId, expiresAt])
+}
+
+/** Operator-triaged, tenant-scoped OSV scheduler alert.
+ * An ACKNOWLEDGED alert is not a resolved provider incident. */
+model AssetOsvDispatchAlert {
+  id String @id @default(cuid())
+  organizationId String
+  code String @db.VarChar(80)
+  subjectKey String @db.VarChar(100)
+  severity String
+  state String @default("OPEN")
+  revision Int @default(1)
+  firstSeenAt DateTime
+  lastSeenAt DateTime
+  observedCount Int @default(1)
+  evidenceDigest String @db.VarChar(64)
+  evidence Json
+  acknowledgementReason String?
+  acknowledgedByUserId String?
+  acknowledgedAt DateTime?
+  resolutionReason String?
+  resolvedByUserId String?
+  resolvedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, code, subjectKey])
+  @@index([organizationId, state, lastSeenAt])
+  @@index([organizationId, severity, lastSeenAt])
+  @@index([organizationId, createdAt])
+}
+
+/** Human review of declared-inventory OSV candidates, never a SecurityFinding. */
+model AssetAdviceCase {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  inspectionId String
+  evidenceFingerprint String @db.VarChar(64)
+  inventoryDigest String @db.VarChar(64)
+  inspectionDigest String @db.VarChar(64)
+  externalId String @db.VarChar(100)
+  normalizedProductKey String @db.VarChar(200)
+  softwareVersion String?
+  status String @default("OPEN")
+  category String
+  priority String
+  revision Int @default(1)
+  title String @db.VarChar(220)
+  rationale Json
+  actions Json
+  advisoryIds Json @default("[]")
+  openedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastDecisionAt DateTime?
+  lastDecisionReason String?
+  lastDecisionUserId String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  steps AssetAdviceCaseStep[]
+  @@unique([organizationId, inspectionId, externalId, normalizedProductKey], map: "AssetAdviceCase_org_inspection_asset_product")
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, importId])
+  @@index([organizationId, inspectionId])
+}
+/** A step tracks human work only; DONE never means verified vulnerability resolution. */
+model AssetAdviceCaseStep {
+  id String @id @default(cuid())
+  organizationId String
+  caseId String
+  actionCode String @db.VarChar(80)
+  status String @default("TODO")
+  revision Int @default(1)
+  note String?
+  completedAt DateTime?
+  completedByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  adviceCase AssetAdviceCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  @@unique([caseId, actionCode])
+  @@index([organizationId, status])
+}
+
+
+/**
+ * Scoped manual offline acceptance record. It never authorizes external
+ * dispatch, certifies legal compliance or verifies endpoint remediation.
+ */
+model AssetReleaseReview {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  inspectionId String
+  inventoryDigest String @db.VarChar(64)
+  inspectionDigest String @db.VarChar(64)
+  acceptanceDigest String @db.VarChar(64)
+  privacyDigest String @db.VarChar(64)
+  scenarioDigest String @db.VarChar(64)
+  evidenceBundleDigest String @db.VarChar(64)
+  policyDigest String @db.VarChar(64)
+  state String @default("PENDING")
+  revision Int @default(1)
+  operatorUserId String
+  operatorReason String
+  operatorAcknowledgements Json
+  exclusions Json
+  acceptanceSnapshot Json
+  privacySnapshot Json
+  scenarioSummary Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  decidedAt DateTime?
+  decidedByUserId String?
+  decisionReason String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, importId, inspectionId])
+  @@index([organizationId, state, updatedAt])
+  @@index([organizationId, createdAt])
+}
+
+/**
+ * Administrative retention/privacy review for a customer-declared import.
+ * DOCUMENTED_WITH_EXCEPTIONS is not legal approval or verified backup erasure.
+ */
+model AssetRetentionReview {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  state String @default("PENDING")
+  revision Int @default(1)
+  sourceDigest String @db.VarChar(64)
+  privacyDigest String @db.VarChar(64)
+  policyDigest String @db.VarChar(64)
+  assessmentAt DateTime
+  snapshot Json
+  requestedByUserId String
+  initialReason String
+  reviewedByUserId String?
+  decisionReason String?
+  acknowledgements Json
+  exceptions Json
+  backupDisposition String @default("UNVERIFIED")
+  personalDataDisposition String @default("REQUIRES_REVIEW")
+  nextReviewAt DateTime?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, importId])
+  @@index([organizationId, state, updatedAt])
+  @@index([organizationId, nextReviewAt])
+}
+
+
+/**
+ * A witnessed offline acceptance checklist tied to an evidence dossier.
+ * Its status never substitutes for a responsible person's signoff.
+ */
+model AssetOfflineAcceptanceRun {
+  id String @id @default(cuid())
+  organizationId String
+  importId String
+  inspectionId String
+  idempotencyKey String
+  dossierDigest String @db.VarChar(64)
+  sourceDigest String @db.VarChar(64)
+  state String @default("DRAFT")
+  revision Int @default(1)
+  operatorUserId String
+  openingReason String
+  steps Json
+  limitations Json
+  humanAcknowledgements Json
+  completedSteps Int @default(0)
+  blockedSteps Int @default(0)
+  startedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submittedAt DateTime?
+  submittedByUserId String?
+  submittedReason String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, importId, inspectionId])
+  @@index([organizationId, state, updatedAt])
+}
+
+/** Independent human inspection of one operator-provided evidence reference.
+ * This is a review of local declarations, never an external signature. */
+model AssetEvidenceReview {
+  id String @id @default(cuid())
+  organizationId String
+  acceptanceRunId String
+  stepCode String
+  sourceRunRevision Int
+  evidenceDigest String @db.VarChar(64)
+  reviewState String @default("NOT_CHECKED")
+  revision Int @default(1)
+  originalOperatorUserId String
+  reviewerUserId String
+  reviewerReason String
+  referenceLocation String?
+  referenceObservedAt DateTime?
+  crossCheckedIdentifiers Json
+  limitations Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, acceptanceRunId, stepCode])
+  @@index([organizationId, reviewState, updatedAt])
+  @@index([organizationId, acceptanceRunId])
 }

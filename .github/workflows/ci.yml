@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Enable Corepack
         run: corepack enable
@@ -77,7 +79,9 @@ jobs:
         run: pnpm db:migrate:deploy
 
       - name: Verify migration status
-        run: pnpm db:migrate:status
+        run: |
+          pnpm db:migrate:status
+          echo PHASE4_CI_MIGRATIONS_PASSED=true >> "$GITHUB_ENV"
 
       - name: Production configuration check
         run: pnpm production:check
@@ -86,10 +90,30 @@ jobs:
         run: pnpm pilot:check
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: |
+          pnpm typecheck
+          echo PHASE4_CI_TYPECHECK_PASSED=true >> "$GITHUB_ENV"
 
       - name: Test
-        run: pnpm test
+        run: |
+          pnpm test
+          echo PHASE4_CI_TESTS_PASSED=true >> "$GITHUB_ENV"
+
+      - name: Phase 4 development acceptance gate
+        env:
+          PHASE4_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --test scripts/phase4-development-acceptance.test.mjs
+          node scripts/phase4-development-acceptance.mjs
+
+      - name: Upload Phase 4 acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: phase4-offline-development-acceptance
+          path: .artifacts/phase4-development-acceptance.json
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Build
         run: pnpm build
