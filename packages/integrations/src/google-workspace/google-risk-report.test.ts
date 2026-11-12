@@ -132,7 +132,7 @@ describe("Google Workspace Phase 5 offline risk engine", () => {
   });
   it("prevents fake external verification even with changed report digest", () => {
     const result = assessGoogleWorkspace(source(), {}, at);
-    result.score.cyberScoreUpdated = true;
+    result.score.cyberScoreUpdated = true as false;
     expect(verifyGoogleRiskAssessment(result).valid).toBe(false);
     expect(() => googleAssessmentManifest(result)).toThrow();
   });
@@ -171,7 +171,7 @@ describe("Google Workspace Phase 5 executive evidence report", () => {
   it("detects any tampering with report and refuses exports", () => {
     const report = buildGoogleExecutiveReport(
       assessGoogleWorkspace(source(), {}, at));
-    report.summary.tenantCertifiedSecure = true;
+    report.summary.tenantCertifiedSecure = true as false;
     expect(verifyGoogleExecutiveReport(report).valid).toBe(false);
     expect(() => exportGoogleReportMarkdown(report)).toThrow();
   });
