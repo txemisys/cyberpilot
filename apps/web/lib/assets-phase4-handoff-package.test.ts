@@ -16,7 +16,8 @@ const base: Phase4HandoffInput = {
   evaluatedAt: stamp,
   minimumReferenceCount: 9,
   base: {
-    digest, importDigest: digest, inspectionDigest: digest,
+    digest, acceptanceDigest: digest,
+    importDigest: digest, inspectionDigest: digest,
     privacyDigest: digest, scenarioDigest: digest,
     scenarioPassed: 13, scenarioComplete: true,
     releaseId: null, releaseDigest: null,
