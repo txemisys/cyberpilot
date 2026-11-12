@@ -99,3 +99,26 @@ export {
   CanonicalGoogleJsonError, canonicalGoogleJson,
   canonicalGoogleHash, canonicalGoogleEqual,
 } from "./canonical-json";
+
+export {
+  GOOGLE_LAB_SCENARIOS, makeGoogleLabScenario,
+  verifyGoogleLabScenario, scenarioFaults,
+  defaultScenarioPolicy, buildGoogleLabSimulation,
+  summarizeGoogleLabScenarios, validateGoogleMockTrace,
+} from "./lab-scenarios";
+export type {
+  GoogleLabScenarioName, GoogleLabScenario,
+  GoogleMockIdentity, GoogleMockDomain,
+  GoogleMockOrgUnit, GoogleMockEvent,
+  GoogleLabScenarioSource, GoogleLabFault,
+  GoogleLabMockTrace, GoogleLabSimulation,
+} from "./lab-scenarios";
+export {
+  parseGoogleLabJourneyInput, runGoogleLabJourney,
+  inspectGoogleLabJourney, googleLabJourneySummary,
+  googleLabJourneyOperatorActions,
+} from "./lab-journey";
+export type {
+  LabJourneyInput, LabJourneyGate,
+  GoogleLabJourneyResult,
+} from "./lab-journey";
