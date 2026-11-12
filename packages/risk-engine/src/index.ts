@@ -1052,3 +1052,32 @@ export function getRemediationPlaybook(
 ): RemediationPlaybookDefinition | null {
   return ALL_RULES.get(ruleId)?.playbook ?? null;
 }
+
+export {
+  supportedV2Sources, supportedV2Domains,
+  validV2Id, validV2Hash, validV2Time,
+  validV2String, canonicalV2, v2StableKey,
+  defaultV2Controls, validateV2Control,
+  validateV2Evidence, validateV2Finding,
+  validateV2Scope, validateV2Manifest,
+  emptyV2Manifest,
+} from "./multisource-v2-contract";
+export type {
+  V2Source, V2Domain, V2State, V2Confidence,
+  V2Verification, V2ScopeKind, V2Severity,
+  V2Evidence, V2ControlSpec, V2Finding,
+  V2Scope, V2Manifest, V2Status, V2CoverageRow,
+  V2DomainCoverage, V2Coverage,
+  V2RiskContribution, V2Score, V2Validation,
+} from "./multisource-v2-contract";
+export {
+  summarizeV2SourceScopes, deduplicateV2Evidence,
+  detectV2EvidenceConflicts, computeV2ControlCoverage,
+  computeV2Coverage, coverageV2BySource,
+  coverageV2Gaps, compareV2Coverage,
+  summarizeV2CoverageExecutive,
+} from "./multisource-v2-coverage";
+export type {
+  V2ScopeEvaluation, V2Conflict,
+  V2DeduplicatedEvidence,
+} from "./multisource-v2-coverage";
