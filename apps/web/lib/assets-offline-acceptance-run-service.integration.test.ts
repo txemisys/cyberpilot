@@ -15,6 +15,10 @@ import { inspectAcceptanceAuditReconciliation } from
   "./assets-acceptance-audit-reconciliation";
 import { inspectOperationalCloseout } from
   "./assets-phase4-operational-closeout";
+import { inspectAcceptanceQueue } from
+  "./assets-phase4-acceptance-queue";
+import { inspectPhase4Handoff } from
+  "./assets-phase4-handoff-package";
 
 describe.skipIf(!process.env.DATABASE_URL)(
   "PostgreSQL Fase 4 witnessed human closeout and conservative audit", () => {
@@ -342,6 +346,66 @@ describe.skipIf(!process.env.DATABASE_URL)(
     it("rejects a mismatched operator run selection from another import", async () => {
       await expect(inspectOperationalCloseout(admin, {
         ...source(), importId: "other-import-12345", runId,
+      }, now)).rejects.toMatchObject({ code: "MISSING" });
+    });
+    it("summarizes a real operator run in the bounded tenant acceptance queue", async () => {
+      const before = await db.auditEvent.count({
+        where: { organizationId },
+      });
+      const queue = await inspectAcceptanceQueue(admin, {
+        maxRuns: 10, maxAgeDays: 30,
+        maxReviewerAgeDays: 14, maxAuditsPerRun: 50,
+      }, now);
+      expect(queue).toMatchObject({
+        organizationId, returned: 1,
+        readOnly: true, automaticMergeAllowed: false,
+        manualAcceptanceRecordedByQueue: false,
+      });
+      expect(queue.rows[0]).toMatchObject({
+        runId, state: "BLOCKED", revision: 4,
+        recordedSteps: 1, blockedSteps: 1,
+        auditCount: 4, auditExpected: 4,
+        independentMatchedCount: 0,
+        mergeAuthorized: false,
+      });
+      expect(queue.rows[0]!.signals.map(s => s.code))
+        .toContain("INDEPENDENT_REVIEW_MISSING");
+      expect(await db.auditEvent.count({
+        where: { organizationId },
+      })).toBe(before);
+      expect((await inspectAcceptanceQueue(outsider, {}, now)).returned)
+        .toBe(0);
+      await expect(inspectAcceptanceQueue(member, {}, now))
+        .rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+    it("builds a source-bound human handoff without inventing approval", async () => {
+      const before = await db.auditEvent.count({
+        where: { organizationId },
+      });
+      const handoff = await inspectPhase4Handoff(admin, {
+        ...source(), runId,
+        maxAuditEvents: 100, maxEvidenceAgeDays: 30,
+      }, now);
+      expect(handoff).toMatchObject({
+        organizationId, importId, inspectionId,
+        operatorRunId: runId,
+        databaseWrites: 0, providerRequests: 0,
+        productAccepted: false,
+        githubMergeAuthorized: false, legalApproved: false,
+        backupDeletionVerified: false,
+      });
+      expect(handoff.evidence).toHaveLength(12);
+      expect(handoff.milestones).toHaveLength(9);
+      expect(handoff.concerns.some(c =>
+        c.code === "MANUAL_PRODUCT_APPROVAL_REQUIRED")).toBe(true);
+      expect(await db.auditEvent.count({
+        where: { organizationId },
+      })).toBe(before);
+      await expect(inspectPhase4Handoff(member, {
+        ...source(), runId,
+      }, now)).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(inspectPhase4Handoff(outsider, {
+        ...source(), runId,
       }, now)).rejects.toMatchObject({ code: "MISSING" });
     });
     it("reconstructs bounded event history and leaves real approvals pending", async () => {
