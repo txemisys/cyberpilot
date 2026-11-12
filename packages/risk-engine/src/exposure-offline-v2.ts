@@ -5,9 +5,8 @@ import { inventorySpfTxtRecords, extractSpfAllQualifier,
 import { inventoryDmarcTxtRecords, extractDmarcPolicy,
   extractDmarcPercentage, extractDmarcAlignment } from "./exposure-dmarc";
 import { inventoryDkimTxtRecords } from "./exposure-dkim";
-import { inspectTlsTransport } from "./exposure-tls-names";
 import { inventoryHttpSecurityHeaders } from "./exposure-http";
-import { classifyHttpStatus, inspectRedirect,
+import { inspectRedirect,
   inventoryResponseHeaders } from "./exposure-http-observation";
 
 /** Fully offline authorized-domain observation. No DNS/fetch/HTTP I/O. */
@@ -519,7 +518,7 @@ function evaluateHttp(input: ExposureOfflineEnvelope):
   const main = observed[0];
   const headers = main ? inventoryResponseHeaders(main.headers) : null;
   const security = main ? inventoryHttpSecurityHeaders(
-    main.headers) : null;
+    Object.fromEntries(main.headers)) : null;
   const findings: string[] = [];
   if (headers?.state === "COLLECTED" &&
       !headers.names.includes("strict-transport-security"))
