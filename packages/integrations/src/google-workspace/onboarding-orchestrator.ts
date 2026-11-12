@@ -1,3 +1,4 @@
+import { canonicalGoogleHash } from "./canonical-json";
 import { createHash } from "node:crypto";
 import {
   CAPABILITIES,
@@ -128,7 +129,7 @@ const LIMITATIONS = [
   "The software never infers a successful customer connection from a CI fixture.",
 ];
 function hash(value: unknown) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  return canonicalGoogleHash(value);
 }
 function checkString(value: unknown, label: string) {
   if (typeof value !== "string" ||
