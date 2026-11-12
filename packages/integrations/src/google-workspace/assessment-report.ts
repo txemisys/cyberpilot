@@ -1,3 +1,4 @@
+import { canonicalGoogleHash } from "./canonical-json";
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
   CAPABILITIES, equalDigest,
@@ -161,7 +162,7 @@ const order: WorkspaceReportSectionId[] = [
   "RECOMMENDATIONS", "PROVENANCE", "LIMITATIONS",
 ];
 function sha(value: unknown) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  return canonicalGoogleHash(value);
 }
 function same(a: unknown, b: unknown) {
   return typeof a === "string" && typeof b === "string" &&
