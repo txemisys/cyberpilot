@@ -607,7 +607,8 @@ export function assemblePhase4Handoff(
       evidencePresent: false,
     },
   ].map((row, index) => ({
-    ...row, sequence: index + 1,
+    ...row, owner: row.owner as HandoffConcern["owner"],
+    sequence: index + 1,
     humanCompletionVerified: false as const,
     phaseClosedByMilestone: false as const,
     externallyRecorded: false as const,
