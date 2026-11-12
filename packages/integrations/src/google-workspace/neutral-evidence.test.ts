@@ -106,7 +106,8 @@ describe("Google Workspace neutral multi-provider evidence bridge", () => {
   });
   it("rejects altered controls even when the visible title is unchanged", () => {
     const result = bundle();
-    result.controls[0]!.state = "OBSERVED";
+    result.controls[0]!.state = result.controls[0]!.state ===
+      "OBSERVED" ? "ERROR" : "OBSERVED";
     expect(verifyNeutralGoogleBundle(result).valid).toBe(false);
     expect(() => neutralGoogleCsv(result)).toThrow();
   });
