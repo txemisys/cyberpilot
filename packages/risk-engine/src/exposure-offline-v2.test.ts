@@ -142,6 +142,23 @@ describe("Exposure passive offline authorization and findings", () => {
     input.http[0]!.resolvedAddresses = ["8.8.8.8", "127.0.0.1"];
     expect(validateExposureOfflineEnvelope(input).valid).toBe(false);
   });
+  it("rejects a final HTTP connection address outside pinned DNS answers", () => {
+    const input = fixture();
+    input.http[0]!.finalAddress = "1.1.1.1";
+    const result = validateExposureOfflineEnvelope(input);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain("HTTP_SCOPE_OR_ADDRESS_INVALID");
+  });
+  it("raises a candidate TLS identity mismatch rather than considering the certificate trusted", () => {
+    const input = fixture();
+    input.tls[0]!.certificateDnsNames = ["unrelated.example.net"];
+    const result = assessExposureOffline(input);
+    const tls = result.checks.find(x => x.control === "WEB_TLS")!;
+    expect(tls.findings).toHaveLength(1);
+    expect(tls.details.hostnameMatched).toBe("NO_MATCH");
+    expect(tls.interpretation).toBe("RISK");
+    expect(result.coverage.healthyClaimAllowed).toBe(false);
+  });
   it("builds auditable 10-section report and exports", () => {
     const assessment = assessExposureOffline(fixture());
     const report = buildExposureReportV2(assessment);
