@@ -1,3 +1,4 @@
+import { canonicalGoogleHash } from "./canonical-json";
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
   CAPABILITIES, type GoogleCapability,
@@ -181,7 +182,7 @@ const domains: Record<GoogleCapability, NeutralGoogleDomain> = {
   REPORTS_ADMIN: "MONITORING",
 };
 function hash(value: unknown) {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+  return canonicalGoogleHash(value);
 }
 function equal(a: unknown, b: unknown) {
   return typeof a === "string" && typeof b === "string" &&
