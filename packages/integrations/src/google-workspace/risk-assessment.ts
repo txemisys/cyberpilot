@@ -424,8 +424,7 @@ export function detectGoogleFindings(
   };
   const identityEvidence = (id: string) =>
     evidence.filter(e => e.scope === "IDENTITIES" &&
-      e.subjectHash === hash(
-        observation.organizationId + "\0" + id.toLowerCase()));
+      e.subjectHash === subjectHash(observation.organizationId, id));
   for (const user of observation.users) {
     if (rows.length > policy.maximumFindings)
       invalid("Finding budget exceeded; cannot emit a truncated assessment.");
