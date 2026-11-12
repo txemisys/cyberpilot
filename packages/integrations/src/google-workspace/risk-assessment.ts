@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
   CAPABILITIES, buildEvidenceRecords, verifyObservation,
+  subjectHash,
   type GoogleCapability, type GoogleEvidenceRecord,
   type GoogleDirectoryObservation, type GoogleFindingSeverity,
 } from "./directory-contract";
