@@ -18,6 +18,8 @@ export const REQUIRED_SCENARIOS = Object.freeze([
   "CLEAN_REVIEW", "NO_REVIEW", "AMBIGUOUS_VERSION",
   "INCOMPLETE_SNAPSHOT", "INVALID_CHECKLIST", "MISSING_AUDIT",
   "ALTERED_FINGERPRINT", "FOREIGN_TENANT", "DUPLICATE_CASE",
+  "MISSING_MAPPING", "INCOMPLETE_PROVIDER", "STALE_OBSERVATION",
+  "UNRESOLVED_PROVIDER",
 ]);
 export const REQUIRED_WORKFLOWS = Object.freeze([
   "CI", "Security", "Local stack E2E", "LAB browser journey",
@@ -33,7 +35,7 @@ export const SOURCE_GATES = Object.freeze([
     ],
     signals: [
       { file: 0, pattern: /export async function importAssetInventory\(/ },
-      { file: 1, pattern: /describe(?:\.skipIf\([^)]*\))?\(/ },
+      { file: 1, pattern: /describe(?:\.skipIf)?\(/ },
     ],
     owner: "DEVELOPMENT",
   },
@@ -450,7 +452,7 @@ export function verifyDevelopmentManifest(manifest) {
   return { valid: issues.length === 0, issues };
 }
 export function resolveGitHead(root, env = process.env) {
-  const reported = env.GITHUB_SHA || env.PHASE4_COMMIT_SHA;
+  const reported = env.PHASE4_COMMIT_SHA || env.GITHUB_SHA;
   if (reported) {
     if (!/^[a-f0-9]{40}$/.test(reported))
       throw new Error("Invalid CI commit SHA.");
