@@ -29,6 +29,7 @@ import { AssetOfflineAcceptanceRunWorkspace } from "../../../../components/asset
 import { AssetEvidenceIndependentReviewWorkspace } from "../../../../components/asset-evidence-independent-review-workspace";
 import { AssetAcceptanceAuditReconciliationWorkspace } from "../../../../components/asset-acceptance-audit-reconciliation-workspace";
 import { AssetPhase4OperationalCloseoutWorkspace } from "../../../../components/asset-phase4-operational-closeout-workspace";
+import { AssetPhase4AcceptanceQueueWorkspace } from "../../../../components/asset-phase4-acceptance-queue-workspace";
 
 type Context = { params: Promise<{ slug: string }> };
 export default async function AssetInventoryPage({ params }: Context) {
@@ -73,6 +74,7 @@ export default async function AssetInventoryPage({ params }: Context) {
       <AssetEvidenceIndependentReviewWorkspace slug={slug} canManage={canManage} />
       <AssetAcceptanceAuditReconciliationWorkspace slug={slug} canManage={canManage} />
       <AssetPhase4OperationalCloseoutWorkspace slug={slug} canManage={canManage} />
+      <AssetPhase4AcceptanceQueueWorkspace slug={slug} canManage={canManage} />
     </section>
   </main>;
 }
