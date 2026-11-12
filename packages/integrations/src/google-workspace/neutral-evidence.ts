@@ -396,7 +396,7 @@ export function buildNeutralGoogleBundle(
       c.status !== "COMPLETE_LOCAL_ONLY").length,
     sourceIsSynthetic: assessment.source === "SYNTHETIC_FIXTURE",
     canonicalScore: null,
-    canonicalScoreUpdated: false,
+    canonicalScoreUpdated: false as const,
   };
   const canonical = {
     schema: "cyberpilot.neutral.google.bundle.v1" as const,
