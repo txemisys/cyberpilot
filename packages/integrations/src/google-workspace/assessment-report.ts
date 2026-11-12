@@ -62,6 +62,7 @@ export type GoogleReportExport = {
   assessmentSourceDigest: string;
   assessmentDigest: string;
   reportScope: "GOOGLE_WORKSPACE_OFFLINE_DEVELOPMENT";
+  evidenceSourceClass: GoogleDirectoryObservation["source"];
   summary: {
     usersObserved: number;
     adminsObserved: number;
@@ -338,6 +339,7 @@ export function buildGoogleExecutiveReport(
     assessmentSourceDigest: assessment.sourceDigest,
     assessmentDigest: assessment.digest,
     reportScope: "GOOGLE_WORKSPACE_OFFLINE_DEVELOPMENT" as const,
+    evidenceSourceClass: assessment.source,
     summary, sections, findings, coverage,
     actionPlan, evidenceManifest,
     recommendationsNotExecuted: true as const,
@@ -484,6 +486,7 @@ export function diffGoogleReports(
   const currentUnknown = current.findings.filter(f =>
     f.status === "INSUFFICIENT_EVIDENCE").length;
   const comparable = previous.reportScope === current.reportScope &&
+    previous.evidenceSourceClass === current.evidenceSourceClass &&
     previous.summary.providerLiveValidated ===
       current.summary.providerLiveValidated;
   const canonical = {
@@ -553,7 +556,7 @@ export function buildGoogleHistory(reports: GoogleReportExport[],
     coveragePercent: Math.round(100 * r.coverage.filter(c =>
       c.completeness === "VERIFIED_LOCAL_REFERENCE_ONLY").length /
       CAPABILITIES.length),
-    sourceClass: "SYNTHETIC_FIXTURE",
+    sourceClass: r.evidenceSourceClass,
     score: r.summary.previewScore,
   }));
   const gaps: GoogleHistorySeries["gaps"] = [];
@@ -566,7 +569,8 @@ export function buildGoogleHistory(reports: GoogleReportExport[],
   }
   const canonical = {
     schema: "cyberpilot.google.report.history.v1" as const,
-    organizationId, points, gaps, sourceClassesMixed: false,
+    organizationId, points, gaps,
+    sourceClassesMixed: new Set(points.map(p => p.sourceClass)).size > 1,
     safeTrendLabel: "SNAPSHOT_ONLY_NO_REMEDIATION_CLAIM" as const,
     trendIsFullTenantSecurity: false as const,
     reportCount: points.length,
