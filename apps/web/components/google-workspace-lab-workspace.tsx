@@ -336,11 +336,18 @@ export function GoogleWorkspaceLabWorkspace({
     const data = await offline("GET_LAB", {
       connectionId: id,
     }) as { connection: Connection };
+    const audit = await offline("AUDIT_LAB", {
+      connectionId: id,
+    }) as { headEventDigest: string | null; currentRevision: number;
+      chainVerified: boolean };
+    if (audit.currentRevision !== data.connection.revision ||
+        !audit.chainVerified)
+      throw new Error("La cadena de auditoría LAB no coincide.");
     setConnection(data.connection);
     setChallengeNonce(null);
-    setLastEventDigest(null);
+    setLastEventDigest(audit.headEventDigest);
     setRun(null);
-    setMessage("Estado recuperado. Un desafío anterior no se reenvía.");
+    setMessage("Estado y cabecera CAS recuperados. Los retos anteriores no se reenvían.");
   });
   const issue = () => withBusy(async () => {
     if (!connection)
@@ -363,6 +370,28 @@ export function GoogleWorkspaceLabWorkspace({
     setLastEventDigest(next.receipt.eventDigest);
     setChallengeNonce(nonce);
     setMessage("Desafío local emitido. No equivale a OAuth de Google.");
+  });
+  const rotate = () => withBusy(async () => {
+    if (!connection || connection.state !== "CHALLENGE_ISSUED" ||
+        !lastEventDigest)
+      throw new Error("No existe un desafío LAB revocable.");
+    const nonce = token(24);
+    const next = await offline("MUTATE_LAB", {
+      connectionId: connection.id,
+      expectedRevision: connection.revision,
+      type: "ROTATE_CHALLENGE",
+      at: new Date().toISOString(),
+      reason: "Rotación de un desafío perdido sin OAuth externo.",
+      challengeNonce: nonce,
+      requestedCapabilities: defaultCapabilities,
+      previousEventDigest: lastEventDigest,
+    }) as {
+      connection: Connection; receipt: TransitionReceipt;
+    };
+    setConnection(next.connection);
+    setLastEventDigest(next.receipt.eventDigest);
+    setChallengeNonce(nonce);
+    setMessage("Desafío LAB rotado y listo para aceptación local.");
   });
   const accept = () => withBusy(async () => {
     if (!connection || !challengeNonce || !lastEventDigest)
@@ -530,6 +559,9 @@ export function GoogleWorkspaceLabWorkspace({
             {button("Emitir desafío", issue,
               !canManage || !["NOT_CONFIGURED", "CONSENT_DENIED",
                 "REVOKED", "EXPIRED"].includes(connection.state))}
+            {button("Rotar desafío", rotate,
+              !canManage || connection.state !== "CHALLENGE_ISSUED" ||
+              !lastEventDigest)}
             {button("Aceptar solo LAB", accept,
               !canManage || connection.state !== "CHALLENGE_ISSUED" ||
               !challengeNonce)}
