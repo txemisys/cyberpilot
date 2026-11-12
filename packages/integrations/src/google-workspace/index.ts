@@ -122,3 +122,29 @@ export type {
   LabJourneyInput, LabJourneyGate,
   GoogleLabJourneyResult,
 } from "./lab-journey";
+
+export {
+  evaluateGoogleScenarioAcceptance,
+  verifyGoogleScenarioAcceptance,
+  buildGooglePhase5Matrix,
+  verifyGooglePhase5Matrix,
+  runGooglePhase5AcceptanceMatrix,
+  summarizeGooglePhase5Acceptance,
+} from "./phase5-acceptance-matrix";
+export type {
+  Phase5AcceptanceDimension,
+  Phase5AcceptanceLevel, Phase5AcceptanceCheck,
+  Phase5ScenarioAcceptance, Phase5AcceptanceMatrix,
+} from "./phase5-acceptance-matrix";
+export {
+  buildPhase5DevelopmentGate,
+  verifyPhase5DevelopmentGate,
+  phase5ReleaseManifest,
+  verifyPhase5ReleaseManifest,
+  runPhase5DevelopmentAcceptance,
+} from "./phase5-release-gate";
+export type {
+  Phase5GateCode, Phase5GateFinding,
+  Phase5GateSection, Phase5DevelopmentGate,
+  Phase5ReleaseManifest,
+} from "./phase5-release-gate";
