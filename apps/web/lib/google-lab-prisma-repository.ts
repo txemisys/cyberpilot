@@ -166,7 +166,8 @@ export class PrismaGoogleLabRepository implements GoogleLabRepository {
       throw new GoogleLabError("FORBIDDEN",
         "Google LAB creation requires a current administrator.");
     try {
-      const row = await db.googleLabConnection.create({
+      return await db.$transaction(async tx => {
+      const row = await tx.googleLabConnection.create({
         data: {
           id: connection.id,
           organizationId: connection.organizationId,
@@ -179,7 +180,7 @@ export class PrismaGoogleLabRepository implements GoogleLabRepository {
           updatedAt: new Date(connection.updatedAt),
         },
       });
-      await db.auditEvent.create({
+      await tx.auditEvent.create({
         data: {
           organizationId: scope.organizationId,
           actorType: "USER",
@@ -198,6 +199,7 @@ export class PrismaGoogleLabRepository implements GoogleLabRepository {
         },
       });
       return connectionFrom(row);
+      }, { isolationLevel: "Serializable" });
     } catch (error) {
       if (isPrismaUnique(error))
         conflict("Google LAB connection already exists.");
