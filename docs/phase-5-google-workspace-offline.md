@@ -1,10 +1,8 @@
-> **Actualización de desarrollo CCC — 12/11/2026:** desde esta revisión se ha implementado también el onboarding LAB simulado, con desafío de un solo uso, caducidad, denegación, revocación, CAS y auditoría; tablas y migración PostgreSQL para el estado, los eventos y snapshots sintéticos con retención; servicio multitenant de lectura, auditoría, exportación y comparación; proyección neutral de controles/hallazgos sin cambiar CyberScore; y API POST autenticada `/api/organizations/[slug]/google-workspace/offline`. Las secciones históricas de tareas pendientes más abajo describen el estado anterior y deben leerse con esta actualización. No se ha implementado OAuth Google LIVE ni sincronización real de tenant. El PR #212 no se considera cerrado automáticamente por la existencia de estos componentes.
-
 # Fase 5 — Google Workspace offline, contratos y evaluación conservadora
 
 **Issue:** [#87](https://github.com/txemisys/cyberpilot/issues/87)  
 **PR:** [#212](https://github.com/txemisys/cyberpilot/pull/212)  
-**Estado:** desarrollo progresivo; no se considera cerrada la fase completa ni se certifican llamadas a proveedores reales.
+**Estado:** entregas offline A/B implementadas. La aceptación técnica y la fusión dependen de los checks del HEAD definitivo. No se certifican llamadas a proveedores reales.
 
 ## Propósito
 
@@ -92,41 +90,81 @@ La edición/licencia puede determinar qué informes están disponibles.
 - Ni fixtures, ni hash local, ni ejecución verde en CI equivalen
   a firma externa, tenant Google real o certificación.
 
-## Aceptación A/B del roadmap
+## Desarrollo funcional de la fase 5
 
-El desarrollo puede progresar con tests offline y verificaciones
-automáticas; la aceptación operativa C no bloquea el desarrollo.
-El issue #87, sin embargo, también contempla conexión simulada,
-controles de consentimiento/revocación, pertenencia organizativa,
-fuentes normalizadas e informes. La primera entrega cubre parte
-de esos criterios; **no debe cerrarse el issue hasta completar
-la funcionalidad de onboarding/persistencia y su integración**.
+El desarrollo offline incluye ahora estos componentes integrados:
 
-Verificaciones automáticas:
-- validaciones de respuestas Directory/Reports, digest y
-  separaciones entre tenant y fuentes;
-- transporte inyectado, permisos 403, límites, retries y
-  rechazo de redirecciones;
-- casos MFA desconocido, privilege y usuario suspendido;
-- informe JSON/Markdown, integridad y comparación prudente
-  de snapshots;
-- CI, Security y LAB completos al HEAD de cada ronda.
-Los checks que no se hayan ejecutado no deben presentarse
-como exitosos.
+- **Conexión LAB por organización:** máquina de estados versionada
+  con nonce de desafío, denegación, aceptación exclusivamente LAB,
+  revocación, suspensión, caducidad, rotación de reto y auditoría CAS.
+  La aceptación LAB no sustituye el consentimiento OAuth Google.
+- **Persistencia y RBAC:** tablas Prisma/PostgreSQL para conexión,
+  cadena de auditoría y snapshots de evaluaciones sintéticas, con
+  transacciones serializables y aislamiento estricto por organización.
+  No se guarda el correo en claro en los snapshots normalizados ni
+  un token real de Google.
+- **Evidencias neutrales:** proyección de controles, cobertura,
+  findings, historia y exportaciones JSON/CSV que conserva
+  UNKNOWN/ERROR y procedencia del proveedor, sin recalcular el
+  CyberScore canónico.
+- **Producto accesible:** la página autenticada
+  `/organizations/[slug]/google-workspace` permite crear/consultar
+  una conexión LAB, gestionar sus retos, ejecutar un escenario,
+  filtrar hallazgos y cobertura, revisar trazas y comparar snapshots.
+  Para auditoría/uso de APIs: `/api/organizations/[slug]/google-workspace/offline`
+  y `/api/organizations/[slug]/google-workspace/scenarios`.
+- **Simulación de Admin SDK:** 17 escenarios deterministas con
+  páginas, fallos de permisos 403, límites y reintentos 429,
+  respuestas parciales o malformadas, Reports truncados, MFA
+  ausente, administradores y dominios. Solo peticiones a un fetcher
+  inyectado que nunca envía tráfico a Google.
+- **Aceptación automática A+B:** `phase5-acceptance-matrix.ts`
+  ejecuta toda la matriz y genera controles técnicos, mientras
+  `phase5-release-gate.ts` produce un veredicto verificable y un
+  manifiesto local. CI y el workflow independiente
+  `.github/workflows/phase5-google-development-closeout.yml`
+  comprueban la matriz. El artefacto publicado, si se genera,
+  **no constituye firma externa ni aprobación del cliente**.
 
-## Trabajo siguiente
+## Criterios de cierre A+B
 
-1. Crear flujo de conexión Google Workspace *simulada*
-   asociado a una organización con control de acceso y
-   auditoría; consentimiento denegado/revocado, expiración
-   y revocación con rechazo de replays.
-2. Persistir snapshots y evidencias normalizadas tenant-scoped,
-   con versión de fuente, retención y políticas PII verificables.
-3. Conectar findings y coverage de Google al contrato neutral
-   de evidencia, sin alterar indebidamente la versión histórica
-   del CyberScore.
-4. Probar la experiencia web, el informe ejecutivo de varias
-   fuentes, el manejo de cuotas y la falta de licencias.
-5. Cuando A+B esté completo, utilizar el gate automatizado
-   del roadmap y fusionar; las comprobaciones LIVE de un
-   Google Workspace autorizado quedan para nivel C.
+Para aceptar **el desarrollo offline** se requieren conjuntamente:
+
+1. Los 17 escenarios y sus aserciones específicos se ejecutan
+   correctamente y la matriz no tiene bloques pendientes.
+2. Se mantienen los límites de solo lectura y de alcance sintético,
+   el control por pertenencia organizativa y revisiones CAS.
+3. No se almacenan secretos OAuth ni correos sin redactar en
+   los informes; los snapshots tienen retención y procedencia.
+4. El informe de pyme y la proyección neutral de evidencias
+   muestran limitaciones de permisos, cuotas, 2SV y Reports,
+   sin transformar UNKNOWN en un resultado HEALTHY.
+5. El workflow `Phase 5 Google development closeout` y los cinco
+   workflows habituales `CI`, `Security`, `Local stack E2E`,
+   `LAB browser journey`, `Backup restore rehearsal`
+   terminan SUCCESS **sobre el mismo HEAD**, antes de fusionar.
+
+Una aceptación técnica verde habilita la **consideración del
+merge**, pero ningún artefacto declara autorización empresarial,
+seguridad certificada o despliegue en cliente. Un cambio posterior
+al HEAD obliga a repetir los checks.
+
+## Alcance LIVE diferido
+
+Permanece fuera del cierre offline:
+
+- OAuth Google real con consentimiento verificable de un
+  administrador autorizado; almacenamiento/revocación seguros
+  de credenciales reales conforme a la arquitectura de producto.
+- Validación de licencias, permisos y cuotas con un tenant real,
+  y sincronización real de Directory/Reports.
+- Pruebas del recorrido de cliente en un Google Workspace real,
+  obligaciones operativas de privacidad/retención y aprobación
+  de despliegue. Estas obligaciones no se simulan ni se firman
+  automáticamente.
+- Calibración de una versión definitiva del CyberScore multifuente.
+  La presente fase no modifica el modelo histórico.
+
+La documentación funcional y los tests hacen explícita esta
+separación para evitar confundir un desarrollo offline aceptado
+con un proveedor LIVE certificado.
