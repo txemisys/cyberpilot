@@ -58,7 +58,7 @@ function isFiniteDate(value: string | null) {
 }
 function within(value: string | null, at: string,
   days: number) {
-  if (!isFiniteDate(value)) return false;
+  if (value === null || !isFiniteDate(value)) return false;
   const delta = Date.parse(at) - Date.parse(value);
   return delta >= 0 && delta <= days * 86400000;
 }
