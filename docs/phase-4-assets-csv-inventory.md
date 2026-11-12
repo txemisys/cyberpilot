@@ -1390,3 +1390,82 @@ acción queda abierta; no se generan declaraciones positivas ficticias.
 - Mantener el PR #211 en Draft sin fusionar mientras esos hitos humanos
   permanezcan sin resolver. Ningún tenant externo ni LIVE es necesario
   para el alcance offline definido.
+
+
+## CC 12/11/2026 — cola de aceptación offline y expediente de traspaso humano
+
+### C1: inventario paginado de pendientes de aceptación
+
+`assets-phase4-acceptance-queue.ts` construye una cola administrativa
+**read-only**, separada de cualquier scheduler. Analiza las ejecuciones
+`AssetOfflineAcceptanceRun` dentro del tenant autenticado y una página
+limitada (1–50), vinculando estados de los nueve pasos del operador,
+revisiones independientes `AssetEvidenceReview`, antigüedad de
+referencias, número de eventos de auditoría de la ejecución, revisión
+de privacidad/retención y revisión de liberación offline.
+
+La cola distingue **BLOCK**, **REVIEW** e **INFO**. Detecta
+faltas de cobertura, autorevisiones, referencias modificadas o disputadas,
+observaciones antiguas y discrepancias básicas entre número de eventos y
+revisión CAS. Las discrepancias de contador son indicadores para
+investigación: el motor forense `assets-acceptance-audit-reconciliation`
+sigue siendo el responsable de reconstruir la cadena completa.
+
+La API `POST /api/organizations/[slug]/assets/acceptance-queue`
+requiere ADMIN/OWNER, JSON limitado a 8 KiB, límites por ejecución y
+no-store. Su interfaz permite filtrar estados, criticidad, incidencias y
+páginas; exporta una lista de acciones priorizadas para los responsables.
+Los agregados son siempre **PAGE_ONLY**, no métricas globales de seguridad.
+
+**No crea auditorías, no cambia findings/CyberScore, no envía correos,
+no asigna aprobaciones y no interpreta una referencia como firma.**
+
+### C2: expediente de preparación para la decisión humana
+
+`assets-phase4-handoff-package.ts` compone los resultados del dossier
+de cierre, el tablero operacional, la conciliación forense de los
+CAS del operador/revisor y el resumen de referencias independientes
+persistidas. Comprueba tenant, IDs de origen, digests y las advertencias
+conservadoras. El paquete incluye:
+
+- Doce referencias de fuente e informe con su procedencia,
+  identificadores, digests locales y limitaciones explícitas.
+- Nueve secciones de producto (procedencia, riesgo, operador,
+  independencia, datos, backups, liberación, CI y decisión final).
+- Nueve hitos de actuación con responsable, dependencia, entregable,
+  evidencia local disponible y estados humanos **no verificables
+  automáticamente**.
+- Registro de cuestiones pendientes y plan de acciones por responsable;
+  manifiesto exportable, SHA-256 local y controles de manipulación.
+
+La API `POST /api/organizations/[slug]/assets/phase4-handoff`
+requiere ADMIN/OWNER, tamaño máximo de 128 KiB y selección explícita
+de inventario, inspección y recorrido humano, sin acceso a proveedores.
+La consola `AssetPhase4HandoffWorkspace` permite revisar el expediente
+y exportar un JSON; el usuario debe custodiarlo conforme a su
+política de privacidad porque puede revelar referencias operativas.
+
+La salida siempre declara `productAccepted:false`,
+`githubMergeAuthorized:false`, `legalApproved:false`,
+`backupDeletionVerified:false` y `providerRequests:0`.
+Los tests validan parsers, límites, permisos, casos pendientes,
+autorrevisión y manipulación; los ensayos PostgreSQL comprueban
+aislamiento y que las evaluaciones no generan nuevas escrituras de
+auditoría.
+
+### Acciones pendientes para cerrar sin tenants externos
+
+1. Ejecutar físicamente el recorrido offline CSV → OSV guardado →
+   casos → aceptación y completar nueve pasos con referencias reales.
+2. Corroborar las referencias por otro responsable autenticado y
+   resolver falsos positivos, caducidades y discrepancias CAS.
+3. Registrar y obtener aprobaciones reales de privacidad,
+   conservación, copias exportadas y procedimiento de backups.
+4. Documentar la aceptación de producto, sus exclusiones,
+   los motivos y el responsable competente.
+5. Verificar el HEAD exacto en GitHub con los cinco workflows SUCCESS
+   antes de autorizar la fusión.
+
+Los apartados LIVE, los tenants externos y la validación real de
+proveedores siguen fuera de este cierre offline. El PR #211 debe
+mantenerse en Draft hasta el acto de aceptación humana documentado.
