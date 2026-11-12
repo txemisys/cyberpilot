@@ -159,6 +159,18 @@ describe("Exposure passive offline authorization and findings", () => {
     expect(tls.interpretation).toBe("RISK");
     expect(result.coverage.healthyClaimAllowed).toBe(false);
   });
+  it("never mutates a source assessment when sorting executive priorities", () => {
+    const input = fixture();
+    input.tls[0]!.certificateDnsNames = ["unrelated.example.net"];
+    const assessment = assessExposureOffline(input);
+    const originalDigest = assessment.digest;
+    const report = buildExposureReportV2(assessment);
+    expect(assessment.digest).toBe(originalDigest);
+    expect(verifyExposureOfflineAssessment(assessment, input).valid)
+      .toBe(true);
+    expect(verifyExposureReportV2(report, assessment).verified)
+      .toBe(true);
+  });
   it("builds auditable 10-section report and exports", () => {
     const assessment = assessExposureOffline(fixture());
     const report = buildExposureReportV2(assessment);
