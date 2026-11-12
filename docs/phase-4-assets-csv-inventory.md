@@ -1,3 +1,5 @@
+> **Actualización de criterios de cierre — 12/11/2026:** por decisión del proyecto, las fases del **roadmap de desarrollo** se cierran con aceptación técnica automatizada de niveles A+B. Las aprobaciones humanas, decisiones legales, evidencias de un cliente y ensayos operativos reales (nivel C) pertenecen al proceso de despliegue, no constituyen una condición de fusión del código. Las restricciones humanas de uso real siguen activas dentro de CyberPilot. Esta aclaración prevalece sobre cualquier párrafo anterior que exija firmas de clientes u operadores para cerrar el PR de desarrollo. Véase [política de aceptación automática](./development-acceptance-policy.md). La validación A+B debe concluir satisfactoriamente sobre el HEAD final; no se presume por esta nota.
+
 # Fase 4 — Assets: inventario pasivo CSV
 
 Issue de producto: #86. PR inicial: #211.
