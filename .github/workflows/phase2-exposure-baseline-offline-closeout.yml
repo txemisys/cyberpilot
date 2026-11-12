@@ -1,0 +1,114 @@
+name: Phase 2 Exposure Baseline offline closeout
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/risk-engine/src/exposure-offline-*'
+      - 'packages/risk-engine/src/exposure-baseline-*'
+      - 'packages/risk-engine/src/baseline-offline-*'
+      - 'packages/risk-engine/src/index.ts'
+      - 'apps/web/app/api/organizations/**/phase2-offline/**'
+      - 'apps/web/app/organizations/**/baseline/**'
+      - 'apps/web/components/phase2-baseline-*'
+      - '.github/workflows/phase2-exposure-baseline-offline-closeout.yml'
+      - 'docs/phase-2-exposure-baseline-v2.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase2-exposure-baseline-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-offline-development:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Configure Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          package-manager-cache: false
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck risk engine
+        run: pnpm --filter @cyberpilot/risk-engine typecheck
+
+      - name: Test passive authorized Exposure without network
+        run: pnpm --filter @cyberpilot/risk-engine exec vitest run src/exposure-offline-v2.test.ts
+
+      - name: Test declarative Baseline reporting
+        run: pnpm --filter @cyberpilot/risk-engine exec vitest run src/baseline-offline-v2.test.ts
+
+      - name: Test source-neutral Exposure plus Baseline portfolio
+        run: pnpm --filter @cyberpilot/risk-engine exec vitest run src/exposure-baseline-v2-portfolio.test.ts
+
+      - name: Check no LIVE network implementation exists in offline evaluator
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const files = [
+            'exposure-offline-v2.ts',
+            'exposure-offline-report-v2.ts',
+            'baseline-offline-v2.ts',
+            'baseline-offline-report-v2.ts',
+            'exposure-baseline-v2-bridge.ts',
+            'exposure-baseline-v2-portfolio.ts',
+          ].map(n => fs.readFileSync('packages/risk-engine/src/' + n, 'utf8'));
+          const forbidden = /\b(?:fetch|XMLHttpRequest|https\.request|http\.request)\s*\(/;
+          if (files.some(s => forbidden.test(s)))
+            throw new Error('The offline risk engine must not perform network I/O');
+          if (!files[0].includes('networkRequestsByEvaluator: 0') ||
+              !files[2].includes('customerComplianceCertified: false') ||
+              !files[5].includes('historicalCyberScoreUpdated: false'))
+            throw new Error('Missing offline technical acceptance boundaries');
+          console.log('PHASE2_EXPOSURE_BASELINE_OFFLINE_AB_PASS=true');
+          NODE
+
+      - name: Publish unsigned development verdict for exact HEAD
+        env:
+          PHASE2_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p .artifacts
+          node <<'NODE'
+          const fs = require('node:fs');
+          const evidence = {
+            schema: 'cyberpilot.phase2.offline.development.acceptance.v1',
+            head: process.env.PHASE2_EXACT_HEAD,
+            passiveExposureTests: true,
+            declarativeBaselineTests: true,
+            multisourceBridgeTests: true,
+            riskEngineTypecheck: true,
+            providerNetworkRequests: 0,
+            liveTenantAuthenticated: false,
+            thirdPartyApproval: false,
+            customerSecurityCertified: false,
+            legacyCyberScoreModified: false,
+            githubMergeAuthorized: false,
+          };
+          fs.writeFileSync('.artifacts/phase2-offline-acceptance.json',
+            JSON.stringify(evidence, null, 2) + '\n');
+          NODE
+
+      - name: Upload unsigned acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: phase2-exposure-baseline-offline-acceptance
+          path: .artifacts/phase2-offline-acceptance.json
+          if-no-files-found: ignore
+          retention-days: 30
