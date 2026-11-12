@@ -134,7 +134,7 @@ describe("Exposure passive offline authorization and findings", () => {
     expect(validateExposureOfflineEnvelope(input).valid).toBe(false);
     expect(() => assessExposureOffline(input)).toThrow();
     input.authorization.organizationId = org;
-    input.thirdPartyScanningAuthorized = true;
+    (input as unknown as Record<string, unknown>).thirdPartyScanningAuthorized = true;
     expect(() => assessExposureOffline(input)).toThrow();
   });
   it("rejects private HTTP resolution without performing any network calls", () => {
