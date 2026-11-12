@@ -307,7 +307,8 @@ export function assessAcceptanceQueueRun(input: {
       "Audit actor or tenant/resource identity was inconsistent.");
   const matched = new Set<string>();
   let disputed = 0, stale = 0, self = 0;
-  const knownSteps = new Map(steps.items.map(step => [step.code, step]));
+  const knownSteps = new Map<string, (typeof steps.items)[number]>(
+    steps.items.map(step => [step.code, step]));
   const seen = new Set<string>();
   for (const review of reviews) {
     const step = knownSteps.get(review.stepCode);
