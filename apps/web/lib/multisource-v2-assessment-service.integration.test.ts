@@ -85,8 +85,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(data.coverage.verifiedControls).toBe(0);
       expect(data.report.summary.noMicrosoft365RequiredToGenerate)
         .toBe(true);
-      expect(data.manifest.evidence.some(e =>
-        e.source === "MICROSOFT_365")).toBe(false);
+      expect(data.report.sources.some((source: { source: string }) =>
+        source.source === "MICROSOFT_365")).toBe(false);
     });
     it("rejects storing a v2 snapshot from a non-admin member", async () => {
       await expect(invoke(member, "STORE", {
