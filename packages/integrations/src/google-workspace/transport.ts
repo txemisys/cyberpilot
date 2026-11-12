@@ -543,9 +543,12 @@ export async function collectGoogleWorkspace(input: {
 }) {
   const policy = parseGoogleTransportPolicy(input.policy);
   const env = inspectGoogleEnvironment(input.environment,
-    { allowRealProvider: input.allowRealProvider });
+    { ...(input.allowRealProvider !== undefined ?
+      { allowRealProvider: input.allowRealProvider } : {}) });
   const transport = createGoogleTransport({
-    fetcher: input.fetcher, sleep: input.sleep, clock: input.clock,
+    fetcher: input.fetcher,
+    ...(input.sleep ? { sleep: input.sleep } : {}),
+    ...(input.clock ? { clock: input.clock } : {}),
   });
   const clock = input.clock ?? (() => Date.now());
   const budget = { used: 0, startedAt: clock() };
