@@ -435,18 +435,21 @@ export function calculateMultiSourceCyberScoreV2(
     contributions.reduce((s, row) =>
       s + row.appliedPoints, 0)));
   const assessed = eligibility.technicalEligible;
-  const preliminaryScore = Math.max(0,
-    Math.min(100, Math.round(100 - totalRisk)));
   const unknownControls = coverage.controls.filter(c =>
     !c.verifiedForScoring).map(c => c.controlId);
-  const riskOfMissingEvidence = Math.round(100 *
-    (100 - coverage.coveragePercent) / 100);
-  // Unknown scope cannot be counted as verified safety.
-  // The interval is a communication aid, not a certification.
-  const maxPossible = Math.max(0,
-    preliminaryScore);
-  const minPossible = Math.max(0,
-    preliminaryScore - riskOfMissingEvidence);
+  const riskOfMissingEvidence = Math.round(
+    modelPolicy.missingCoverageLowerBoundMultiplier *
+    (100 - coverage.coveragePercent));
+  // Unknown controls receive a conservative uncertainty penalty;
+  // their absence must NEVER increase the published numeric posture.
+  const unadjustedScore = Math.max(0,
+    Math.min(100, Math.round(100 - totalRisk)));
+  const preliminaryScore = Math.max(0,
+    unadjustedScore - riskOfMissingEvidence);
+  // The interval makes the difference between observed risk and
+  // uncertainty visible. The displayed score uses the LOWER bound.
+  const maxPossible = unadjustedScore;
+  const minPossible = preliminaryScore;
   const status: V2Score["status"] =
     assessed ? "ASSESSED_WITH_LIMITATIONS" :
       coverage.verifiedControls === 0 ?
@@ -493,9 +496,8 @@ export function calculateMultiSourceCyberScoreV2(
     riskPoints: totalRisk,
     maximumRiskPoints: modelPolicy.maximumRiskPoints,
     coveragePercent: coverage.coveragePercent,
-    adjustedRisk: round(totalRisk +
-      modelPolicy.missingCoverageLowerBoundMultiplier *
-      riskOfMissingEvidence),
+    adjustedRisk: round(Math.min(100,
+      totalRisk + riskOfMissingEvidence)),
     status, label: assessed ? "NOT_CERTIFIED" : "UNDETERMINED",
     confidence: confidenceLabel(coverage),
     contributions,
