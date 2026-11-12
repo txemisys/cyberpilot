@@ -1127,3 +1127,26 @@ export type {
   V2ReportSection, V2ExecutiveReport,
   V2ReportAudit, V2ReportExport,
 } from "./multisource-v2-report";
+
+export {
+  normalizeExposureDomain, isPublicExposureAddress,
+  validateExposureTargetAddresses,
+  validateExposureOfflineEnvelope,
+  assessExposureOffline, verifyExposureOfflineAssessment,
+} from "./exposure-offline-v2";
+export type {
+  ExposureProbeStatus, ExposureProtocol, ExposureControl,
+  ExposureSeverity, ExposureFinding, ExposureAuthorization,
+  ExposureDnsObservation, ExposureTlsObservation,
+  ExposureHttpObservation, ExposureOfflineEnvelope,
+  ExposureCheck, ExposureAssessment, ExposureValidation,
+} from "./exposure-offline-v2";
+export {
+  buildExposureReportV2, verifyExposureReportV2,
+  exportExposureReportV2, compareExposureReportsV2,
+  exposureOfflineReleaseCheck,
+} from "./exposure-offline-report-v2";
+export type {
+  ExposureReportSection, ExposureReport, ExposureReportAudit,
+  ExposureReportExport, ExposureReportDelta,
+} from "./exposure-offline-report-v2";
