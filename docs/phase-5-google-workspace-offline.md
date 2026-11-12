@@ -1,3 +1,5 @@
+> **Actualización de desarrollo CCC — 12/11/2026:** desde esta revisión se ha implementado también el onboarding LAB simulado, con desafío de un solo uso, caducidad, denegación, revocación, CAS y auditoría; tablas y migración PostgreSQL para el estado, los eventos y snapshots sintéticos con retención; servicio multitenant de lectura, auditoría, exportación y comparación; proyección neutral de controles/hallazgos sin cambiar CyberScore; y API POST autenticada `/api/organizations/[slug]/google-workspace/offline`. Las secciones históricas de tareas pendientes más abajo describen el estado anterior y deben leerse con esta actualización. No se ha implementado OAuth Google LIVE ni sincronización real de tenant. El PR #212 no se considera cerrado automáticamente por la existencia de estos componentes.
+
 # Fase 5 — Google Workspace offline, contratos y evaluación conservadora
 
 **Issue:** [#87](https://github.com/txemisys/cyberpilot/issues/87)  
