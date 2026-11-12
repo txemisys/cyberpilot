@@ -54,3 +54,29 @@ export type {
   GoogleReportExport, GoogleReportDiff,
   GoogleHistoryPoint, GoogleHistorySeries,
 } from "./assessment-report";
+
+export {
+  DEFAULT_LAB_POLICY, GoogleLabError, parseGoogleLabPolicy,
+  validateGoogleLabScope, newGoogleLabConnection,
+  digestChallengeNonce, verifyGoogleLabConnection,
+  verifyGoogleLabEvents, transitionGoogleLab,
+  inspectGoogleLabEligibility, replayGoogleLabHistory,
+  redactGoogleLabConnection,
+} from "./onboarding-policy";
+export type {
+  GoogleLabState, GoogleLabRole, GoogleLabCommandType,
+  GoogleLabScope, GoogleLabPolicy, GoogleLabChallenge,
+  GoogleLabConnection, GoogleLabEvent, GoogleLabTransition,
+  GoogleLabCommand, GoogleLabAcceptance,
+} from "./onboarding-policy";
+export {
+  parseGoogleLabQuery, parseLabCreate,
+  createGoogleLabReceipt, inspectLabOperatorSummary,
+  GoogleLabOnboardingService, verifyGoogleLabAuditReport,
+} from "./onboarding-orchestrator";
+export type {
+  GoogleLabRepository, GoogleLabCreateCommand,
+  GoogleLabListQuery, GoogleLabAuditReport,
+  GoogleLabQueryResult, GoogleLabOperatorSummary,
+  GoogleLabTransitionReceipt,
+} from "./onboarding-orchestrator";
