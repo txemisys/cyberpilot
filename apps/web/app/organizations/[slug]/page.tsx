@@ -307,6 +307,12 @@ export default async function OrganizationPage({
 
   return (
     <main className="shell">
+      <p style={{ margin: "12px 0" }}>
+        <Link href={"/organizations/" + encodeURIComponent(slug) + "/google-workspace"}>
+          Google Workspace · laboratorio offline de identidad (Directory/Reports)
+        </Link>
+      </p>
+
       <section className="dashboard">
         <p className="eyebrow">CyberPilot workspace</p>
         <h1 className="dashboard-title">{membership.organization.name}</h1>

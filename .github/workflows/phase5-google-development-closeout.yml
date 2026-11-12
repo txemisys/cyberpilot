@@ -1,0 +1,82 @@
+name: Phase 5 Google development closeout
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'packages/integrations/src/google-workspace/**'
+      - 'apps/web/lib/google-**'
+      - 'apps/web/components/google-**'
+      - 'apps/web/app/organizations/**/google-workspace/**'
+      - 'apps/web/app/api/organizations/**/google-workspace/**'
+      - 'packages/database/prisma/**'
+      - '.github/workflows/phase5-google-development-closeout.yml'
+      - 'docs/phase-5-google-workspace-offline.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase5-google-closeout-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate-offline-google-workspace:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source HEAD
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          package-manager-cache: false
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Phase 5 source typecheck
+        run: pnpm --filter @cyberpilot/integrations typecheck
+
+      - name: Execute independently replayable 17-scenario A/B matrix
+        env:
+          PHASE5_WRITE_ARTIFACTS: 'true'
+        run: pnpm --filter @cyberpilot/integrations exec vitest run src/google-workspace/phase5-acceptance.test.ts
+
+      - name: Assert machine-readable offline A/B verdict
+        run: |
+          node -e "
+          const fs = require('node:fs');
+          const p = 'packages/integrations/.artifacts/phase5-google-development-acceptance.json';
+          if (!fs.existsSync(p)) throw new Error('Missing Phase 5 evidence artifact');
+          const x = JSON.parse(fs.readFileSync(p, 'utf8'));
+          if (x.schema !== 'cyberpilot.google.phase5.ci.attestation.v1' ||
+              !x.verified || !x.technicalPass ||
+              x.matrix?.verdict !== 'OFFLINE_A_B_PASS' ||
+              x.gate?.developmentVerdict !== 'OFFLINE_A_B_PASS' ||
+              x.googleLiveValidated !== false ||
+              x.customerConsentVerified !== false ||
+              x.githubMergeAuthorized !== false)
+            throw new Error('Phase 5 offline acceptance failed or overclaimed');
+          console.log('PHASE5_GOOGLE_OFFLINE_AB_PASS=true');
+          "
+
+      - name: Upload unsigned synthetic acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: phase5-google-offline-development-evidence
+          path: packages/integrations/.artifacts/phase5-google-development-acceptance.json
+          if-no-files-found: ignore
+          retention-days: 30

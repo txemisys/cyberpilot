@@ -250,6 +250,8 @@ model Organization {
   assetRetentionReviews    AssetRetentionReview[]
   assetOfflineAcceptanceRuns AssetOfflineAcceptanceRun[]
   assetEvidenceReviews AssetEvidenceReview[]
+  googleLabConnections GoogleLabConnection[]
+  googleEvidenceSnapshots GoogleEvidenceSnapshot[]
   integrityCaseCaptures     IntegrityCaseCapture[]
   integrityReviewTasks      IntegrityReviewTask[]
   integrityReviewEvents     IntegrityReviewEvent[]
@@ -1409,4 +1411,66 @@ model AssetEvidenceReview {
   @@unique([organizationId, acceptanceRunId, stepCode])
   @@index([organizationId, reviewState, updatedAt])
   @@index([organizationId, acceptanceRunId])
+}
+
+/**
+ * Phase 5 Google Workspace LAB-only durable state. No OAuth tokens,
+ * customer secrets or raw Directory users are persisted here.
+ */
+model GoogleLabConnection {
+  id             String   @id @default(cuid())
+  organizationId String
+  createdById    String
+  revision       Int      @default(0)
+  state          String   @db.VarChar(40)
+  stateDigest    String   @db.VarChar(64)
+  payload        Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events       GoogleLabEvent[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, state, updatedAt])
+}
+
+model GoogleLabEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  connectionId   String
+  revision       Int
+  action         String   @db.VarChar(48)
+  eventDigest    String   @db.VarChar(64)
+  connectionDigest String @db.VarChar(64)
+  payload        Json
+  occurredAt     DateTime
+
+  connection GoogleLabConnection @relation(fields: [organizationId, connectionId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, connectionId, revision])
+  @@index([organizationId, connectionId, occurredAt])
+}
+
+model GoogleEvidenceSnapshot {
+  id             String   @id @default(cuid())
+  organizationId String
+  connectionId   String
+  sourceDigest   String   @db.VarChar(64)
+  assessmentDigest String @db.VarChar(64)
+  reportDigest   String   @db.VarChar(64)
+  schemaVersion  Int      @default(1)
+  sourceType     String   @db.VarChar(32)
+  observedAt     DateTime
+  expiresAt      DateTime
+  assessment     Json
+  report         Json
+  createdById    String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, connectionId, sourceDigest])
+  @@index([organizationId, connectionId, observedAt])
+  @@index([organizationId, expiresAt])
 }

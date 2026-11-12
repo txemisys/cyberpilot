@@ -4,7 +4,8 @@
   "private": true,
   "exports": {
     "./microsoft-365": "./src/microsoft-365/index.ts",
-    "./domain-security": "./src/domain-security/index.ts"
+    "./domain-security": "./src/domain-security/index.ts",
+    "./google-workspace": "./src/google-workspace/index.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
