@@ -79,7 +79,9 @@ jobs:
         run: pnpm db:migrate:deploy
 
       - name: Verify migration status
-        run: pnpm db:migrate:status
+        run: |
+          pnpm db:migrate:status
+          echo PHASE4_CI_MIGRATIONS_PASSED=true >> "$GITHUB_ENV"
 
       - name: Production configuration check
         run: pnpm production:check
@@ -100,7 +102,6 @@ jobs:
       - name: Phase 4 development acceptance gate
         env:
           PHASE4_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          PHASE4_CI_MIGRATIONS_PASSED: 'true'
         run: |
           node --test scripts/phase4-development-acceptance.test.mjs
           node scripts/phase4-development-acceptance.mjs
