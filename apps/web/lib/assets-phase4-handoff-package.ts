@@ -93,6 +93,7 @@ export type Phase4HandoffInput = {
   minimumReferenceCount: 9;
   base: {
     digest: string;
+    acceptanceDigest: string;
     importDigest: string;
     inspectionDigest: string;
     privacyDigest: string;
@@ -436,7 +437,7 @@ export function assemblePhase4Handoff(
       "OPERATOR", "Source is customer-declared, not endpoint-discovered."),
     sourceItem("OSV_INSPECTION", input.inspectionId, base.inspectionDigest,
       "OPERATOR", "Historical stored provider result, not a current LIVE check."),
-    sourceItem("ACCEPTANCE_REPORT", input.importId, base.digest,
+    sourceItem("ACCEPTANCE_REPORT", input.importId, base.acceptanceDigest,
       "OPERATOR", "Source package contains locally evaluated gates."),
     sourceItem("PRIVACY_REPORT", input.organizationId, base.privacyDigest,
       "PRIVACY_OWNER", "Readiness cannot authenticate legal approval."),
@@ -449,7 +450,7 @@ export function assemblePhase4Handoff(
     sourceItem("RELEASE_AUDIT", base.releaseId, base.releaseAuditDigest,
       "INDEPENDENT_REVIEWER", "Local event history lacks an external signature."),
     sourceItem("RETENTION_REVIEW", base.retentionId,
-      base.retentionId ? base.privacyDigest : null,
+      null,
       "PRIVACY_OWNER", "Review of exceptions is not proof of disposal."),
     sourceItem("OPERATOR_RUN", input.operatorRunId,
       ops.sourceOperatorDigest, "OPERATOR",
@@ -665,7 +666,7 @@ export function assemblePhase4Handoff(
     provenance: {
       inventoryDigest: base.importDigest,
       inspectionDigest: base.inspectionDigest,
-      offlineAcceptanceDigest: base.digest,
+      offlineAcceptanceDigest: base.acceptanceDigest,
       privacyDigest: base.privacyDigest,
       referenceMatrixDigest: base.scenarioDigest,
       operationalDigest: ops.digest,
@@ -802,6 +803,7 @@ export async function inspectPhase4Handoff(scope: AssetScope,
     minimumReferenceCount: 9,
     base: {
       digest: dossier.digest,
+      acceptanceDigest: dossier.acceptance.digest,
       importDigest: dossier.inventory.inventoryDigest,
       inspectionDigest: dossier.inventory.inspectionDigest,
       privacyDigest: dossier.privacy.digest,
