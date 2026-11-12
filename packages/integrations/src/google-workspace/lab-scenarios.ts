@@ -517,7 +517,8 @@ export function defaultScenarioPolicy(
   return parseGoogleTransportPolicy({
     pageSize: source.id === "PAGINATED_DIRECTORY" ||
       source.id === "PARTIAL_DIRECTORY" ||
-      source.id === "REPEATED_PAGE" ? 2 : 100,
+      source.id === "REPEATED_PAGE" ? 2 :
+      source.id === "REPORTS_PARTIAL" ? 1 : 100,
     maxPagesPerResource: 12,
     maxTotalRequests: 70,
     maxRetriesPerPage: 2,
