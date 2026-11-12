@@ -57,7 +57,8 @@ function equal(a, b) {
 }
 function repoSlug(value) {
   return typeof value === "string" &&
-    /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value);
+    /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value) &&
+    value.split("/").every(part => part !== "." && part !== "..");
 }
 export function parseCloseoutOptions(raw = {}) {
   if (!isRecord(raw)) throw new Error("Closeout input is not an object.");
