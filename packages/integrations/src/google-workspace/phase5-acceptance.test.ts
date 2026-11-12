@@ -52,7 +52,7 @@ describe("Phase 5 Google Workspace A+B acceptance policy", () => {
           googleLiveValidated: false,
           customerConsentVerified: false,
           githubMergeAuthorized: false,
-        }, null, 2) + "\\n", "utf8");
+        }, null, 2) + "\n", "utf8");
     }
     expect(result.verified).toBe(true);
     expect(result.technicalPass).toBe(true);
