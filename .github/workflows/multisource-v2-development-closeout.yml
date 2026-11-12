@@ -78,6 +78,8 @@ jobs:
           NODE
 
       - name: Generate unsigned technical A+B summary
+        env:
+          PHASE1_V2_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           mkdir -p .artifacts
           node -e "
@@ -95,7 +97,7 @@ jobs:
             businessApprovalAttested: false,
             liveProviderValidated: false,
             githubMergeAuthorized: false,
-            head: process.env.GITHUB_SHA,
+            head: process.env.PHASE1_V2_EXACT_HEAD,
           };
           fs.writeFileSync('.artifacts/multisource-v2-technical-acceptance.json',
             JSON.stringify(output, null, 2) + String.fromCharCode(10));
