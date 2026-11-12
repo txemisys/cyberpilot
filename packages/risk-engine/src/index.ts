@@ -1052,3 +1052,78 @@ export function getRemediationPlaybook(
 ): RemediationPlaybookDefinition | null {
   return ALL_RULES.get(ruleId)?.playbook ?? null;
 }
+
+export {
+  supportedV2Sources, supportedV2Domains,
+  validV2Id, validV2Hash, validV2Time,
+  validV2String, canonicalV2, v2StableKey,
+  defaultV2Controls, validateV2Control,
+  validateV2Evidence, validateV2Finding,
+  validateV2Scope, validateV2Manifest,
+  emptyV2Manifest,
+} from "./multisource-v2-contract";
+export type {
+  V2Source, V2Domain, V2State, V2Confidence,
+  V2Verification, V2ScopeKind, V2Severity,
+  V2Evidence, V2ControlSpec, V2Finding,
+  V2Scope, V2Manifest, V2Status, V2CoverageRow,
+  V2DomainCoverage, V2Coverage,
+  V2RiskContribution, V2Score, V2Validation,
+} from "./multisource-v2-contract";
+export {
+  summarizeV2SourceScopes, deduplicateV2Evidence,
+  detectV2EvidenceConflicts, computeV2ControlCoverage,
+  computeV2Coverage, coverageV2BySource,
+  coverageV2Gaps, compareV2Coverage,
+  summarizeV2CoverageExecutive,
+} from "./multisource-v2-coverage";
+export type {
+  V2ScopeEvaluation, V2Conflict,
+  V2DeduplicatedEvidence,
+} from "./multisource-v2-coverage";
+
+export {
+  defaultV2ModelPolicy, parseV2ModelPolicy,
+  v2RiskPointsForSeverity, assessV2ScoreEligibility,
+  selectV2ScoreFindings, calculateV2RiskContributions,
+  calculateMultiSourceCyberScoreV2, explainV2Score,
+  compareV2Scores, summarizeV2ScoreExecutive,
+} from "./multisource-v2-score";
+export type {
+  V2ModelPolicy, V2ScoreEligibility,
+  V2FindingSelection, V2ScoreDriver,
+  V2ScoreComparison,
+} from "./multisource-v2-score";
+export {
+  sha256V2, v2ModelRegistry, compareV2ModelVersions,
+  createV2HistoryEntry, inspectV2HistoryEntry,
+  reconcileV2History, createV2HistoricalTimeline,
+  compareV2TimelineToV1, scoreV2HistorySignals,
+  historyV2EvidenceManifest,
+} from "./multisource-v2-history";
+export type {
+  V2HistoryEntry, V2HistoricalTimeline,
+  V2HistoricalIssue, V2HistoryReconciliation,
+  V2ModelRegistryEntry, V2VersionCompatibility,
+} from "./multisource-v2-history";
+
+export {
+  buildV2AdapterScope, convertLegacyV1Evidence,
+  createV2AdapterBatch, buildV2Intake,
+  assembleV2Intake, reviewV2IntakeSourceReadiness,
+  importV2SourceAuditManifest,
+} from "./multisource-v2-adapters";
+export type {
+  V2AdapterContext, V2AdapterRawFinding,
+  V2AdapterObservation, V2AdapterBatch,
+  V2MultiSourceIntake, V2AdapterResult,
+} from "./multisource-v2-adapters";
+export {
+  buildV2ExecutiveReport, verifyV2ExecutiveReport,
+  exportV2Report, verifyV2ReportExport,
+  compareV2ExecutiveReports,
+} from "./multisource-v2-report";
+export type {
+  V2ReportSection, V2ExecutiveReport,
+  V2ReportAudit, V2ReportExport,
+} from "./multisource-v2-report";
