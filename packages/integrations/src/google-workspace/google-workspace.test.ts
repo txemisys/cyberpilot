@@ -97,7 +97,7 @@ describe("Google Workspace offline safe contracts", () => {
           { name: "success", boolValue: true }] }],
     }, org, "LOGIN");
     expect(reports).toHaveLength(1);
-    expect(reports[0].parameters).toEqual([
+    expect(reports[0]!.parameters).toEqual([
       { name: "success", value: "true" },
     ]);
     expect(JSON.stringify(reports)).not.toContain("admin@example.com");
