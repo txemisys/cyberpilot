@@ -319,6 +319,11 @@ export default async function OrganizationPage({
             CyberScore v2 · Evaluación multifuente opcional, sin Microsoft 365
           </Link>
         </p>
+        <p style={{ margin: "10px 0" }}>
+          <Link href={"/organizations/" + encodeURIComponent(slug) + "/baseline"}>
+            Baseline · Cuestionario de seguridad para pymes sin M365
+          </Link>
+        </p>
         <p className="eyebrow">CyberPilot workspace</p>
         <h1 className="dashboard-title">{membership.organization.name}</h1>
         <p className="lede">

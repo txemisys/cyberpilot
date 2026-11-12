@@ -1127,3 +1127,70 @@ export type {
   V2ReportSection, V2ExecutiveReport,
   V2ReportAudit, V2ReportExport,
 } from "./multisource-v2-report";
+
+export {
+  normalizeExposureDomain, isPublicExposureAddress,
+  validateExposureTargetAddresses,
+  validateExposureOfflineEnvelope,
+  assessExposureOffline, verifyExposureOfflineAssessment,
+} from "./exposure-offline-v2";
+export type {
+  ExposureProbeStatus, ExposureProtocol, ExposureControl,
+  ExposureSeverity, ExposureFinding, ExposureAuthorization,
+  ExposureDnsObservation, ExposureTlsObservation,
+  ExposureHttpObservation, ExposureOfflineEnvelope,
+  ExposureCheck, ExposureAssessment, ExposureValidation,
+} from "./exposure-offline-v2";
+export {
+  buildExposureReportV2, verifyExposureReportV2,
+  exportExposureReportV2, compareExposureReportsV2,
+  exposureOfflineReleaseCheck,
+} from "./exposure-offline-report-v2";
+export type {
+  ExposureReportSection, ExposureReport, ExposureReportAudit,
+  ExposureReportExport, ExposureReportDelta,
+} from "./exposure-offline-report-v2";
+
+export {
+  validateBaselineV2Submission, assessBaselineOfflineV2,
+  verifyBaselineOfflineV2, compareBaselineOfflineV2,
+  baselineV2DomainGaps,
+} from "./baseline-offline-v2";
+export type {
+  BaselineV2EvidenceStatus, BaselineV2Priority,
+  BaselineV2Question, BaselineV2DomainSummary,
+  BaselineV2Action, BaselineV2Assessment,
+  BaselineV2AssessmentOptions, BaselineV2ValidationResult,
+} from "./baseline-offline-v2";
+export {
+  buildBaselineReportV2, verifyBaselineReportV2,
+  exportBaselineReportV2, buildBaselineActionPlanV2,
+  compareBaselineReportsV2, verifyBaselineActionPlanV2,
+} from "./baseline-offline-report-v2";
+export type {
+  BaselineReportV2Section, BaselineReportV2,
+  BaselineReportV2Export, BaselineReportV2Audit,
+  BaselineActionPlanV2, BaselineReportDeltaV2,
+} from "./baseline-offline-report-v2";
+
+export {
+  buildExposureBaselineV2Bridge,
+  verifyExposureBaselineV2Bridge,
+  compareExposureBaselineV2Bridges,
+  exposureBaselineV2CrossSignals,
+} from "./exposure-baseline-v2-bridge";
+export type {
+  V2BridgeSource, V2BridgeProjection,
+  V2CrossSignal, V2BridgeComparison,
+} from "./exposure-baseline-v2-bridge";
+export {
+  buildPhase2OfflinePortfolio,
+  verifyPhase2OfflinePortfolio,
+  comparePhase2Portfolios,
+  exportPhase2Portfolio,
+} from "./exposure-baseline-v2-portfolio";
+export type {
+  Phase2PortfolioInput, Phase2PortfolioPriority,
+  Phase2PortfolioDomain, Phase2Portfolio,
+  Phase2PortfolioVerification, Phase2PortfolioDelta,
+} from "./exposure-baseline-v2-portfolio";
