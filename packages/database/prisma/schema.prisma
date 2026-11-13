@@ -229,6 +229,12 @@ model Organization {
   domains                  Domain[]
   securityScores           SecurityScore[]
   multiSourceV2Assessments MultiSourceV2Assessment[]
+  baselineDrafts BaselineDraft[]
+  baselineRevisions BaselineRevision[]
+  baselineFollowUps BaselineFollowUp[]
+  baselineFollowUpEvents BaselineFollowUpEvent[]
+  exposureAuthorizations ExposureDomainAuthorization[]
+  exposureAuthorizationEvents ExposureAuthorizationEvent[]
   remediations             Remediation[]
   securityEvidence         SecurityEvidence[]
   remediationWorkItems      RemediationWorkItem[]
@@ -1513,4 +1519,133 @@ model MultiSourceV2Assessment {
   @@index([organizationId, evaluatedAt])
   @@index([organizationId, status, evaluatedAt])
   @@index([organizationId, modelId, modelRevision])
+}
+
+/** Per-organization persisted declarative progress. Never counts as technical proof. */
+model BaselineDraft {
+  id String @id @default(cuid())
+  organizationId String
+  questionnaireVersion Int @default(1)
+  revision Int @default(1)
+  status String @default("DRAFT") @db.VarChar(20)
+  responses Json
+  responsesDigest String @db.VarChar(64)
+  createdById String
+  updatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  submittedAt DateTime?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  revisions BaselineRevision[]
+  @@unique([organizationId, questionnaireVersion])
+  @@index([organizationId, status, updatedAt])
+}
+
+model BaselineRevision {
+  id String @id @default(cuid())
+  organizationId String
+  draftId String
+  revision Int
+  eventKind String @db.VarChar(24)
+  questionnaireVersion Int
+  responses Json
+  responsesDigest String @db.VarChar(64)
+  assessmentDigest String? @db.VarChar(64)
+  reportDigest String? @db.VarChar(64)
+  assessment Json?
+  report Json?
+  actorUserId String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  draft BaselineDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  @@unique([draftId, revision])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, draftId, revision])
+}
+
+/** Authorization lifecycle for passive domain evaluation; no automatic scans. */
+model ExposureDomainAuthorization {
+  id String @id @default(cuid())
+  organizationId String
+  domain String @db.VarChar(253)
+  revision Int @default(1)
+  state String @default("PENDING") @db.VarChar(24)
+  method String @db.VarChar(20)
+  challengeDigest String @db.VarChar(64)
+  challengeExpiresAt DateTime
+  verifiedAt DateTime?
+  revokedAt DateTime?
+  lastCheckedAt DateTime?
+  evidenceDigest String? @db.VarChar(64)
+  actorUserId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events ExposureAuthorizationEvent[]
+  @@unique([organizationId, domain])
+  @@index([organizationId, state, updatedAt])
+}
+
+model ExposureAuthorizationEvent {
+  id String @id @default(cuid())
+  organizationId String
+  authorizationId String
+  revision Int
+  action String @db.VarChar(32)
+  priorState String @db.VarChar(24)
+  newState String @db.VarChar(24)
+  evidenceDigest String? @db.VarChar(64)
+  actorUserId String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  authorization ExposureDomainAuthorization @relation(fields: [authorizationId], references: [id], onDelete: Cascade)
+  @@unique([authorizationId, revision])
+  @@index([organizationId, createdAt])
+}
+
+/** Declarative remediation follow-up. COMPLETED_REPORTED is not verified. */
+model BaselineFollowUp {
+  id String @id @default(cuid())
+  organizationId String
+  questionnaireVersion Int @default(1)
+  questionId String @db.VarChar(80)
+  sourceDraftRevision Int
+  severity String @db.VarChar(20)
+  status String @default("OPEN") @db.VarChar(24)
+  revision Int @default(1)
+  title String @db.VarChar(512)
+  nextAction String @db.VarChar(2048)
+  evidenceNeeded String @db.VarChar(512)
+  evidenceReference String? @db.VarChar(96)
+  ownerUserId String?
+  dueAt DateTime?
+  completedAt DateTime?
+  createdById String
+  updatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events BaselineFollowUpEvent[]
+  @@unique([organizationId, questionnaireVersion, questionId])
+  @@index([organizationId, status, dueAt])
+  @@index([organizationId, ownerUserId, updatedAt])
+}
+
+model BaselineFollowUpEvent {
+  id String @id @default(cuid())
+  organizationId String
+  followUpId String
+  revision Int
+  action String @db.VarChar(24)
+  previousStatus String @db.VarChar(24)
+  nextStatus String @db.VarChar(24)
+  ownerUserId String?
+  dueAt DateTime?
+  evidenceReference String? @db.VarChar(96)
+  actorUserId String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  followUp BaselineFollowUp @relation(fields: [followUpId], references: [id], onDelete: Cascade)
+  @@unique([followUpId, revision])
+  @@index([organizationId, createdAt])
 }

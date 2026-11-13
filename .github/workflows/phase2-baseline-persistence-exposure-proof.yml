@@ -1,0 +1,116 @@
+name: Phase 2 Baseline persistence and Exposure proof closeout
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/lib/baseline-persistence*'
+      - 'apps/web/lib/baseline-followup*'
+      - 'apps/web/lib/exposure-authorization*'
+      - 'apps/web/lib/exposure-dns-proof*'
+      - 'apps/web/app/api/organizations/**/baseline-persistence/**'
+      - 'apps/web/app/api/organizations/**/baseline-followups/**'
+      - 'apps/web/app/api/organizations/**/exposure-authorization/**'
+      - 'apps/web/components/baseline-followups-*'
+      - 'apps/web/components/exposure-domain-authorization-*'
+      - 'packages/risk-engine/src/exposure-domain-authorization*'
+      - 'packages/database/prisma/**'
+      - '.github/workflows/phase2-baseline-persistence-exposure-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase2-persist-proof-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-technical-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          package-manager-cache: false
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @cyberpilot/database db:generate
+
+      - name: Verify model and risk-engine types
+        run: pnpm --filter @cyberpilot/risk-engine typecheck
+
+      - name: Verify proof token semantics and no active scanning
+        run: pnpm --filter @cyberpilot/risk-engine exec vitest run src/exposure-domain-authorization.test.ts
+
+      - name: Verify DNS TXT ownership proof with mocked resolver
+        run: pnpm --filter @cyberpilot/web exec vitest run lib/exposure-dns-proof.test.ts
+
+      - name: Verify separate migrations and legacy score preservation
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const names = [
+            '20261113150000_baseline_drafts_exposure_authorization',
+            '20261113170000_baseline_followups',
+          ];
+          const migrations = names.map(x =>
+            fs.readFileSync('packages/database/prisma/migrations/' +
+              x + '/migration.sql', 'utf8'));
+          if (!migrations[0].includes('CREATE TABLE "BaselineDraft"') ||
+              !migrations[0].includes('CREATE TABLE "BaselineRevision"') ||
+              !migrations[0].includes('CREATE TABLE "ExposureDomainAuthorization"') ||
+              !migrations[1].includes('CREATE TABLE "BaselineFollowUp"') ||
+              !migrations[1].includes('CREATE TABLE "BaselineFollowUpEvent"') ||
+              migrations.some(x => /(?:ALTER|DROP|TRUNCATE)\s+TABLE\s+"?SecurityScore"?/i.test(x)))
+            throw new Error('Independent, non-destructive v2 schema contract violated');
+          console.log('PHASE2_PERSISTENT_AB_PASS=true');
+          NODE
+
+      - name: Publish unsigned technical A+B result
+        env:
+          PHASE2_EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p .artifacts
+          node <<'NODE'
+          const fs = require('node:fs');
+          const evidence = {
+            schema: 'cyberpilot.phase2.persistence.development.acceptance.v1',
+            exactHead: process.env.PHASE2_EXACT_HEAD,
+            prismaClientGenerated: true,
+            exposureProofUnitTestsPassed: true,
+            dnsProofMockedTestsPassed: true,
+            schemaIsolationChecked: true,
+            securityScoreV1Altered: false,
+            customerLegalAuthorizationConfirmed: false,
+            actualProductionDNSAvailabilityProven: false,
+            liveTenantSecurityCertified: false,
+            postgresIntegrationRequiresCI: true,
+            githubMergeAuthorized: false,
+          };
+          fs.writeFileSync('.artifacts/phase2-persistence-acceptance.json',
+            JSON.stringify(evidence, null, 2) + '\n');
+          NODE
+
+      - name: Archive technical verdict
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: phase2-persistence-acceptance
+          path: .artifacts/phase2-persistence-acceptance.json
+          if-no-files-found: ignore
+          retention-days: 30

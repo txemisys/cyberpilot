@@ -324,6 +324,12 @@ export default async function OrganizationPage({
             Baseline · Cuestionario de seguridad para pymes sin M365
           </Link>
         </p>
+        <p style={{ margin: "10px 0" }}>
+          <Link href={"/organizations/" + encodeURIComponent(slug) +
+            "/exposure/authorization"}>
+            Exposure · Autorización y verificación puntual de dominio
+          </Link>
+        </p>
         <p className="eyebrow">CyberPilot workspace</p>
         <h1 className="dashboard-title">{membership.organization.name}</h1>
         <p className="lede">
