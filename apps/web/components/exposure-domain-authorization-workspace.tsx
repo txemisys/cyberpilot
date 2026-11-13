@@ -55,6 +55,7 @@ export function ExposureDomainAuthorizationWorkspace({
   const [items, setItems] = useState<Authorization[]>([]);
   const [selected, setSelected] = useState<Authorization | null>(null);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
+  const [proofToken, setProofToken] = useState("");
   const [events, setEvents] = useState<Event[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -118,14 +119,15 @@ export function ExposureDomainAuthorizationWorkspace({
     const auth = result.authorization as Authorization;
     const proof = result.challenge as Challenge;
     setSelected(auth); setChallenge(proof);
+    setProofToken(proof.expectedValue.replace(
+      /^cyberpilot-domain-verification=/, ""));
     setDomain(auth.domain);
     setMessage("Desafío temporal emitido. Su presencia todavía no ha sido verificada.");
   });
   const verifyDns = execute(async () => {
-    if (!selected || !challenge || challenge.method !== "DNS_TOKEN")
-      throw Error("Emite un desafío DNS antes de verificarlo.");
-    const token = challenge.expectedValue.replace(
-      /^cyberpilot-domain-verification=/, "");
+    if (!selected || selected.method !== "DNS_TOKEN")
+      throw Error("Selecciona un desafío DNS pendiente.");
+    const token = proofToken.trim();
     if (!/^[a-f0-9]{64}$/.test(token))
       throw Error("El desafío actual no contiene un token válido.");
     const result = await request("VERIFY_DNS", {
@@ -135,6 +137,7 @@ export function ExposureDomainAuthorizationWorkspace({
     });
     setSelected(result.authorization as Authorization);
     setChallenge(null);
+    setProofToken("");
     const proof = result.proofResult as {
       state: string; networkQueriesPerformed: number;
     };
@@ -150,6 +153,7 @@ export function ExposureDomainAuthorizationWorkspace({
     });
     setSelected(result.authorization as Authorization);
     setChallenge(null);
+    setProofToken("");
     setMessage("Revocación registrada y auditada; no se realizan conexiones.");
   });
   const expire = execute(async () => {
@@ -159,6 +163,7 @@ export function ExposureDomainAuthorizationWorkspace({
     });
     setSelected(result.authorization as Authorization);
     setChallenge(null);
+    setProofToken("");
     setMessage("Desafío marcado como caducado.");
   });
   const history = execute(async () => {
@@ -225,7 +230,8 @@ export function ExposureDomainAuthorizationWorkspace({
           onClick={issue(true)}>Rotar desafío</button>
         <button style={button}
           disabled={busy || !canManage || !selected ||
-            !challenge || challenge.method !== "DNS_TOKEN"}
+            selected.method !== "DNS_TOKEN" ||
+            !/^[a-f0-9]{64}$/.test(proofToken)}
           onClick={verifyDns}>Verificar TXT DNS (consulta puntual)</button>
         <button style={button}
           disabled={busy || !canManage || !selected}
@@ -241,6 +247,22 @@ export function ExposureDomainAuthorizationWorkspace({
       {message && <p role="status">{message}</p>}
       {busy && <p aria-live="polite">Procesando…</p>}
     </section>
+    {selected && selected.state === "PENDING" &&
+      selected.method === "DNS_TOKEN" && <section style={card}>
+      <h3>Token de verificación TXT</h3>
+      <p>Se muestra al emitir el desafío, pero no se guarda en la
+        base de datos. También puedes introducir el token de
+        64 caracteres que conservaste al emitirlo. Solo se consulta
+        DNS cuando pulsas verificar.</p>
+      <label>Token temporal{" "}
+        <input type="password" autoComplete="off"
+          value={proofToken}
+          disabled={!canManage}
+          maxLength={64}
+          onChange={e => setProofToken(e.target.value)}
+          placeholder="64 caracteres hexadecimales" />
+      </label>
+    </section>}
     {selected && <section style={card}>
       <h3>{selected.domain}</h3>
       <p>Estado: <strong>{formatState(selected.state)}</strong></p>
