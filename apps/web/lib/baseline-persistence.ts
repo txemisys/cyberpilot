@@ -1,4 +1,4 @@
-import { db, Prisma } from "@cyberpilot/database";
+import { db, type Prisma } from "@cyberpilot/database";
 import {
   BASELINE_IG1_QUESTIONS,
   type BaselineSubmission, type BaselineResponse,
@@ -385,8 +385,8 @@ export class BaselinePersistenceService {
           responsesDigest,
           assessmentDigest: assessment?.digest ?? null,
           reportDigest: report?.digest ?? null,
-          assessment: assessment ? json(assessment) : Prisma.JsonNull,
-          report: report ? json(report) : Prisma.JsonNull,
+          ...(assessment ? { assessment: json(assessment) } : {}),
+          ...(report ? { report: json(report) } : {}),
           actorUserId: principal.userId,
         },
       });
