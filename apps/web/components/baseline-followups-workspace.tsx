@@ -94,6 +94,27 @@ export function BaselineFollowUpsWorkspace({ slug,
     const list = await request("LIST", { limit: 100 });
     setItems(list.items as Item[]);
   });
+  const exportActions = (format: "JSON" | "CSV" |
+    "MARKDOWN") => execute(async () => {
+    const result = await request("EXPORT", { format });
+    const artifact = result as {
+      filename: string; payload: string; mimeType: string;
+      containsRawSensitiveNotes: false;
+      customerSecurityCertified: false;
+    };
+    if (artifact.customerSecurityCertified ||
+        artifact.containsRawSensitiveNotes)
+      throw Error("La exportación no respeta la política de privacidad.");
+    const blob = new Blob([artifact.payload], {
+      type: artifact.mimeType,
+    });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.href = url; link.download = artifact.filename;
+    document.body.append(link); link.click(); link.remove();
+    URL.revokeObjectURL(url);
+    setMessage("Informe exportado sin certificaciones de seguridad.");
+  });
   const select = (item: Item) => {
     setSelected(item);
     setStatus(item.status);
@@ -164,6 +185,12 @@ export function BaselineFollowUpsWorkspace({ slug,
           onClick={load}>Consultar acciones</button>
         <button style={button} disabled={busy || !canEdit}
           onClick={initialize}>Crear acciones desde diagnóstico presentado</button>
+        <button style={button} disabled={busy}
+          onClick={exportActions("JSON")}>Informe JSON</button>
+        <button style={button} disabled={busy}
+          onClick={exportActions("CSV")}>Informe CSV</button>
+        <button style={button} disabled={busy}
+          onClick={exportActions("MARKDOWN")}>Informe Markdown</button>
       </div>
       {error && <p role="alert" style={{ color: "#b33" }}>{error}</p>}
       {message && <p role="status">{message}</p>}
