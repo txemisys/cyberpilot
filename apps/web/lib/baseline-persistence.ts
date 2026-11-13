@@ -1,4 +1,4 @@
-import { db, type Prisma } from "@cyberpilot/database";
+import { db, Prisma } from "@cyberpilot/database";
 import {
   BASELINE_IG1_QUESTIONS,
   type BaselineSubmission, type BaselineResponse,
