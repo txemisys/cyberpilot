@@ -216,7 +216,8 @@ export class ExposureAuthorizationService {
       organizationId: actor.organizationId,
       operation: command.operation, data,
       httpRequestsMade: 0, dnsQueriesMade:
-        command.operation === "VERIFY_DNS" ? 1 : 0,
+        command.operation === "VERIFY_DNS" ?
+          ((data as { liveDnsQueryCount?: number }).liveDnsQueryCount ?? 0) : 0,
       portScansMade: 0, signedCustomerApproval: false,
       legacyCyberScoreModified: false,
     };
