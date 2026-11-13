@@ -178,6 +178,139 @@ export function Phase2BaselineWorkspace({
     localDownload(exported.payload, exported.filename, exported.mimeType);
     setMessage("Informe declarativo exportado.");
   });
+  const [persistedRevision, setPersistedRevision] = useState(0);
+  const [persistedStatus, setPersistedStatus] = useState<"DRAFT" | "SUBMITTED" | null>(null);
+  const [history, setHistory] = useState<Array<{
+    revision: number; eventKind: string; createdAt: string;
+    digest: string;
+  }>>([]);
+  const [selectedRevision, setSelectedRevision] = useState(0);
+  const [comparison, setComparison] = useState<{
+    changed: Array<{questionId: string; before: string; after: string}>;
+    remediationProven: false;
+  } | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const persistenceUrl = "/api/organizations/" +
+    encodeURIComponent(slug) + "/baseline-persistence";
+  const normalizedAnswers = () => questions.flatMap(q => {
+    const answer = answers[q.id];
+    if (!answer) return [];
+    return [{
+      questionId: q.id, answer,
+      evidenceReference: references[q.id]?.trim() || null,
+      notes: null,
+    }];
+  });
+  const callPersistence = async (operation: string,
+    fields: Record<string, unknown> = {}) => {
+    const response = await fetch(persistenceUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ operation, ...fields }),
+      cache: "no-store",
+    });
+    const payload = await response.json() as Record<string, unknown>;
+    if (!response.ok) {
+      if (payload.code === "BASELINE_REVISION_CONFLICT")
+        throw Error("Conflicto: otra sesión modificó el borrador. Recarga antes de guardar.");
+      throw Error(typeof payload.code === "string" ?
+        payload.code : "Error al consultar el historial Baseline.");
+    }
+    if (payload.v1CyberScoreUpdated !== false ||
+        payload.storedRawNotes !== false ||
+        payload.externalApprovalInferred !== false ||
+        payload.securityActionsExecuted !== 0)
+      throw Error("Resultado inconsistente con la política de evidencias.");
+    return payload.data as Record<string, unknown>;
+  };
+  const applyDraft = (draft: {
+    revision: number; state: "DRAFT" | "SUBMITTED";
+    answers: Array<{questionId: string; answer: Answer;
+      evidenceReference: string | null}>;
+  }) => {
+    const next: Record<string, Answer> = {};
+    const refs: Record<string, string> = {};
+    for (const item of draft.answers) {
+      next[item.questionId] = item.answer;
+      if (item.evidenceReference)
+        refs[item.questionId] = item.evidenceReference;
+    }
+    setAnswers(next); setReferences(refs);
+    setPersistedRevision(draft.revision);
+    setPersistedStatus(draft.state);
+    setDirty(false); setReport(null); setPlan(null);
+  };
+  const refreshDraft = execute(async () => {
+    if (dirty && !window.confirm(
+        "¿Descartar cambios locales no guardados y cargar el último borrador?"))
+      return;
+    const result = await callPersistence("READ");
+    if (result.exists) {
+      applyDraft(result.draft as Parameters<typeof applyDraft>[0]);
+      setMessage("Se ha recuperado la revisión guardada.");
+    } else {
+      setPersistedRevision(0);
+      setPersistedStatus(null);
+      setMessage("Todavía no existe un borrador guardado.");
+    }
+  });
+  const saveDraft = execute(async () => {
+    const result = await callPersistence("SAVE", {
+      expectedRevision: persistedRevision,
+      responses: normalizedAnswers(),
+    });
+    const draft = result.draft as Parameters<typeof applyDraft>[0];
+    applyDraft(draft);
+    setMessage("Borrador persistido en la organización. Revisión " +
+      draft.revision + ".");
+  });
+  const submitDraft = execute(async () => {
+    const result = await callPersistence("SUBMIT", {
+      expectedRevision: persistedRevision,
+      responses: normalizedAnswers(),
+    });
+    const draft = result.draft as Parameters<typeof applyDraft>[0];
+    applyDraft(draft);
+    const resultReport = result.report as Report | null;
+    setReport(resultReport);
+    setPlan(result.actionPlan as ActionPlan | null);
+    setMessage("Diagnóstico declarativo presentado y auditado. No es certificación.");
+  });
+  const reopenDraft = execute(async () => {
+    const result = await callPersistence("REOPEN", {
+      expectedRevision: persistedRevision,
+    });
+    applyDraft(result.draft as Parameters<typeof applyDraft>[0]);
+    setMessage("Revisión reabierta para edición. El histórico sigue inmutable.");
+  });
+  const loadHistory = execute(async () => {
+    const result = await callPersistence("HISTORY", { limit: 50 });
+    setHistory(result.revisions as typeof history);
+    setMessage("Historial cronológico auditado. Los cambios son declaraciones.");
+  });
+  const inspectRevision = execute(async () => {
+    if (!selectedRevision) throw Error("Selecciona una revisión histórica.");
+    const result = await callPersistence("REVISION", {
+      revision: selectedRevision,
+    });
+    const revisionAnswers = result.responses as Array<{
+      questionId: string; answer: Answer; evidenceReference: string | null
+    }>;
+    setMessage("Revisión " + selectedRevision + ": " +
+      revisionAnswers.length + " respuestas. SHA-256 " +
+      String(result.digest).slice(0, 12) + "…");
+  });
+  const compareRevisions = execute(async () => {
+    if (!selectedRevision ||
+        selectedRevision >= persistedRevision)
+      throw Error("Selecciona una revisión anterior.");
+    const result = await callPersistence("COMPARE", {
+      earlierRevision: selectedRevision,
+      revision: persistedRevision,
+    });
+    setComparison(result as typeof comparison);
+    setMessage("Comparación declarativa. No prueba una remediación real.");
+  });
   const card: React.CSSProperties = {
     border: "1px solid #94a3b84a",
     borderRadius: 12, padding: 18, marginBottom: 14,
@@ -198,10 +331,10 @@ export function Phase2BaselineWorkspace({
         en áreas CIS Controls IG1. La evaluación no requiere
         Microsoft 365, ni acredita cumplimiento CIS,
         ni solicita acceso a tus cuentas.</p>
-      <p><strong>Sin guardado automático:</strong>{" "}
-        las respuestas permanecen en esta pantalla hasta
-        que salgas. Las evaluaciones se generan bajo demanda
-        y las notas libres no se envían.</p>
+      <p><strong>Guardado manual con control de versiones:</strong>{" "}
+        las respuestas permanecen locales hasta pulsar Guardar.
+        Cada guardado crea una revisión auditada; notas libres y credenciales
+        no se almacenan. El diagnóstico no es certificación.</p>
       <div style={{
         width: "100%", background: "#94a3b83a",
         borderRadius: 8, overflow: "hidden", height: 10,
@@ -236,6 +369,52 @@ export function Phase2BaselineWorkspace({
           Solo sin responder</label>
       </div>
     </section>
+      <section style={card}>
+        <h3>Progreso persistente y revisiones</h3>
+        <p>Revisión: {persistedRevision || "sin guardar"} ·{" "}
+          Estado: {persistedStatus ?? "NUEVO"} ·{" "}
+          {dirty ? "Cambios locales sin guardar" :
+            "Sin modificaciones locales pendientes"}</p>
+        <div style={flex}>
+          <button style={button} disabled={busy}
+            onClick={refreshDraft}>Cargar último</button>
+          <button style={button}
+            disabled={busy || persistedStatus === "SUBMITTED"}
+            onClick={saveDraft}>Guardar borrador</button>
+          <button style={button}
+            disabled={busy || persistedStatus === "SUBMITTED"}
+            onClick={submitDraft}>Presentar diagnóstico</button>
+          <button style={button}
+            disabled={busy || persistedStatus !== "SUBMITTED"}
+            onClick={reopenDraft}>Reabrir</button>
+          <button style={button} disabled={busy}
+            onClick={loadHistory}>Ver historial</button>
+        </div>
+        {history.length > 0 && <div>
+          <label>Revisión histórica{" "}
+            <select value={selectedRevision}
+              onChange={e => setSelectedRevision(Number(e.target.value))}>
+              <option value={0}>Seleccionar</option>
+              {history.map(item => <option key={item.revision}
+                value={item.revision}>
+                {"v" + item.revision + " · " + item.eventKind +
+                  " · " + item.createdAt}
+              </option>)}
+            </select>
+          </label>
+          <div style={flex}>
+            <button style={button} disabled={busy || !selectedRevision}
+              onClick={inspectRevision}>Inspeccionar</button>
+            <button style={button}
+              disabled={busy || !selectedRevision ||
+                selectedRevision >= persistedRevision}
+              onClick={compareRevisions}>Comparar con versión actual</button>
+          </div>
+          {comparison && <ul>{comparison.changed.map(item =>
+            <li key={item.questionId}>{item.questionId}:{" "}
+              {item.before} → {item.after}</li>)}</ul>}
+        </div>}
+      </section>
     {visible.map(q => <section key={q.id} style={card}>
       <p style={{ opacity: .7 }}>
         {groups[q.domain] ?? q.domain} · {q.id}</p>
@@ -252,7 +431,7 @@ export function Phase2BaselineWorkspace({
                 else next[q.id] = choice.value;
                 return next;
               });
-              setReport(null); setPlan(null);
+              setReport(null); setPlan(null); setDirty(true);
             }} />
           {choice.label}{" "}
         </label>)}
@@ -275,7 +454,7 @@ export function Phase2BaselineWorkspace({
               setReferences(prev => ({
                 ...prev, [q.id]: e.target.value,
               }));
-              setReport(null); setPlan(null);
+              setReport(null); setPlan(null); setDirty(true);
             }} />
         </label>
         <small>Evita nombres, correos, URLs, credenciales
