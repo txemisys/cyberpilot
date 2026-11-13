@@ -1,4 +1,7 @@
 import { db, type Prisma } from "@cyberpilot/database";
+import { buildBaselineFollowUpExecutive,
+  exportBaselineFollowUpExecutive,
+} from "./baseline-followup-report";
 import {
   buildBaselineActionPlanV2, verifyBaselineReportV2,
   type BaselineReportV2,
@@ -16,7 +19,7 @@ export type BaselineFollowUpStatus =
     "COMPLETED_REPORTED" | "REOPENED";
 export type BaselineFollowUpCommand = {
   operation: "INITIALIZE" | "LIST" | "READ" |
-    "UPDATE" | "HISTORY" | "SUMMARY";
+    "UPDATE" | "HISTORY" | "SUMMARY" | "REPORT" | "EXPORT";
   questionId?: string;
   expectedRevision?: number;
   status?: BaselineFollowUpStatus;
@@ -24,6 +27,7 @@ export type BaselineFollowUpCommand = {
   dueAt?: string | null;
   evidenceReference?: string | null;
   limit?: number;
+  format?: "JSON" | "CSV" | "MARKDOWN";
 };
 export type BaselineFollowUpView = {
   id: string;
@@ -91,12 +95,13 @@ function parse(raw: unknown): BaselineFollowUpCommand {
   const x = raw as Record<string, unknown>;
   const allowed = [
     "operation", "questionId", "expectedRevision",
-    "status", "ownerUserId", "dueAt", "evidenceReference", "limit",
+    "status", "ownerUserId", "dueAt", "evidenceReference", "limit", "format",
   ];
   if (Object.keys(x).some(key => !allowed.includes(key)))
     fail("Unknown command field.");
   const operations: BaselineFollowUpCommand["operation"][] = [
     "INITIALIZE","LIST","READ","UPDATE","HISTORY","SUMMARY",
+    "REPORT","EXPORT",
   ];
   if (!operations.includes(x.operation as BaselineFollowUpCommand["operation"]))
     fail("Unsupported follow-up operation.");
@@ -137,6 +142,11 @@ function parse(raw: unknown): BaselineFollowUpCommand {
         !/^[A-Za-z0-9][A-Za-z0-9_.:-]{3,95}$/.test(x.evidenceReference)))
       fail("Evidence must be an opaque reference, not a URL or credential.");
     command.evidenceReference = x.evidenceReference as string | null;
+  }
+  if (x.format !== undefined) {
+    if (!["JSON", "CSV", "MARKDOWN"].includes(String(x.format)))
+      fail("Unsupported export format.");
+    command.format = x.format as "JSON" | "CSV" | "MARKDOWN";
   }
   if (x.limit !== undefined) {
     if (typeof x.limit !== "number" ||
@@ -269,6 +279,18 @@ export class BaselineFollowUpService {
   private async dispatch(actor: BaselineFollowUpScope,
     cmd: BaselineFollowUpCommand): Promise<unknown> {
     const organizationId = actor.organizationId;
+    if (cmd.operation === "REPORT" || cmd.operation === "EXPORT") {
+      const rows = await db.baselineFollowUp.findMany({
+        where: { organizationId },
+        orderBy: { questionId: "asc" },
+      });
+      const report = buildBaselineFollowUpExecutive(
+        organizationId, rows.map(view), new Date().toISOString());
+      if (cmd.operation === "REPORT")
+        return { report, containsVerifiedRemediation: false };
+      return exportBaselineFollowUpExecutive(
+        report, cmd.format ?? "JSON");
+    }
     if (cmd.operation === "LIST") {
       const rows = await db.baselineFollowUp.findMany({
         where: { organizationId },
