@@ -385,8 +385,8 @@ export class BaselinePersistenceService {
           responsesDigest,
           assessmentDigest: assessment?.digest ?? null,
           reportDigest: report?.digest ?? null,
-          assessment: assessment ? json(assessment) : undefined,
-          report: report ? json(report) : undefined,
+          assessment: assessment ? json(assessment) : Prisma.JsonNull,
+          report: report ? json(report) : Prisma.JsonNull,
           actorUserId: principal.userId,
         },
       });
