@@ -78,7 +78,8 @@ export function ExposureDomainAuthorizationWorkspace({
         result.code : "No se pudo completar la operación.");
     }
     if (result.httpRequestsMade !== 0 ||
-        result.dnsQueriesMade !== 0 ||
+        Number(result.dnsQueriesMade) > 1 ||
+        (operation !== "VERIFY_DNS" && result.dnsQueriesMade !== 0) ||
         result.portScansMade !== 0 ||
         result.signedCustomerApproval !== false ||
         result.legacyCyberScoreModified !== false)
@@ -119,6 +120,28 @@ export function ExposureDomainAuthorizationWorkspace({
     setSelected(auth); setChallenge(proof);
     setDomain(auth.domain);
     setMessage("Desafío temporal emitido. Su presencia todavía no ha sido verificada.");
+  });
+  const verifyDns = execute(async () => {
+    if (!selected || !challenge || challenge.method !== "DNS_TOKEN")
+      throw Error("Emite un desafío DNS antes de verificarlo.");
+    const token = challenge.expectedValue.replace(
+      /^cyberpilot-domain-verification=/, "");
+    if (!/^[a-f0-9]{64}$/.test(token))
+      throw Error("El desafío actual no contiene un token válido.");
+    const result = await request("VERIFY_DNS", {
+      domain: selected.domain,
+      proofToken: token,
+      expectedRevision: selected.revision,
+    });
+    setSelected(result.authorization as Authorization);
+    setChallenge(null);
+    const proof = result.proofResult as {
+      state: string; networkQueriesPerformed: number;
+    };
+    setMessage(proof.state === "MATCH" ?
+      "El recolector DNS ha observado el token TXT. No se certifica la seguridad del dominio." :
+      "Prueba no confirmada: " + proof.state +
+        ". No se ha autorizado escaneo adicional.");
   });
   const revoke = execute(async () => {
     if (!selected) throw Error("Selecciona un dominio.");
@@ -167,10 +190,10 @@ export function ExposureDomainAuthorizationWorkspace({
         posteriormente un recolector autorizado.
         <strong> Esta pantalla no consulta DNS, no descarga
         páginas y no escanea dominios.</strong></p>
-      <p>El desafío solo permite planificar una comprobación
-        pasiva. Ni emitirlo ni publicarlo demuestra consentimiento
-        legal o titularidad hasta que una fuente independiente
-        complete la verificación.</p>
+      <p>La consulta TXT DNS solo ocurre cuando un administrador pulsa
+        «Verificar TXT DNS» sobre un desafío vigente. Se limita
+        al nombre de prueba y nunca ejecuta escaneo de puertos,
+        solicitudes HTTP ni enumeración de subdominios.</p>
       <div style={row}>
         <label>Dominio{" "}
           <input value={domain} placeholder="empresa.example.org"
@@ -200,6 +223,10 @@ export function ExposureDomainAuthorizationWorkspace({
         <button style={button}
           disabled={busy || !canManage || !selected}
           onClick={issue(true)}>Rotar desafío</button>
+        <button style={button}
+          disabled={busy || !canManage || !selected ||
+            !challenge || challenge.method !== "DNS_TOKEN"}
+          onClick={verifyDns}>Verificar TXT DNS (consulta puntual)</button>
         <button style={button}
           disabled={busy || !canManage || !selected}
           onClick={revoke}>Revocar</button>
