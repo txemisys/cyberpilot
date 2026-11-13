@@ -1194,3 +1194,21 @@ export type {
   Phase2PortfolioDomain, Phase2Portfolio,
   Phase2PortfolioVerification, Phase2PortfolioDelta,
 } from "./exposure-baseline-v2-portfolio";
+
+export {
+  validateExposureAuthorizationRequest,
+  prepareExposureAuthorizationChallenge,
+  evaluateExposureAuthorization,
+  verifyExposureAuthorizationDecision,
+  buildExposureTargetPolicy,
+  inspectExposureRedirect,
+  planExposureCollectionQuota,
+  verifyExposureCollectionBudget,
+} from "./exposure-domain-authorization";
+export type {
+  ExposureAuthorizationMethod, ExposureAuthorizationState,
+  ExposureAuthorizationRequest, ExposureAuthorizationChallenge,
+  ExposureVerificationEvidence, ExposureAuthorizationDecision,
+  ExposureTargetPolicy, ExposureCollectionBudget,
+  ExposureRedirectReview,
+} from "./exposure-domain-authorization";
