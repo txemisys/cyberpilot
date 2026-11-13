@@ -1,4 +1,7 @@
 import { randomBytes } from "node:crypto";
+import { verifyExposureDnsProof,
+  classifyExposureProofForPersisting,
+} from "./exposure-dns-proof";
 import { db, type Prisma } from "@cyberpilot/database";
 import {
   normalizeExposureDomain,
@@ -15,13 +18,14 @@ export type ExposureAuthorizationActor = {
 };
 export type ExposureAuthorizationOperation =
   "ISSUE" | "REPLACE" | "READ" | "LIST" |
-  "REVOKE" | "EXPIRE" | "HISTORY";
+  "REVOKE" | "EXPIRE" | "HISTORY" | "VERIFY_DNS";
 export type ExposureAuthorizationCommand = {
   operation: ExposureAuthorizationOperation;
   domain?: string;
   method?: "DNS_TOKEN" | "HTTP_TOKEN";
   expectedRevision?: number;
   limit?: number;
+  proofToken?: string;
 };
 export type ExposureAuthorizationRecord = {
   id: string;
@@ -47,7 +51,7 @@ export type ExposureAuthorizationResult = {
   operation: ExposureAuthorizationOperation;
   data: unknown;
   httpRequestsMade: 0;
-  dnsQueriesMade: 0;
+  dnsQueriesMade: number;
   portScansMade: 0;
   signedCustomerApproval: false;
   legacyCyberScoreModified: false;
@@ -75,10 +79,12 @@ function parseCommand(raw: unknown): ExposureAuthorizationCommand {
     fail("Expected command object.");
   const x = raw as Record<string, unknown>;
   if (Object.keys(x).some(k =>
-      !["operation","domain","method","expectedRevision","limit"].includes(k)))
+      !["operation","domain","method","expectedRevision","limit",
+        "proofToken"].includes(k)))
     fail("Unsupported authorization request fields.");
   const operations: ExposureAuthorizationOperation[] = [
     "ISSUE","REPLACE","READ","LIST","REVOKE","EXPIRE","HISTORY",
+    "VERIFY_DNS",
   ];
   if (!operations.includes(x.operation as ExposureAuthorizationOperation))
     fail("Invalid authorization operation.");
@@ -102,15 +108,23 @@ function parseCommand(raw: unknown): ExposureAuthorizationCommand {
     command.expectedRevision = int(x.expectedRevision, 0, 1000000);
   if (x.limit !== undefined)
     command.limit = int(x.limit, 1, 100);
+  if (x.proofToken !== undefined) {
+    if (typeof x.proofToken !== "string" ||
+        !/^[a-f0-9]{64}$/.test(x.proofToken))
+      fail("Proof token must be a 64-character random challenge.");
+    command.proofToken = x.proofToken;
+  }
   if (command.operation !== "LIST" &&
       !command.domain)
     fail("Target domain is required.");
   if (["ISSUE","REPLACE"].includes(command.operation) &&
       !command.method)
     fail("Proof method is required.");
-  if (["ISSUE","REPLACE","REVOKE","EXPIRE"].includes(command.operation) &&
+  if (["ISSUE","REPLACE","REVOKE","EXPIRE","VERIFY_DNS"].includes(command.operation) &&
       command.expectedRevision === undefined)
     fail("Expected revision is required.");
+  if (command.operation === "VERIFY_DNS" && !command.proofToken)
+    fail("DNS proof token must be provided at verification time.");
   return command;
 }
 function view(row: {
@@ -192,7 +206,8 @@ export class ExposureAuthorizationService {
   async execute(actor: ExposureAuthorizationActor,
     raw: unknown): Promise<ExposureAuthorizationResult> {
     const command = parseCommand(raw);
-    const mutation = ["ISSUE","REPLACE","REVOKE","EXPIRE"]
+    const mutation = ["ISSUE","REPLACE","REVOKE","EXPIRE",
+      "VERIFY_DNS"]
       .includes(command.operation);
     await authorize(actor, mutation);
     const data = await this.dispatch(actor, command);
@@ -200,7 +215,8 @@ export class ExposureAuthorizationService {
       schema: "cyberpilot.exposure.authorization.service.v1",
       organizationId: actor.organizationId,
       operation: command.operation, data,
-      httpRequestsMade: 0, dnsQueriesMade: 0,
+      httpRequestsMade: 0, dnsQueriesMade:
+        command.operation === "VERIFY_DNS" ? 1 : 0,
       portScansMade: 0, signedCustomerApproval: false,
       legacyCyberScoreModified: false,
     };
@@ -253,6 +269,65 @@ export class ExposureAuthorizationService {
       });
       if (!row) fail("Domain authorization not found.");
       return { authorization: view(row), proofTokenAccessible: false };
+    }
+    if (command.operation === "VERIFY_DNS") {
+      const row = await db.exposureDomainAuthorization.findFirst({
+        where: {
+          organizationId,
+          domain: command.domain!,
+        },
+      });
+      if (!row || row.revision !== command.expectedRevision)
+        throw new ExposureAuthorizationConflict();
+      if (row.state !== "PENDING" || row.method !== "DNS_TOKEN")
+        fail("Only pending DNS challenges can be verified.");
+      const checkedAt = new Date().toISOString();
+      const observed = await verifyExposureDnsProof({
+        organizationId, domain: row.domain,
+        method: "DNS_TOKEN",
+        token: command.proofToken!,
+        challengeDigest: row.challengeDigest,
+        expiresAt: row.challengeExpiresAt.toISOString(),
+        checkedAt,
+      });
+      const classified = classifyExposureProofForPersisting(observed);
+      const revision = row.revision + 1;
+      const result = await db.$transaction(async tx => {
+        const saved = await tx.exposureDomainAuthorization.update({
+          where: { id: row.id, revision: row.revision },
+          data: {
+            revision, state: classified.status,
+            lastCheckedAt: new Date(checkedAt),
+            verifiedAt: classified.status === "VERIFIED" ?
+              new Date(checkedAt) : null,
+            evidenceDigest: observed.responseDigest,
+            actorUserId: actor.userId,
+          },
+        });
+        await tx.exposureAuthorizationEvent.create({
+          data: {
+            organizationId, authorizationId: saved.id,
+            revision, action: "VERIFY_DNS",
+            priorState: row.state, newState: saved.state,
+            evidenceDigest: observed.responseDigest,
+            actorUserId: actor.userId,
+          },
+        });
+        await audit(tx, actor, saved.id, revision,
+          "VERIFY_DNS", row.challengeDigest);
+        return saved;
+      }, { isolationLevel: "Serializable" });
+      return {
+        authorization: view(result),
+        proofResult: {
+          ...observed,
+          // Neither the challenge nor plaintext TXT leaves this service.
+          responseDigest: observed.responseDigest,
+        },
+        legalConsentAttested: false,
+        portScanningAuthorized: false,
+        liveDnsQueryCount: observed.networkQueriesPerformed,
+      };
     }
     return db.$transaction(async tx => {
       const prior = await tx.exposureDomainAuthorization.findUnique({
