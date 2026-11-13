@@ -44,7 +44,8 @@ export async function POST(request: NextRequest,
       role: membership.role,
     }, command);
     if (result.httpRequestsMade !== 0 ||
-        result.dnsQueriesMade !== 0 ||
+        result.dnsQueriesMade > 1 ||
+        (result.operation !== "VERIFY_DNS" && result.dnsQueriesMade !== 0) ||
         result.portScansMade !== 0 ||
         result.signedCustomerApproval ||
         result.legacyCyberScoreModified)
