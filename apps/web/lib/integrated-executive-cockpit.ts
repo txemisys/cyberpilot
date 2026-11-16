@@ -283,6 +283,7 @@ function provenanceSection(input:ExecutiveCockpitInput,
 export function buildExecutiveCockpit(
   input:ExecutiveCockpitInput):ExecutiveCockpitReport{
   const errors=validate(input);
+  if(errors.length)throw Error("EXECUTIVE_FOREIGN_OR_INVALID_INPUT: "+errors.join(","));
   const risk=input.riskDigest;
   const actions=input.actions;
   const summary=summarizeIntegratedActionBoard(actions,input.generatedAt);
