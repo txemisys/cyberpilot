@@ -440,7 +440,7 @@ export function IntegratedRiskWorkspace({
             <p>{x.description}</p>
             {x.recordIds.length>0&&
               <small>Referencias: {x.recordIds.join(", ")}</small>}
-          </li>)}</ul>
+          </li>)}</ul>}
         <p><strong>No se ha producido ninguna acción externa.</strong></p>
         <button style={buttons}
           onClick={()=>setShowCaveats(x=>!x)}>
