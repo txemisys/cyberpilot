@@ -5,6 +5,10 @@ on:
     paths:
       - ".github/workflows/backup-restore.yml"
       - "packages/database/**"
+      - "apps/web/lib/baseline-development-dossier*.ts"
+      - "apps/web/lib/exposure-operational-closeout*.ts"
+      - "apps/web/app/api/organizations/**/baseline-development-dossier/**"
+      - "apps/web/app/api/organizations/**/exposure-operational-readiness/**"
       - "docs/backup-restore.md"
       - "docs/deployment-readiness.md"
   push:
@@ -13,6 +17,10 @@ on:
     paths:
       - ".github/workflows/backup-restore.yml"
       - "packages/database/**"
+      - "apps/web/lib/baseline-development-dossier*.ts"
+      - "apps/web/lib/exposure-operational-closeout*.ts"
+      - "apps/web/app/api/organizations/**/baseline-development-dossier/**"
+      - "apps/web/app/api/organizations/**/exposure-operational-readiness/**"
       - "docs/backup-restore.md"
       - "docs/deployment-readiness.md"
   schedule:
