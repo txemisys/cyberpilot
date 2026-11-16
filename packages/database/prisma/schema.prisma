@@ -240,6 +240,8 @@ model Organization {
   exposurePassiveSchedules ExposurePassiveSchedule[]
   exposurePassiveReservations ExposurePassiveReservation[]
   exposurePassiveEvents ExposurePassiveEvent[]
+  exposureExecutionLeases ExposureExecutionLease[]
+  exposureExecutionCharges ExposureExecutionCharge[]
   remediations             Remediation[]
   securityEvidence         SecurityEvidence[]
   remediationWorkItems      RemediationWorkItem[]
@@ -1772,5 +1774,66 @@ model BaselineReviewEvent {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   review BaselineReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   @@unique([reviewId, revision])
+  @@index([organizationId, createdAt])
+}
+
+/**
+ * Executable quota claim is independent of the dry-run passive schedule.
+ * No customer request can create an ACTIVE lease through a public route.
+ * A trusted authority and a verified ownership revision are mandatory.
+ */
+model ExposureExecutionLease {
+  id String @id @default(cuid())
+  organizationId String
+  requestId String @db.VarChar(128)
+  domain String @db.VarChar(253)
+  scheduleId String
+  authorizationId String
+  authorizationRevision Int
+  grantId String @db.VarChar(128)
+  consentDigest String @db.VarChar(64)
+  scopeDigest String @db.VarChar(64)
+  state String @default("DENIED") @db.VarChar(24)
+  reservedDns Int @default(0)
+  reservedTls Int @default(0)
+  reservedHttp Int @default(0)
+  usedDns Int @default(0)
+  usedTls Int @default(0)
+  usedHttp Int @default(0)
+  maxTotal Int @default(0)
+  revision Int @default(1)
+  expiresAt DateTime
+  finishedAt DateTime?
+  denialCode String? @db.VarChar(80)
+  issuedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  charges ExposureExecutionCharge[]
+  @@unique([organizationId, requestId])
+  @@index([organizationId, domain, state])
+  @@index([organizationId, expiresAt])
+  @@index([scheduleId, state])
+  @@index([authorizationId, authorizationRevision])
+}
+
+model ExposureExecutionCharge {
+  id String @id @default(cuid())
+  organizationId String
+  leaseId String
+  sequence Int
+  source String @db.VarChar(24)
+  status String @default("RESERVED") @db.VarChar(24)
+  targetDigest String @db.VarChar(64)
+  resultDigest String? @db.VarChar(64)
+  peerDigest String? @db.VarChar(64)
+  errorCode String? @db.VarChar(80)
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lease ExposureExecutionLease @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  @@unique([leaseId, sequence])
+  @@index([organizationId, leaseId, status])
   @@index([organizationId, createdAt])
 }

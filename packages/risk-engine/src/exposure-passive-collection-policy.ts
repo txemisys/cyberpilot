@@ -333,13 +333,21 @@ export function checkPassiveAdmission(
   // Verification of a DNS token is not legal consent to test systems.
   if (!proof.legalConsentIndependentlyVerified)
     issues.push("LEGAL_SCOPE_APPROVAL_NOT_VERIFIED");
-  const plannedCalls =
-    (request.sources.includes("DNS") ? 4 : 0) +
-    (request.sources.includes("TLS_HANDSHAKE") ? 1 : 0) +
-    (request.sources.includes("HTTPS_HEADERS") ? 1 : 0);
+  // TXT apex + TXT _dmarc + MX are three DNS operations.
+  // Each TLS/HEAD peer pinning requires two additional DNS queries.
+  const plannedDns =
+    (request.sources.includes("DNS") ? 3 : 0) +
+    (request.sources.includes("TLS_HANDSHAKE") ? 2 : 0) +
+    (request.sources.includes("HTTPS_HEADERS") ? 2 : 0);
+  const plannedCalls = plannedDns +
+    Number(request.sources.includes("TLS_HANDSHAKE")) +
+    Number(request.sources.includes("HTTPS_HEADERS"));
   if (plannedCalls > policy.maxTotalRequests ||
-      request.sources.includes("DNS") && plannedCalls > policy.maxDnsQueries +
-        policy.maxTlsConnections + policy.maxHttpHeadRequests)
+      plannedDns > policy.maxDnsQueries ||
+      Number(request.sources.includes("TLS_HANDSHAKE")) >
+        policy.maxTlsConnections ||
+      Number(request.sources.includes("HTTPS_HEADERS")) >
+        policy.maxHttpHeadRequests)
     issues.push("QUOTA_EXCEEDED");
   return {
     eligible: issues.length === 0,

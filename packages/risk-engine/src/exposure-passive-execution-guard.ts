@@ -166,7 +166,7 @@ export function verifyPassiveExecutionLease(
         (lease.grantedSources.includes(source) && value === 0))
       problems.push("LEASE_BUDGET_" + source);
   }
-  const requiredDns = (lease.grantedSources.includes("DNS") ? 1 : 0) +
+  const requiredDns = (lease.grantedSources.includes("DNS") ? 3 : 0) +
     (lease.grantedSources.includes("TLS_HANDSHAKE") ? 2 : 0) +
     (lease.grantedSources.includes("HTTPS_HEADERS") ? 2 : 0);
   if (lease.budget.DNS < requiredDns ||
@@ -273,6 +273,7 @@ export async function executePassiveCollection(
       return false;
     }
     output.calls[source] += 1;
+    record("SOURCE", source, target, "DURABLE_QUOTA_RESERVED", 1, 0);
     return true;
   };
   const note = (
@@ -284,7 +285,7 @@ export async function executePassiveCollection(
       source, target, status, code, bytes, peer,
     });
     record(status === "DENIED" ? "DENIAL" : "SOURCE",
-      source, target, code, status === "DENIED" ? 0 : 1,
+      source, target, code, 0,
       status === "OBSERVED" ? 1 : 0);
   };
   const targets = planPassiveDomainTargets(
@@ -296,7 +297,17 @@ export async function executePassiveCollection(
       request.domain : source === "TLS_HANDSHAKE" ?
         request.domain : "https://" + request.domain + "/";
     if (source === "DNS") {
-      if (!await available(source, target)) {
+      let dnsAdmitted = true;
+      // TXT apex, TXT _dmarc and MX each consume a durable DNS
+      // budget reservation. Partial reservation is never refunded;
+      // no DNS request is executed if a source cannot reserve all 3.
+      for (let query = 0; query < 3; query++) {
+        if (!await available(source, target)) {
+          dnsAdmitted = false;
+          break;
+        }
+      }
+      if (!dnsAdmitted) {
         note(source, target, "DENIED", "DNS_NOT_AUTHORIZED");
         continue;
       }
@@ -325,7 +336,7 @@ export async function executePassiveCollection(
         request.domain, request.policy.maxRequestMs,
       );
       record("SOURCE", "DNS", request.domain,
-        "DNS_RESOLUTION_ATTEMPTED", 1, 1);
+        "DNS_RESOLUTION_ATTEMPTED", 0, 1);
       return addresses;
     };
     if (!await available(source, target)) {

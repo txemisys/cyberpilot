@@ -70,6 +70,13 @@ export function validateProductionConfiguration(
   if (env.LAB_AUTH_ENABLED === "true") {
     errors.push("LAB_AUTH_ENABLED must not be true in production.");
   }
+  // LIVE passive sockets belong in a separately isolated worker,
+  // never the Internet-facing Next.js web process.
+  if (env.CYBERPILOT_PASSIVE_LIVE_ENABLED === "true") {
+    errors.push(
+      "CYBERPILOT_PASSIVE_LIVE_ENABLED must be disabled in the web process.",
+    );
+  }
 
   const remediationValues = [
     env.M365_REMEDIATION_CLIENT_ID?.trim(),
