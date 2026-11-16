@@ -120,7 +120,7 @@ function parseCommand(raw: unknown): ConsentReviewCommand {
     ...(fields.envelope !== undefined ?
       { envelope: fields.envelope as DetachedConsentEnvelope } : {}),
     ...(fields.sources !== undefined ?
-      { sources: fields.sources as ConsentReviewCommand["sources"] } : {}),
+      { sources: fields.sources as NonNullable<ConsentReviewCommand["sources"]> } : {}),
     ...(fields.authorizationRevision !== undefined ?
       { authorizationRevision: fields.authorizationRevision as number } : {}),
     ...(fields.format !== undefined ?
