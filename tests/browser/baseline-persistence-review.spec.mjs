@@ -82,9 +82,9 @@ test("Baseline: persist, reload, submit, follow up, technically review and reope
   await expect(firstAction).toBeVisible();
   await firstAction.click();
   await expect(page.getByText(/Remediación verificada:/)).toBeVisible();
-  const followUpSection = page.locator("section").filter({
-    has: page.getByRole("button", { name: "Guardar seguimiento" }),
-  });
+  const followUpSection = page.getByRole("button", {
+    name: "Guardar seguimiento",
+  }).locator("xpath=ancestor::section[1]");
   await followUpSection.getByLabel("Estado").selectOption("IN_PROGRESS");
   await followUpSection.getByRole("button", {
     name: "Guardar seguimiento",
@@ -110,7 +110,7 @@ test("Baseline: persist, reload, submit, follow up, technically review and reope
   await page.getByRole("button", { name: "Empezar" }).click();
   await expect(page.getByText(/Estado técnico actualizado y auditado/))
     .toBeVisible();
-  await page.getByRole("button", { name: "Completar" }).click();
+  await page.getByRole("button", { name: "Completar revisión interna" }).click();
   await expect(page.getByText(/Aceptación técnica interna registrada/))
     .toBeVisible();
   await expect(page.getByText(/TECHNICALLY_REVIEWED/).first())
