@@ -69,7 +69,7 @@ function fixture(){
     reportId:"executive-one",
     riskDigest:report,
     actions:[action(report.risks[0]!.key)],
-    auditIssues:[],actionsTruncated:false,
+    auditIssues:[] as string[],actionsTruncated:false,
     includeResolved:false,
   };
 }
