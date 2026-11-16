@@ -166,6 +166,15 @@ export function verifyPassiveExecutionLease(
         (lease.grantedSources.includes(source) && value === 0))
       problems.push("LEASE_BUDGET_" + source);
   }
+  const requiredDns = (lease.grantedSources.includes("DNS") ? 1 : 0) +
+    (lease.grantedSources.includes("TLS_HANDSHAKE") ? 2 : 0) +
+    (lease.grantedSources.includes("HTTPS_HEADERS") ? 2 : 0);
+  if (lease.budget.DNS < requiredDns ||
+      ((lease.grantedSources.includes("TLS_HANDSHAKE") ||
+        lease.grantedSources.includes("HTTPS_HEADERS")) &&
+       (!request.sources.includes("DNS") ||
+        !lease.grantedSources.includes("DNS"))))
+    problems.push("DNS_RESOLUTION_QUOTA_REQUIRED");
   const total = allowed.reduce((sum, source) =>
     sum + (lease.budget?.[source] || 0), 0);
   if (total > request.policy.maxTotalRequests)
@@ -308,16 +317,21 @@ export async function executePassiveCollection(
       }
       continue;
     }
-    // DNS is resolved twice, both times by the independently provided
-    // transport. A caller cannot substitute preapproved unvalidated IPs.
+    // Address resolution is itself charged as an authorized DNS operation.
+    const resolveWithQuota = async () => {
+      if (!await available("DNS", request.domain))
+        throw Error("DNS_RESOLUTION_QUOTA_DENIED");
+      const addresses = await resolveWithQuota();
+      record("SOURCE", "DNS", request.domain,
+        "DNS_RESOLUTION_ATTEMPTED", 1, 1);
+      return addresses;
+    };
     if (!await available(source, target)) {
       note(source, target, "DENIED", "SOURCE_NOT_AUTHORIZED");
       continue;
     }
     try {
-      const before = await options.transport.resolve(
-        request.domain, request.policy.maxRequestMs,
-      );
+      const before = await resolveWithQuota();
       if (!before.length || before.length > request.policy.maxAddresses)
         throw Error("DNS_ADDRESS_COUNT_INVALID");
       const pinnedIp = before[0];
@@ -326,9 +340,7 @@ export async function executePassiveCollection(
         const result = await options.transport.collectTls(
           request.domain, pinnedIp, request.policy.maxHandshakeMs,
         );
-        const after = await options.transport.resolve(
-          request.domain, request.policy.maxRequestMs,
-        );
+        const after = await resolveWithQuota();
         if (!result.handshakeOnly ||
             result.peer !== pinnedIp ||
             !inspectPinnedAddresses(
@@ -341,9 +353,7 @@ export async function executePassiveCollection(
         const result = await options.transport.collectHead(
           target, pinnedIp, request.policy.maxRequestMs,
         );
-        const after = await options.transport.resolve(
-          request.domain, request.policy.maxRequestMs,
-        );
+        const after = await resolveWithQuota();
         if (result.method !== "HEAD" ||
             result.redirectCount !== 0 ||
             result.bodyBytes !== 0 ||
