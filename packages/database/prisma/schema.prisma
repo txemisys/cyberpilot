@@ -231,6 +231,8 @@ model Organization {
   multiSourceV2Assessments MultiSourceV2Assessment[]
   baselineDrafts BaselineDraft[]
   baselineRevisions BaselineRevision[]
+  baselineReviews BaselineReview[]
+  baselineReviewEvents BaselineReviewEvent[]
   baselineFollowUps BaselineFollowUp[]
   baselineFollowUpEvents BaselineFollowUpEvent[]
   exposureAuthorizations ExposureDomainAuthorization[]
@@ -1725,5 +1727,50 @@ model ExposurePassiveEvent {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   schedule ExposurePassiveSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   @@unique([scheduleId, revision])
+  @@index([organizationId, createdAt])
+}
+
+/** Internal technical review of declarative Baseline, not client signoff. */
+model BaselineReview {
+  id String @id @default(cuid())
+  organizationId String
+  draftId String
+  sourceRevision Int
+  reportDigest String @db.VarChar(64)
+  questionnaireVersion Int @default(1)
+  revision Int @default(1)
+  state String @default("OPEN") @db.VarChar(24)
+  scope String @default("DEVELOPMENT_REVIEW") @db.VarChar(24)
+  issueCount Int @default(0)
+  blockingIssueCount Int @default(0)
+  reviewNotes Json
+  reviewerUserId String?
+  completedAt DateTime?
+  createdById String
+  updatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events BaselineReviewEvent[]
+  @@unique([organizationId, draftId, sourceRevision])
+  @@index([organizationId, state, updatedAt])
+  @@index([organizationId, reviewerUserId])
+}
+
+model BaselineReviewEvent {
+  id String @id @default(cuid())
+  organizationId String
+  reviewId String
+  revision Int
+  action String @db.VarChar(30)
+  previousState String @db.VarChar(24)
+  newState String @db.VarChar(24)
+  findingsDigest String @db.VarChar(64)
+  metadata Json
+  actorUserId String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  review BaselineReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  @@unique([reviewId, revision])
   @@index([organizationId, createdAt])
 }
