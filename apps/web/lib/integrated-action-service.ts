@@ -2,7 +2,7 @@ import { db,type Prisma } from "@cyberpilot/database";
 import {createHash} from "node:crypto";
 import {
   applyIntegratedActionCommand,auditIntegratedActionHistory,
-  summarizeIntegratedActionBoard,sortIntegratedActions,
+  summarizeIntegratedActionBoard,sortIntegratedActions,\n  digestIntegratedActionSnapshot,
   type ActionSnapshot,type ActionCommand,type ActionDomainEvent,
   type ActionPriority,
 } from "./integrated-action-domain";
@@ -193,7 +193,7 @@ export async function createIntegratedAction(
         },
       });
       const snap=rowToSnapshot(created);
-      const snapshotDigest=sha(JSON.stringify(snap));
+      const snapshotDigest=digestIntegratedActionSnapshot(snap);
       await tx.integratedRiskActionEvent.create({
         data:{
           organizationId:actor.organizationId,actionId:created.id,
@@ -277,7 +277,7 @@ export async function updateIntegratedAction(
         previousStatus:event.previousStatus,
         nextStatus:event.nextStatus,actorUserId:actor.userId,
         occurredAt:new Date(event.occurredAt),
-        snapshot:{snapshotDigest:sha(JSON.stringify(next))}
+        snapshot:{snapshotDigest:digestIntegratedActionSnapshot(next)}
           as Prisma.InputJsonValue,
       },
     });
