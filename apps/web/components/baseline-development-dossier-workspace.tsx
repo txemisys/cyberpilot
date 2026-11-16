@@ -150,8 +150,6 @@ export function BaselineDevelopmentDossierWorkspace({
         code?: string;
       };
       if (!response.ok) throw Error(data.code ?? "Exportación rechazada.");
-      if (data.digest !== report.digest)
-        throw Error("La evidencia cambió desde su última consulta.");
       if (typeof data.filename !== "string" ||
           typeof data.mime !== "string" ||
           typeof data.text !== "string")
