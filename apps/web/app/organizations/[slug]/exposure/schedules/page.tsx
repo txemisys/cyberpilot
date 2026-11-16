@@ -26,6 +26,10 @@ export default async function ExposureSchedulePage({ params }: Props) {
         encodeURIComponent(slug)}>
         Volver a organización
       </Link></p>
+      <p><Link href={"/organizations/" +
+        encodeURIComponent(slug) + "/exposure/readiness"}>
+        Revisar autorización, cuota y auditorías offline
+      </Link></p>
       <ExposurePassiveScheduleWorkspace
         slug={slug} canAdmin={canAdmin} />
     </section>
