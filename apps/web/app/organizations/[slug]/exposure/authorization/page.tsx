@@ -24,6 +24,10 @@ export default async function ExposureAuthorizationPage({
         encodeURIComponent(slug)}>
         Volver a la organización
       </Link></p>
+      <p><Link href={"/organizations/" +
+        encodeURIComponent(slug) + "/exposure/schedules"}>
+        Planificar evaluación pasiva y consultar cuotas
+      </Link></p>
       <ExposureDomainAuthorizationWorkspace
         slug={slug} canManage={canManage} />
     </section>
