@@ -27,6 +27,10 @@ export default async function OrganizationBaselinePage({
         encodeURIComponent(slug) + "/baseline/actions"}>
         Gestionar acciones y responsables de Baseline
       </Link></p>
+      <p><Link href={"/organizations/" + encodeURIComponent(slug) +
+        "/baseline/reviews"}>
+        Revisión técnica interna de versiones presentadas
+      </Link></p>
       <Phase2BaselineWorkspace
         slug={slug}
         organizationId={membership.organization.id}
