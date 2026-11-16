@@ -383,3 +383,8 @@ export function serializeActionBoard(
   };
   return {...base,digest:hash(base)};
 }
+
+/** Canonical digest used consistently by Prisma events and audit replay. */
+export function digestIntegratedActionSnapshot(snapshot:ActionSnapshot):string {
+  return hash(snapshot);
+}
