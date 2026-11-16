@@ -1227,3 +1227,13 @@ export type {
   PassiveHttpAnswer, PassiveCollectionAttempt,
   PassiveCollectionLedger, AdmissionVerdict,
 } from "./exposure-passive-collection-policy";
+
+export {
+  verifyPassiveExecutionLease,
+  executePassiveCollection,
+} from "./exposure-passive-execution-guard";
+export type {
+  PassiveExecutionLease, PassiveExecutionEvent,
+  PassiveExecutionResult, PassiveExecutionTransport,
+  PassiveExecutionAuthority, PassiveExecutionOptions,
+} from "./exposure-passive-execution-guard";
