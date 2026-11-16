@@ -396,7 +396,7 @@ export class BaselineTechnicalReviewService {
       }, { isolationLevel: "Serializable" });
     }
     const row = await db.baselineReview.findFirst({
-      where: { id: command.reviewId, organizationId },
+      where: { id: command.reviewId!, organizationId },
     });
     if (!row) fail("Review not found in current organization.");
     if (command.operation === "READ") return { review: view(row) };
@@ -421,7 +421,7 @@ export class BaselineTechnicalReviewService {
     if (command.operation === "COMPARE") {
       const older = await db.baselineReview.findFirst({
         where: {
-          id: command.olderReviewId, organizationId,
+          id: command.olderReviewId!, organizationId,
           draftId: row.draftId,
         },
       });
