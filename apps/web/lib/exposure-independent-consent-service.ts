@@ -117,11 +117,14 @@ function parseCommand(raw: unknown): ConsentReviewCommand {
   return {
     operation,
     domain: fields.domain,
-    envelope: fields.envelope as DetachedConsentEnvelope | undefined,
-    sources: fields.sources as ConsentReviewCommand["sources"],
-    authorizationRevision:
-      fields.authorizationRevision as number | undefined,
-    format: fields.format as ConsentReviewCommand["format"],
+    ...(fields.envelope !== undefined ?
+      { envelope: fields.envelope as DetachedConsentEnvelope } : {}),
+    ...(fields.sources !== undefined ?
+      { sources: fields.sources as ConsentReviewCommand["sources"] } : {}),
+    ...(fields.authorizationRevision !== undefined ?
+      { authorizationRevision: fields.authorizationRevision as number } : {}),
+    ...(fields.format !== undefined ?
+      { format: fields.format as "JSON" | "CSV" | "MARKDOWN" } : {}),
   };
 }
 function noExternalAuthority(): ConsentAuthorityAdapter {
