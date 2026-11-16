@@ -59,7 +59,7 @@ function lease(request: PassiveCollectorRequest): PassiveExecutionLease {
     reservationId: "reservation-one",
     issuedAt: now, expiresAt: "2026-11-16T10:02:00.000Z",
     grantedSources: [...request.sources],
-    budget: { DNS: 5, TLS_HANDSHAKE: 1, HTTPS_HEADERS: 1 },
+    budget: { DNS: 7, TLS_HANDSHAKE: 1, HTTPS_HEADERS: 1 },
     approvedByIndependentAuthority: true,
     approvedScopeDigest: "a".repeat(64),
   };
@@ -96,7 +96,7 @@ describe("independent Exposure execution evidence", () => {
     expect(output.result.state).toBe("COMPLETED");
     expect(output.reportIntegrityVerified).toBe(true);
     expect(output.evidence.verdict).toBe("TRACEABLE");
-    expect(output.evidence.consumedCalls.total).toBe(7);
+    expect(output.evidence.consumedCalls.total).toBe(9);
     expect(output.evidence.consumedCalls.DNS).toBe(5);
     expect(output.evidence.remoteEndpointSecurityCertified).toBe(false);
     expect(output.evidence.independentLegalAuthorizationApprovedByVerifier)
@@ -178,7 +178,7 @@ describe("independent Exposure execution evidence", () => {
     );
     expect(portfolio.samples).toBe(1);
     expect(portfolio.totals.traceable).toBe(1);
-    expect(portfolio.totals.dnsCalls).toBe(5);
+    expect(portfolio.totals.dnsCalls).toBe(7);
     expect(portfolio.legalApprovalInferred).toBe(false);
     expect(portfolio.perDomain[0]?.observedSecurityPosture)
       .toBe("NOT_DETERMINED");
