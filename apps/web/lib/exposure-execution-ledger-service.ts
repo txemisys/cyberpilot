@@ -518,7 +518,8 @@ export class ExposureExecutionLedgerService {
           organizationId: actor.organizationId,
           scheduleId: schedule.id,
           createdAt: { gte: start },
-          state: { in: ["ACTIVE","COMPLETED","FAILED"] },
+          state: { in: ["ACTIVE","COMPLETED","FAILED",
+            "CANCELLED","EXPIRED"] },
         },
       });
       const totals = {
