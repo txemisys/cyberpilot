@@ -53,7 +53,7 @@ function lease(request: PassiveCollectorRequest):
     issuedAt: now, expiresAt: "2026-11-16T10:02:00.000Z",
     grantedSources: [...request.sources],
     budget: {
-      DNS: (request.sources.includes("DNS") ? 1 : 0) +
+      DNS: (request.sources.includes("DNS") ? 3 : 0) +
         (request.sources.includes("TLS_HANDSHAKE") ? 2 : 0) +
         (request.sources.includes("HTTPS_HEADERS") ? 2 : 0),
       TLS_HANDSHAKE: request.sources.includes("TLS_HANDSHAKE") ? 1 : 0,
@@ -138,7 +138,7 @@ describe("independently authorized Exposure passive execution", () => {
     const output = await executePassiveCollection(request, lease(request), deps);
     expect(output.state).toBe("COMPLETED");
     expect(output.calls).toEqual({
-      DNS: 5, TLS_HANDSHAKE: 1, HTTPS_HEADERS: 1,
+      DNS: 7, TLS_HANDSHAKE: 1, HTTPS_HEADERS: 1,
     });
     expect(output.sourceResults).toHaveLength(3);
     expect(output.legacyCyberScoreModified).toBe(false);
