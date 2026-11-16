@@ -259,7 +259,7 @@ function normalizeControls(input:IntegratedRiskInput,
 }
 function fingerprintFinding(item:IntegratedFindingInput) {
   const value=[item.ruleId.trim().toLowerCase(),
-    clean(item.title,250).toLowerCase()];
+    clean(item.key,250).toLowerCase()];
   // Do not merge findings merely because severity matches.
   return hash(value);
 }
