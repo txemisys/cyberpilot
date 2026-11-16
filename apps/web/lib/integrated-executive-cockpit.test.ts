@@ -158,7 +158,7 @@ describe("integrated SME executive reporting without tenants",()=>{
     const md=exportExecutiveCockpit(report,"MARKDOWN");
     expect(JSON.parse(json.content).externalProviderCalls).toBe(0);
     expect(csv.content).toContain("Backups untested");
-    expect(md.content).toContain("declared completed");
+    expect(md.content).toContain("Declared completed actions");
     expect(md.content).toContain("CyberPilot");
   });
   it("compares snapshots without treating fewer risks as improvement",()=>{
