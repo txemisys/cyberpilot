@@ -155,7 +155,7 @@ function operatorValid(operator: IsolatedNetworkOperator) {
 export function validateIsolatedNetworkActivation(
   operator: IsolatedNetworkOperator,
   scope: IsolatedNetworkScope,
-  env: NodeJS.ProcessEnv,
+  env: Readonly<Record<string, string | undefined>>,
 ): string[] {
   const errors: string[] = [];
   if (env.CYBERPILOT_PASSIVE_LIVE_ENABLED !== "true")
@@ -177,7 +177,7 @@ export function createIsolatedPassiveSocketTransport(
   operator: IsolatedNetworkOperator,
   scope: IsolatedNetworkScope,
   authority: IsolatedNetworkAuthorization,
-  env: NodeJS.ProcessEnv = process.env,
+  env: Readonly<Record<string, string | undefined>> = process.env,
 ): IsolatedSocketTransport {
   const activation = validateIsolatedNetworkActivation(
     operator, scope, env,
