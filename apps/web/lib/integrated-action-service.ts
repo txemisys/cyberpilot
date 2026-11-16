@@ -2,7 +2,8 @@ import { db,type Prisma } from "@cyberpilot/database";
 import {createHash} from "node:crypto";
 import {
   applyIntegratedActionCommand,auditIntegratedActionHistory,
-  summarizeIntegratedActionBoard,sortIntegratedActions,\n  digestIntegratedActionSnapshot,
+  summarizeIntegratedActionBoard,sortIntegratedActions,
+  digestIntegratedActionSnapshot,
   type ActionSnapshot,type ActionCommand,type ActionDomainEvent,
   type ActionPriority,
 } from "./integrated-action-domain";
