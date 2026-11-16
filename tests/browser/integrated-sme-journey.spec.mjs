@@ -81,7 +81,7 @@ test("SME no-tenant workflow: LAB findings → risk → CAS action → executive
   await expect(page.getByText(
     "Riesgos abiertos listados desde registros persistidos.",
   )).toBeVisible();
-  const eligible=page.getByLabel("Riesgo", {exact:true});
+  const eligible=page.getByRole("combobox", {name:"Riesgo"});
   await expect(eligible.locator("option").nth(1)).toBeAttached();
   await eligible.selectOption({index:1});
   await page.getByRole("button",{
