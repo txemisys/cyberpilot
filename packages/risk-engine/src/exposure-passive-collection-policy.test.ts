@@ -80,7 +80,7 @@ describe("Phase 2 Exposure safe passive collector contract", () => {
   it("prevents redirect following, active scanning and low-interval collections", () => {
     const policy = defaultPassiveAdmissionPolicy(
       organizationId, domain);
-    policy.allowPortScanning = true;
+    (policy as unknown as Record<string, unknown>).allowPortScanning = true;
     policy.minimumIntervalMs = 1000;
     expect(validatePassivePolicy(policy)).toContain(
       "FORBIDDEN_NETWORK_CAPABILITY");
