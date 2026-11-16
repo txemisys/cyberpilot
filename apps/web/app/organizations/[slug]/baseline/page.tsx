@@ -31,6 +31,10 @@ export default async function OrganizationBaselinePage({
         "/baseline/reviews"}>
         Revisión técnica interna de versiones presentadas
       </Link></p>
+      <p><Link href={"/organizations/" +
+        encodeURIComponent(slug) + "/baseline/dossier"}>
+        Consultar expediente de conciliación técnica
+      </Link></p>
       <Phase2BaselineWorkspace
         slug={slug}
         organizationId={membership.organization.id}
