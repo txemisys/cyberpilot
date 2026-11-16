@@ -400,7 +400,8 @@ export class IsolatedExposureProbeCoordinator {
             input.request.policy.maxRequestMs,
           );
           bytes = answer.bytes;
-          if (answer.records.length > 30 || bytes > 8192)
+          if (!answer.records.length || answer.records.length > 30 ||
+              bytes > 8192)
             throw new PassiveProbeError("DNS_RESPONSE_OVERSIZED");
           status = "OBSERVED";
         } else {
