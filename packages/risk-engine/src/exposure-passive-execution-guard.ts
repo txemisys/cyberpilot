@@ -336,7 +336,7 @@ export async function executePassiveCollection(
         request.domain, request.policy.maxRequestMs,
       );
       record("SOURCE", "DNS", request.domain,
-        "DNS_RESOLUTION_ATTEMPTED", 1, 1);
+        "DNS_RESOLUTION_ATTEMPTED", 0, 1);
       return addresses;
     };
     if (!await available(source, target)) {
