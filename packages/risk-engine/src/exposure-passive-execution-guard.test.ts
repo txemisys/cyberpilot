@@ -67,12 +67,12 @@ function dependencies() {
       records: ["v=spf1 -all"], bytes: 24,
     })),
     collectTls: vi.fn(async () => ({
-      peer: "93.184.215.14", bytes: 20, handshakeOnly: true,
+      peer: "93.184.215.14", bytes: 20, handshakeOnly: true as const,
     })),
     collectHead: vi.fn(async () => ({
       peer: "93.184.215.14", bytes: 128,
-      method: "HEAD", redirectCount: 0, bodyBytes: 0,
-      authenticated: false,
+      method: "HEAD" as const, redirectCount: 0 as const, bodyBytes: 0 as const,
+      authenticated: false as const,
     })),
   };
   const authority: PassiveExecutionAuthority = {
