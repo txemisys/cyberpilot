@@ -1212,3 +1212,18 @@ export type {
   ExposureTargetPolicy, ExposureCollectionBudget,
   ExposureRedirectReview,
 } from "./exposure-domain-authorization";
+
+export {
+  defaultPassiveAdmissionPolicy,
+  validatePassivePolicy, planPassiveDomainTargets,
+  checkPassiveAdmission, inspectPinnedAddresses,
+  acceptPassiveDnsAnswer, acceptPassiveTlsAnswer,
+  acceptPassiveHttpAnswer, finalizePassiveLedger,
+  verifyPassiveLedger, comparePassiveLedgers,
+} from "./exposure-passive-collection-policy";
+export type {
+  PassiveSource, PassiveProof, PassiveAdmissionPolicy,
+  PassiveCollectorRequest, PassiveDnsAnswer, PassiveTlsAnswer,
+  PassiveHttpAnswer, PassiveCollectionAttempt,
+  PassiveCollectionLedger, AdmissionVerdict,
+} from "./exposure-passive-collection-policy";

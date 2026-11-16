@@ -1,0 +1,138 @@
+name: Phase 2 passive Exposure and Baseline technical review acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/risk-engine/src/exposure-passive-*'
+      - 'apps/web/lib/exposure-passive-*'
+      - 'apps/web/lib/baseline-technical-review-*'
+      - 'apps/web/app/api/organizations/**/exposure-passive-*'
+      - 'apps/web/app/api/organizations/**/baseline-technical-reviews/**'
+      - 'apps/web/components/baseline-technical-review-*'
+      - 'apps/web/components/exposure-passive-*'
+      - 'packages/database/prisma/**'
+      - '.github/workflows/phase2-passive-exposure-baseline-review-closeout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase2-passive-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-development-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cyberpilot
+      AUTH_SECRET: phase2-acceptance-ci-not-production
+      BETTER_AUTH_URL: https://ci.cyberpilot.example
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cyberpilot
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cyberpilot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact pull request HEAD
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate database client
+        run: pnpm --filter @cyberpilot/database db:generate
+
+      - name: Verify migrations
+        run: |
+          pnpm db:migrate:deploy
+          pnpm db:migrate:status
+
+      - name: Typecheck production and tests
+        run: |
+          pnpm --filter @cyberpilot/risk-engine typecheck
+          pnpm --filter @cyberpilot/web typecheck
+
+      - name: Test passive collection policy and adverse scope
+        run: pnpm --filter @cyberpilot/risk-engine exec vitest run src/exposure-passive-collection-policy.test.ts
+
+      - name: Test durable schedule and denied quotas with PostgreSQL
+        run: pnpm --filter @cyberpilot/web exec vitest run lib/exposure-passive-schedule-service.integration.test.ts
+
+      - name: Test Baseline technical reviewer and development acceptance with PostgreSQL
+        run: pnpm --filter @cyberpilot/web exec vitest run lib/baseline-technical-review-service.integration.test.ts
+
+      - name: Verify no server network collector has been silently activated
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const files = [
+            'packages/risk-engine/src/exposure-passive-collection-policy.ts',
+            'apps/web/lib/exposure-passive-admission.ts',
+            'apps/web/lib/exposure-passive-schedule-service.ts',
+          ];
+          const code = files.map(x => fs.readFileSync(x, 'utf8'));
+          const forbidden = /\b(?:fetch|XMLHttpRequest|https\.request|http\.request|connect|createConnection)\s*\(/;
+          if (code.some(s => forbidden.test(s)))
+            throw Error('Network collector must remain isolated and unauthorized');
+          if (!code[1].includes('NO_INDEPENDENT_LEGAL_CONSENT_SERVICE') ||
+              !code[2].includes('CONSENT_OR_COLLECTOR_NOT_READY'))
+            throw Error('Legal consent and quota fail-closed gates missing');
+          console.log('PASSIVE_EXPOSURE_BASELINE_REVIEW_AB_PASS=true');
+          NODE
+
+      - name: Produce unsigned acceptance manifest
+        env:
+          PHASE2_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p .artifacts
+          node <<'NODE'
+          const fs = require('node:fs');
+          const evidence = {
+            schema: 'cyberpilot.phase2.passive.review.acceptance.v1',
+            head: process.env.PHASE2_HEAD,
+            passivePolicyTestsPassed: true,
+            postgresScheduleTestsPassed: true,
+            postgresTechnicalReviewTestsPassed: true,
+            typecheckPassed: true,
+            realWorldLegalConsentProven: false,
+            browserPlaywrightAcceptanceClaimed: false,
+            productionNetworkCollectorEnabled: false,
+            signedCustomerAcceptance: false,
+            customerSecurityCertified: false,
+            historicalCyberScoreChanged: false,
+          };
+          fs.writeFileSync('.artifacts/phase2-passive-review.json',
+            JSON.stringify(evidence, null, 2) + '\n');
+          NODE
+
+      - name: Archive unsigned A+B evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: phase2-passive-review-development-acceptance
+          path: .artifacts/phase2-passive-review.json
+          if-no-files-found: ignore
+          retention-days: 30

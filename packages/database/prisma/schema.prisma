@@ -231,10 +231,15 @@ model Organization {
   multiSourceV2Assessments MultiSourceV2Assessment[]
   baselineDrafts BaselineDraft[]
   baselineRevisions BaselineRevision[]
+  baselineReviews BaselineReview[]
+  baselineReviewEvents BaselineReviewEvent[]
   baselineFollowUps BaselineFollowUp[]
   baselineFollowUpEvents BaselineFollowUpEvent[]
   exposureAuthorizations ExposureDomainAuthorization[]
   exposureAuthorizationEvents ExposureAuthorizationEvent[]
+  exposurePassiveSchedules ExposurePassiveSchedule[]
+  exposurePassiveReservations ExposurePassiveReservation[]
+  exposurePassiveEvents ExposurePassiveEvent[]
   remediations             Remediation[]
   securityEvidence         SecurityEvidence[]
   remediationWorkItems      RemediationWorkItem[]
@@ -1647,5 +1652,125 @@ model BaselineFollowUpEvent {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   followUp BaselineFollowUp @relation(fields: [followUpId], references: [id], onDelete: Cascade)
   @@unique([followUpId, revision])
+  @@index([organizationId, createdAt])
+}
+
+/** Persistent passive-source scheduling; disabled without independent consent. */
+model ExposurePassiveSchedule {
+  id String @id @default(cuid())
+  organizationId String
+  authorizationId String
+  domain String @db.VarChar(253)
+  state String @default("DISABLED") @db.VarChar(24)
+  revision Int @default(1)
+  sources Json
+  policyDigest String @db.VarChar(64)
+  legalConsentVerified Boolean @default(false)
+  minimumIntervalMs Int @default(60000)
+  nextEligibleAt DateTime?
+  lastAttemptAt DateTime?
+  dailyDnsLimit Int @default(8)
+  dailyTlsLimit Int @default(1)
+  dailyHttpLimit Int @default(1)
+  createdById String
+  updatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reservations ExposurePassiveReservation[]
+  events ExposurePassiveEvent[]
+  @@unique([organizationId, domain])
+  @@index([organizationId, state, nextEligibleAt])
+  @@index([organizationId, authorizationId])
+}
+
+model ExposurePassiveReservation {
+  id String @id @default(cuid())
+  organizationId String
+  scheduleId String
+  requestId String @db.VarChar(128)
+  authorizationRevision Int
+  status String @default("DENIED") @db.VarChar(24)
+  requestedSources Json
+  reservedDns Int @default(0)
+  reservedTls Int @default(0)
+  reservedHttp Int @default(0)
+  actualDns Int @default(0)
+  actualTls Int @default(0)
+  actualHttp Int @default(0)
+  periodStart DateTime
+  leaseExpiresAt DateTime
+  finishedAt DateTime?
+  rejectionCode String? @db.VarChar(80)
+  evidenceDigest String? @db.VarChar(64)
+  initiatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  schedule ExposurePassiveSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, requestId])
+  @@index([organizationId, periodStart, status])
+  @@index([scheduleId, leaseExpiresAt])
+}
+
+model ExposurePassiveEvent {
+  id String @id @default(cuid())
+  organizationId String
+  scheduleId String
+  revision Int
+  action String @db.VarChar(32)
+  priorState String @db.VarChar(24)
+  currentState String @db.VarChar(24)
+  metadata Json
+  actorUserId String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  schedule ExposurePassiveSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  @@unique([scheduleId, revision])
+  @@index([organizationId, createdAt])
+}
+
+/** Internal technical review of declarative Baseline, not client signoff. */
+model BaselineReview {
+  id String @id @default(cuid())
+  organizationId String
+  draftId String
+  sourceRevision Int
+  reportDigest String @db.VarChar(64)
+  questionnaireVersion Int @default(1)
+  revision Int @default(1)
+  state String @default("OPEN") @db.VarChar(24)
+  scope String @default("DEVELOPMENT_REVIEW") @db.VarChar(24)
+  issueCount Int @default(0)
+  blockingIssueCount Int @default(0)
+  reviewNotes Json
+  reviewerUserId String?
+  completedAt DateTime?
+  createdById String
+  updatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events BaselineReviewEvent[]
+  @@unique([organizationId, draftId, sourceRevision])
+  @@index([organizationId, state, updatedAt])
+  @@index([organizationId, reviewerUserId])
+}
+
+model BaselineReviewEvent {
+  id String @id @default(cuid())
+  organizationId String
+  reviewId String
+  revision Int
+  action String @db.VarChar(30)
+  previousState String @db.VarChar(24)
+  newState String @db.VarChar(24)
+  findingsDigest String @db.VarChar(64)
+  metadata Json
+  actorUserId String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  review BaselineReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  @@unique([reviewId, revision])
   @@index([organizationId, createdAt])
 }
