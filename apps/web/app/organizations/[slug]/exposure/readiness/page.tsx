@@ -25,6 +25,14 @@ export default async function ExposureReadinessPage({ params }: Props) {
         encodeURIComponent(slug) + "/exposure/schedules"}>
         Volver a la planificación
       </Link></p>
+      <p><Link href={"/organizations/" +
+        encodeURIComponent(slug) + "/exposure/consent"}>
+        Revisar consentimiento legal firmado por autoridad independiente
+      </Link></p>
+      <p><Link href={"/organizations/" +
+        encodeURIComponent(slug) + "/exposure/ledger"}>
+        Consultar registro de cuotas ejecutables y consumos
+      </Link></p>
       {canReview ?
         <ExposureOperationalReadinessWorkspace
           slug={slug}
