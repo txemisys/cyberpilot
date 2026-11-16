@@ -130,8 +130,6 @@ export function ExposureOperationalReadinessWorkspace({
       };
       if (!response.ok)
         throw Error(data.code ?? "Formato de exportación rechazado.");
-      if (data.digest !== report.digest)
-        throw Error("Los registros han cambiado. Recarga el informe.");
       if (typeof data.filename !== "string" ||
           typeof data.content !== "string" ||
           typeof data.mime !== "string")
