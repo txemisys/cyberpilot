@@ -242,6 +242,8 @@ model Organization {
   exposurePassiveEvents ExposurePassiveEvent[]
   exposureExecutionLeases ExposureExecutionLease[]
   exposureExecutionCharges ExposureExecutionCharge[]
+  integratedRiskActions IntegratedRiskAction[]
+  integratedRiskActionEvents IntegratedRiskActionEvent[]
   remediations             Remediation[]
   securityEvidence         SecurityEvidence[]
   remediationWorkItems      RemediationWorkItem[]
@@ -1836,4 +1838,53 @@ model ExposureExecutionCharge {
   @@unique([leaseId, sequence])
   @@index([organizationId, leaseId, status])
   @@index([organizationId, createdAt])
+}
+
+/**
+ * Tenant-local, provider-neutral SME risk follow-up. This does not
+ * mutate Microsoft 365 remediations or imply technical verification.
+ */
+model IntegratedRiskAction {
+  id String @id @default(cuid())
+  organizationId String
+  riskKey String @db.VarChar(64)
+  title String @db.VarChar(250)
+  description String @default("")
+  severity String @db.VarChar(16)
+  sourceFingerprint String @db.VarChar(64)
+  evidenceRefs Json
+  status String @default("OPEN") @db.VarChar(24)
+  priority String @default("NORMAL") @db.VarChar(12)
+  ownerUserId String?
+  dueAt DateTime?
+  rationale String?
+  exceptionReason String?
+  exceptionExpiresAt DateTime?
+  revision Int @default(1)
+  createdById String
+  updatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events IntegratedRiskActionEvent[]
+  @@unique([organizationId, riskKey])
+  @@index([organizationId, status, dueAt])
+  @@index([organizationId, ownerUserId, status])
+}
+
+model IntegratedRiskActionEvent {
+  id String @id @default(cuid())
+  organizationId String
+  actionId String
+  revision Int
+  kind String @db.VarChar(24)
+  previousStatus String @db.VarChar(24)
+  nextStatus String @db.VarChar(24)
+  actorUserId String
+  snapshot Json
+  occurredAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  action IntegratedRiskAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  @@unique([actionId, revision])
+  @@index([organizationId, actionId, occurredAt])
 }
