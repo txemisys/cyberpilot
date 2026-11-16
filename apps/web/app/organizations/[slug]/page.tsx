@@ -314,6 +314,12 @@ export default async function OrganizationPage({
       </p>
 
       <section className="dashboard">
+        <p><Link href={"/organizations/" + encodeURIComponent(slug) +
+          "/integrated-risks"}>Registro integrado de riesgos y evidencias</Link></p>
+        <p><Link href={"/organizations/" + encodeURIComponent(slug) +
+          "/integrated-actions"}>Centro de seguimiento y excepciones</Link></p>
+        <p><Link href={"/organizations/" + encodeURIComponent(slug) +
+          "/integrated-executive"}>Panel ejecutivo de riesgos sin tenants</Link></p>
         <p style={{ margin: "10px 0" }}>
           <Link href={"/organizations/" + encodeURIComponent(slug) + "/multisource-v2"}>
             CyberScore v2 · Evaluación multifuente opcional, sin Microsoft 365
