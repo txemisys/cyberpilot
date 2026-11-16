@@ -321,7 +321,9 @@ export async function executePassiveCollection(
     const resolveWithQuota = async () => {
       if (!await available("DNS", request.domain))
         throw Error("DNS_RESOLUTION_QUOTA_DENIED");
-      const addresses = await resolveWithQuota();
+      const addresses = await options.transport.resolve(
+        request.domain, request.policy.maxRequestMs,
+      );
       record("SOURCE", "DNS", request.domain,
         "DNS_RESOLUTION_ATTEMPTED", 1, 1);
       return addresses;
