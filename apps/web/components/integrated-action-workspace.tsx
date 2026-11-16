@@ -6,6 +6,7 @@ import type {
 } from "../lib/integrated-action-domain";
 import type {IntegratedRiskDigest} from "../lib/integrated-risk-engine";
 type Audit={actionId:string;valid:boolean;errors:string[];
+  eventsChecked:number;
   latestStatus:ActionState|null;latestRevision:number};
 type ActionRead={
   organizationId:string;asOf:string;actions:ActionSnapshot[];
@@ -13,6 +14,7 @@ type ActionRead={
     previousStatus:string;nextStatus:string;actorUserId:string;
     occurredAt:string}>;
   audits:Audit[];issues:string[];summary:ActionBoardSummary;
+  counts:{actions:number;events:number};
   truncated:boolean;externalProviderOperations:0;
   liveRemediationPerformed:false;
   riskAcceptedByClient:false;CyberScoreV1Changed:false;
