@@ -53,7 +53,9 @@ function lease(request: PassiveCollectorRequest):
     issuedAt: now, expiresAt: "2026-11-16T10:02:00.000Z",
     grantedSources: [...request.sources],
     budget: {
-      DNS: request.sources.includes("DNS") ? 1 : 0,
+      DNS: (request.sources.includes("DNS") ? 1 : 0) +
+        (request.sources.includes("TLS_HANDSHAKE") ? 2 : 0) +
+        (request.sources.includes("HTTPS_HEADERS") ? 2 : 0),
       TLS_HANDSHAKE: request.sources.includes("TLS_HANDSHAKE") ? 1 : 0,
       HTTPS_HEADERS: request.sources.includes("HTTPS_HEADERS") ? 1 : 0,
     }, approvedByIndependentAuthority: true,
@@ -136,7 +138,7 @@ describe("independently authorized Exposure passive execution", () => {
     const output = await executePassiveCollection(request, lease(request), deps);
     expect(output.state).toBe("COMPLETED");
     expect(output.calls).toEqual({
-      DNS: 1, TLS_HANDSHAKE: 1, HTTPS_HEADERS: 1,
+      DNS: 5, TLS_HANDSHAKE: 1, HTTPS_HEADERS: 1,
     });
     expect(output.sourceResults).toHaveLength(3);
     expect(output.legacyCyberScoreModified).toBe(false);
@@ -165,17 +167,17 @@ describe("independently authorized Exposure passive execution", () => {
     expect(deps.transport.collectDns).not.toHaveBeenCalled();
   });
   it("does not promote a rebinding TLS peer to OBSERVED", async () => {
-    const request = fixture(["TLS_HANDSHAKE"]);
+    const request = fixture(["DNS","TLS_HANDSHAKE"]);
     const deps = dependencies();
     deps.transport.resolve = vi.fn()
       .mockResolvedValueOnce(["93.184.215.14"])
       .mockResolvedValueOnce(["8.8.8.8"]);
     const output = await executePassiveCollection(request, lease(request), deps);
     expect(output.state).toBe("PARTIAL");
-    expect(output.sourceResults[0]?.status).toBe("UNKNOWN");
+    expect(output.sourceResults.find(x => x.source !== "DNS")?.status).toBe("UNKNOWN");
   });
   it("does not accept redirects, response bodies or authentication on HEAD", async () => {
-    const request = fixture(["HTTPS_HEADERS"]);
+    const request = fixture(["DNS","HTTPS_HEADERS"]);
     const deps = dependencies();
     deps.transport.collectHead = vi.fn(async () => ({
       peer: "93.184.215.14", bytes: 128,
@@ -183,7 +185,15 @@ describe("independently authorized Exposure passive execution", () => {
       bodyBytes: 2 as 0, authenticated: false as const,
     }));
     const output = await executePassiveCollection(request, lease(request), deps);
-    expect(output.sourceResults[0]?.status).toBe("UNKNOWN");
+    expect(output.sourceResults.find(x => x.source !== "DNS")?.status).toBe("UNKNOWN");
+  });
+  it("cannot run TLS without counting required DNS resolutions", async () => {
+    const request = fixture(["TLS_HANDSHAKE"]);
+    const deps = dependencies();
+    const result = await executePassiveCollection(request, lease(request), deps);
+    expect(result.state).toBe("DENIED");
+    expect(result.events[0]?.code).toContain("DNS_RESOLUTION_QUOTA_REQUIRED");
+    expect(deps.transport.collectTls).not.toHaveBeenCalled();
   });
   it("does not call later sources after revoked consent", async () => {
     const request = fixture(["DNS","TLS_HANDSHAKE"]);
