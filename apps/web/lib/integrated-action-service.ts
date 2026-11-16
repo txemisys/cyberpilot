@@ -278,8 +278,7 @@ export async function updateIntegratedAction(
         previousStatus:event.previousStatus,
         nextStatus:event.nextStatus,actorUserId:actor.userId,
         occurredAt:new Date(event.occurredAt),
-        snapshot:{snapshotDigest:digestIntegratedActionSnapshot(next)}
-          as Prisma.InputJsonValue,
+        snapshot: { snapshotDigest: digestIntegratedActionSnapshot(next) },
       },
     });
     return tx.integratedRiskAction.findFirstOrThrow({
