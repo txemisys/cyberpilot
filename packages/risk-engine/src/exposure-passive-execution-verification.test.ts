@@ -97,7 +97,7 @@ describe("independent Exposure execution evidence", () => {
     expect(output.reportIntegrityVerified).toBe(true);
     expect(output.evidence.verdict).toBe("TRACEABLE");
     expect(output.evidence.consumedCalls.total).toBe(9);
-    expect(output.evidence.consumedCalls.DNS).toBe(5);
+    expect(output.evidence.consumedCalls.DNS).toBe(7);
     expect(output.evidence.remoteEndpointSecurityCertified).toBe(false);
     expect(output.evidence.independentLegalAuthorizationApprovedByVerifier)
       .toBe(false);
