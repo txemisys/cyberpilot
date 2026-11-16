@@ -1237,3 +1237,24 @@ export type {
   PassiveExecutionResult, PassiveExecutionTransport,
   PassiveExecutionAuthority, PassiveExecutionOptions,
 } from "./exposure-passive-execution-guard";
+
+export {
+  reconcilePassiveExecution,
+  verifyPassiveExecutionEvidence,
+  comparePassiveExecutionEvidence,
+  exportPassiveExecutionEvidence,
+} from "./exposure-passive-execution-verification";
+export type {
+  PassiveExecutionGate,
+  PassiveExecutionEvidence,
+} from "./exposure-passive-execution-verification";
+export {
+  executeAndVerifyPassiveCollection,
+  buildPassiveExecutionPortfolio,
+  verifyPassiveExecutionPortfolio,
+  comparePassiveExecutionPortfolios,
+} from "./exposure-passive-execution-portfolio";
+export type {
+  VerifiedPassiveExecution,
+  PassiveExecutionPortfolio,
+} from "./exposure-passive-execution-portfolio";
