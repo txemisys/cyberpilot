@@ -211,7 +211,7 @@ function linkRisks(risks:IntegratedRiskRow[],actions:ActionSnapshot[],
         dueAt:action?.dueAt??null,
         isOverdue:overdue,
         actionCompletedReported:action?.status==="DONE_REPORTED",
-        externallyRemediated:false,
+        externallyRemediated:false as const,
         needsReview:r.status==="OPEN"||r.uncertainty.length>0,
       };
     }).sort((a,b)=>a.priorityRank-b.priorityRank||
