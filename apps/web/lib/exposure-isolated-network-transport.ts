@@ -253,7 +253,6 @@ export function createIsolatedPassiveSocketTransport(
     await control("DNS_A",host,null);
     // Resolver timeout and retry are configured per instance. DNS
     // operations are separately charged, including AAAA.
-    resolver.setServers([]);
     const timer = AbortSignal.timeout(timeoutMs);
     const lookup = async <T>(query: Promise<T>): Promise<T> =>
       Promise.race([
@@ -266,10 +265,9 @@ export function createIsolatedPassiveSocketTransport(
       ]);
     const v4 = await lookup(resolver.resolve4(host))
       .catch(() => [] as string[]);
-    await control("DNS_AAAA",host,null);
-    const v6 = await lookup(resolver.resolve6(host))
-      .catch(() => [] as string[]);
-    return sanitizeAddressSet([...v4,...v6]);
+    // One A query per pinning resolution. IPv6 is deliberately not
+    // attempted until a separate quota and egress policy exists.
+    return sanitizeAddressSet(v4);
   };
   const collectDns = async (host: string,
     names: readonly string[], timeoutMs: number) => {
