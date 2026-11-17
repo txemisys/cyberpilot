@@ -31,7 +31,12 @@ export async function GET(request:NextRequest,context:Context){
       return NextResponse.json({artifact,providerCalls:0,
         customerCertified:false,historicalScoreWrites:0},{headers});
     }
-    return NextResponse.json({report,providerCalls:0,
+    const plan=planEvidenceReviewSprint({
+      report,startAt:report.evaluatedAt,capacity:40,
+      sourceLimit:8,domainLimit:12,
+    });
+    const portfolio=summarizeEvidenceReviewBacklog(report);
+    return NextResponse.json({report,plan,portfolio,providerCalls:0,
       customerCertified:false,historicalScoreWrites:0},{headers});
   }catch{return deny("EVIDENCE_TRIAGE_UNAVAILABLE",503);}
 }
