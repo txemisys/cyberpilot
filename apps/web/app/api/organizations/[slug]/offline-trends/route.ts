@@ -1,4 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
+import {buildTrendReviewPlan} from "../../../../../lib/offline-trend-review-plan";
 import {requireOrganizationAccess} from "../../../../../lib/organizations";
 import {collectOfflineLongitudinalTrends} from
  "../../../../../lib/offline-longitudinal-trends-service";
@@ -29,8 +30,9 @@ export async function GET(request:NextRequest,context:Context){
     format as "JSON"|"CSV"|"MARKDOWN"),
    providerCalls:0,v1Writes:0,customerImprovementCertified:false,
   },{headers});
+  const plan=buildTrendReviewPlan(report);
   return NextResponse.json({
-   report,providerCalls:0,v1Writes:0,
+   report,plan,providerCalls:0,v1Writes:0,
    customerImprovementCertified:false,
   },{headers});
  }catch{return deny("TREND_READER_UNAVAILABLE",503);}
