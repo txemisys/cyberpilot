@@ -314,6 +314,12 @@ export default async function OrganizationPage({
       </p>
 
       <section className="dashboard">
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+"/evidence-decisions"}>
+          Cola de revisión de evidencia y procedencia</Link></p>
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+"/offline-sla"}>
+          Plazos internos y escalados de seguimiento</Link></p>
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+"/offline-trends"}>
+          Histórico multifuente y comparabilidad de evaluaciones</Link></p>
         <p><Link href={"/organizations/" + encodeURIComponent(slug) +
           "/integrated-risks"}>Registro integrado de riesgos y evidencias</Link></p>
         <p><Link href={"/organizations/" + encodeURIComponent(slug) +
