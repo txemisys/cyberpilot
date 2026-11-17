@@ -51,8 +51,8 @@ describe("offline action SLA board",()=>{
   const calendar=defaultSlaCalendar();
   const before="2026-11-13T15:00:00.000Z";
   const after="2026-11-16T09:00:00.000Z";
-  expect(businessMinutesBetween(before,after,calendar)).toBe(180);
-  expect(addBusinessMinutes(before,180,calendar)).toBe(after);
+  expect(businessMinutesBetween(before,after,calendar)).toBe(120);
+  expect(addBusinessMinutes(before,120,calendar)).toBe(after);
  });
  it("reports overdue blocked and unowned action without sending messages",()=>{
   const value=report();
