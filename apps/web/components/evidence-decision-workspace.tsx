@@ -5,7 +5,12 @@ import type{
  EvidenceDecisionPriority,EvidenceSourceQuality,EvidenceDomainQuality
 }from "../lib/evidence-decision-engine";
 type View="PRIORITY"|"DOMAINS"|"SOURCES"|"INTEGRITY"|"EXPORT";
-type Response={report:EvidenceDecisionReport;providerCalls:0;
+type Response={report:EvidenceDecisionReport;
+ plan:{capacity:number;planned:Array<{decisionKey:string;
+ estimatedUnits:number;label:string;priority:EvidenceDecisionPriority}>;
+ deferred:Array<{decisionKey:string;reason:string}>};
+ portfolio:{backlogWithoutEvidence:number;decisions:number};
+ providerCalls:0;
  customerCertified:false;historicalScoreWrites:0};
 const priorities:EvidenceDecisionPriority[]=["P0","P1","P2","P3"];
 const card:React.CSSProperties={border:"1px solid #94a3b866",
@@ -89,6 +94,7 @@ export function EvidenceDecisionWorkspace({slug,organizationId}:{
  slug:string;organizationId:string;
 }){
  const [report,setReport]=useState<EvidenceDecisionReport|null>(null);
+ const [plan,setPlan]=useState<Response["plan"]|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const [notice,setNotice]=useState(""),[view,setView]=useState<View>("PRIORITY");
  const [search,setSearch]=useState(""),[source,setSource]=useState("ALL");
@@ -112,7 +118,9 @@ export function EvidenceDecisionWorkspace({slug,organizationId}:{
  body.report.schema!=="cyberpilot.evidence.decisions.v1"||
  body.report.complianceCertified!==false)
  throw Error("Cola de decisiones no verificable");
- setReport(body.report);setView("PRIORITY");setSelected("");
+ setReport(body.report);
+ setPlan(body.plan??null);
+ setView("PRIORITY");setSelected("");
  setNotice("Procedencia y decisiones reconciliadas desde PostgreSQL.");
  }catch(cause){
  setError(cause instanceof Error?cause.message:"Consulta fallida");
@@ -279,6 +287,16 @@ export function EvidenceDecisionWorkspace({slug,organizationId}:{
  </section>}
  {view==="EXPORT"&&<section style={card}>
  <h3>Alcance del expediente</h3>
+ {plan&&<section style={card}>
+ <h4>Plan de revisión de catorce días (propuesta)</h4>
+ <p>Capacidad máxima: {plan.capacity} unidades;
+ seleccionadas: {plan.planned.length};
+ diferidas: {plan.deferred.length}.</p>
+ <ol>{plan.planned.map(x=><li key={x.decisionKey}>
+ {x.priority} · {x.label} · {x.estimatedUnits} unidades
+ </li>)}</ol>
+ <p>El plan no realiza ninguna acción ni asigna responsables reales.</p>
+ </section>}
  <p>Incluye priorización operativa, referencias originales y
  descripción de la incertidumbre. No contiene llamadas
  a proveedores o secretos OAuth.</p>
