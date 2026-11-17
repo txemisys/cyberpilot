@@ -292,7 +292,7 @@ export function EvidenceDecisionWorkspace({slug,organizationId}:{
  {portfolio&&<p>Inventario de decisiones: {portfolio.decisions} ·
  decisiones sin evidencia referenciada:
  {portfolio.backlogWithoutEvidence}. La ausencia de referencias no
- equivale a un control aprobado.</p>
+ equivale a un control aprobado.</p>}
  {plan&&<section style={card}>
  <h4>Plan de revisión de catorce días (propuesta)</h4>
  <p>Capacidad máxima: {plan.capacity} unidades;
