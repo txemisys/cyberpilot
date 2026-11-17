@@ -95,6 +95,7 @@ export function EvidenceDecisionWorkspace({slug,organizationId}:{
 }){
  const [report,setReport]=useState<EvidenceDecisionReport|null>(null);
  const [plan,setPlan]=useState<Response["plan"]|null>(null);
+ const [portfolio,setPortfolio]=useState<Response["portfolio"]|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const [notice,setNotice]=useState(""),[view,setView]=useState<View>("PRIORITY");
  const [search,setSearch]=useState(""),[source,setSource]=useState("ALL");
@@ -120,6 +121,7 @@ export function EvidenceDecisionWorkspace({slug,organizationId}:{
  throw Error("Cola de decisiones no verificable");
  setReport(body.report);
  setPlan(body.plan??null);
+ setPortfolio(body.portfolio??null);
  setView("PRIORITY");setSelected("");
  setNotice("Procedencia y decisiones reconciliadas desde PostgreSQL.");
  }catch(cause){
@@ -287,6 +289,10 @@ export function EvidenceDecisionWorkspace({slug,organizationId}:{
  </section>}
  {view==="EXPORT"&&<section style={card}>
  <h3>Alcance del expediente</h3>
+ {portfolio&&<p>Inventario de decisiones: {portfolio.decisions} ·
+ decisiones sin evidencia referenciada:
+ {portfolio.backlogWithoutEvidence}. La ausencia de referencias no
+ equivale a un control aprobado.</p>
  {plan&&<section style={card}>
  <h4>Plan de revisión de catorce días (propuesta)</h4>
  <p>Capacidad máxima: {plan.capacity} unidades;
