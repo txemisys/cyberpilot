@@ -2,7 +2,11 @@
 import{useMemo,useState}from "react";
 import type{TrendReport,TrendPoint,TrendPair,
  TrendFinding,TrendSourceClass}from "../lib/offline-longitudinal-trends";
-type Envelope={report:TrendReport;providerCalls:0;
+type Envelope={report:TrendReport;
+ plan:{recommendations:Array<{id:string;urgency:string;
+ category:string;rationale:string;nextCheck:string}>;
+ summary:{blocks:number;reviews:number;tracking:number}};
+ providerCalls:0;
  v1Writes:0;customerImprovementCertified:false};
 type View="HISTORY"|"PAIRS"|"OPERATIONS"|"LIMITATIONS"|"INTEGRITY";
 const views:View[]=["HISTORY","PAIRS","OPERATIONS","LIMITATIONS","INTEGRITY"];
@@ -87,6 +91,7 @@ export function OfflineTrendWorkspace({slug,organizationId}:{
  slug:string;organizationId:string;
 }){
  const [report,setReport]=useState<TrendReport|null>(null);
+ const [plan,setPlan]=useState<Envelope["plan"]|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const [notice,setNotice]=useState(""),[view,setView]=useState<View>("HISTORY");
  const [source,setSource]=useState("ALL"),[model,setModel]=useState("ALL");
@@ -108,7 +113,8 @@ export function OfflineTrendWorkspace({slug,organizationId}:{
  body.report.schema!=="cyberpilot.offline.longitudinal.v1"||
  body.report.customerRiskReductionCertified!==false)
  throw Error("El historial no cumple el contrato de seguridad");
- setReport(body.report);setView("HISTORY");setPage(0);
+ setReport(body.report);setPlan(body.plan??null);
+ setView("HISTORY");setPage(0);
  setNotice("Historial reconstruido desde snapshots v2 y eventos de acciones.");
  }catch(cause){setError(cause instanceof Error?cause.message:
  "Lectura histórica fallida");setReport(null);}
@@ -271,6 +277,15 @@ export function OfflineTrendWorkspace({slug,organizationId}:{
  </section>}
  {view==="LIMITATIONS"&&<section style={card}>
  <h3>Incidencias de comparabilidad</h3>
+ {plan&&<article style={card}>
+ <h4>Plan de revisión histórica</h4>
+ <p>Bloqueos: {plan.summary.blocks} · revisiones:
+ {plan.summary.reviews} · seguimiento: {plan.summary.tracking}.</p>
+ {plan.recommendations.map(x=><p key={x.id}>
+ <strong>{x.urgency}: {x.category}</strong> ·
+ {x.rationale} Próximo control: {x.nextCheck}</p>)}
+ <p>Las recomendaciones no constituyen aceptación operativa.</p>
+ </article>}
  <label>Gravedad{" "}<select value={findingsLevel}
  onChange={e=>setFindingsLevel(e.target.value)}>
  <option value="ALL">Todas</option>
