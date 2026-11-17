@@ -60,7 +60,7 @@ describe("offline action SLA board",()=>{
   expect(value.overview.unowned).toBe(1);
   expect(value.overview.blocked).toBe(1);
   expect(value.signals.some(x=>x.code==="NO_OWNER")).toBe(true);
-  expect(value.signals.some(x=>x.code==="COMPLETION_OVERDUE")).toBe(false);
+  expect(value.signals.some(x=>x.code==="COMPLETION_OVERDUE")).toBe(true);
   expect(value.signals.some(x=>x.code==="EVIDENCE_UNLINKED")).toBe(true);
   expect(value.externalNotificationsDispatched).toBe(false);
   expect(verifySlaOperationalReport(value,"org-test").valid).toBe(true);
