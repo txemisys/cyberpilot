@@ -34,7 +34,7 @@ test("offline SME triage, SLA and historical assessment journey",async({page})=>
   "Procedencia y decisiones reconciliadas desde PostgreSQL."))
   .toBeVisible();
  await expect(page.getByText(/NO_DATA|REVIEW_REQUIRED|BLOCKED/)).toBeVisible();
- await page.getByRole("button",{name:"EXPORT"}).click();
+ await page.getByRole("button",{name:"EXPORT",exact:true}).click();
  await expect(page.getByText("No emitir conclusiones de seguridad",
   {exact:false})).toBeVisible();
 
