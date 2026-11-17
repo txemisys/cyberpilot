@@ -165,7 +165,8 @@ function decision(input:{
 }):EvidenceDecision{
   const control=input.control,risk=input.risk;
   const p=priority(input.code,risk?.severity);
-  const sources=control?.sources??(risk?[risk.source]:["UNKNOWN"]);
+  const sources:IntegratedEvidenceSource[]=control?.sources??
+    (risk?[risk.source]:["UNKNOWN"]);
   const scope=control?.scope??risk?.scope??"UNVERIFIED";
   const controlId=control?.controlId??risk?.controlId??"UNKNOWN";
   const domain=control?.domain??risk?.domain??"UNMAPPED";
