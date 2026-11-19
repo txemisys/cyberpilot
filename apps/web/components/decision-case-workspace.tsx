@@ -191,8 +191,7 @@ export function DecisionCaseWorkspace({slug,organizationId,canWrite}:{
  </div>
  <p>Estado de fuente actual: {data.currentDecisionCount} decisiones;
  digest <code>{data.currentDecisionReportDigest}</code>.</p>
- <div style={row}>{(["BOARD","CREATE","DETAIL","HISTORY","QUALITY"]
- as View[]).map(x=><button key={x} style={{...action,
+ <div style={row}>{(["BOARD","CREATE","DETAIL","HISTORY","QUALITY"] as View[]).map(x=><button key={x} style={{...action,
  fontWeight:view===x?750:400}} onClick={()=>setView(x)}>{x}</button>)}</div>
  </section>
  {view==="CREATE"&&<section style={card}>
