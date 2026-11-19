@@ -314,6 +314,12 @@ export default async function OrganizationPage({
       </p>
 
       <section className="dashboard">
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+          "/decision-cases"}>Casos de decisión auditados y seguimiento</Link></p>
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+          "/offline-captures"}>Capturas históricas inmutables de informes</Link></p>
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+          "/offline-recovery"}>Ensayos de integridad y recuperación offline</Link></p>
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+"/evidence-decisions"}>
           Cola de revisión de evidencia y procedencia</Link></p>
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+"/offline-sla"}>

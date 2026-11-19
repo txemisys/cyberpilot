@@ -244,6 +244,10 @@ model Organization {
   exposureExecutionCharges ExposureExecutionCharge[]
   integratedRiskActions IntegratedRiskAction[]
   integratedRiskActionEvents IntegratedRiskActionEvent[]
+  evidenceDecisionCases EvidenceDecisionCase[]
+  evidenceDecisionEvents EvidenceDecisionCaseEvent[]
+  offlineReportCaptures OfflineReportCapture[]
+  offlineRecoveryRehearsals OfflineRecoveryRehearsal[]
   remediations             Remediation[]
   securityEvidence         SecurityEvidence[]
   remediationWorkItems      RemediationWorkItem[]
@@ -1887,4 +1891,84 @@ model IntegratedRiskActionEvent {
   action IntegratedRiskAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
   @@unique([actionId, revision])
   @@index([organizationId, actionId, occurredAt])
+}
+
+/** A source-bound, tenant-scoped review decision, not verified remediation. */
+model EvidenceDecisionCase {
+  id String @id @default(cuid())
+  organizationId String
+  decisionKey String @db.VarChar(64)
+  sourceReportDigest String @db.VarChar(64)
+  code String @db.VarChar(48)
+  priority String @db.VarChar(8)
+  domain String @db.VarChar(120)
+  controlId String @db.VarChar(160)
+  scope String @db.VarChar(250)
+  evidenceIds Json
+  findingIds Json
+  relatedActionId String?
+  ownerUserId String?
+  status String @default("OPEN") @db.VarChar(20)
+  reviewNote String?
+  dueAt DateTime?
+  revision Int @default(1)
+  createdById String
+  updatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events EvidenceDecisionCaseEvent[]
+  @@unique([organizationId, decisionKey])
+  @@index([organizationId, status, dueAt])
+  @@index([organizationId, ownerUserId, status])
+}
+
+/** Immutable revision history, scoped by parent tenant and protected by CAS. */
+model EvidenceDecisionCaseEvent {
+  id String @id @default(cuid())
+  organizationId String
+  caseId String
+  revision Int
+  kind String @db.VarChar(32)
+  previousStatus String @db.VarChar(20)
+  nextStatus String @db.VarChar(20)
+  actorUserId String
+  snapshotDigest String @db.VarChar(64)
+  occurredAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  case EvidenceDecisionCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  @@unique([caseId, revision])
+  @@index([organizationId, caseId, occurredAt])
+}
+
+/** Immutable on-demand report capture; checksum is not external attestation. */
+model OfflineReportCapture {
+  id String @id @default(cuid())
+  organizationId String
+  kind String @db.VarChar(32)
+  schemaVersion String @db.VarChar(80)
+  originalDigest String @db.VarChar(64)
+  payloadDigest String @db.VarChar(64)
+  payload Json
+  sourceComplete Boolean
+  createdById String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, kind, payloadDigest])
+  @@index([organizationId, kind, createdAt])
+}
+
+/** Explicit offline integrity rehearsal, not a real DB disaster restore. */
+model OfflineRecoveryRehearsal {
+  id String @id @default(cuid())
+  organizationId String
+  captureIds Json
+  manifest Json
+  manifestDigest String @db.VarChar(64)
+  status String @db.VarChar(24)
+  failures Json
+  createdById String
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@index([organizationId, createdAt])
 }
