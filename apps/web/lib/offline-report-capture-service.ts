@@ -15,7 +15,7 @@ import{
 export class OfflineCaptureError extends Error{
  constructor(public readonly code:string){super(code);}
 }
-const fail=(code:string):never=>{throw new OfflineCaptureError(code);};
+function fail(code:string):never{throw new OfflineCaptureError(code);}
 const id=(x:string)=>typeof x==="string"&&
  /^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/.test(x);
 const digest=(x:string)=>typeof x==="string"&&/^[a-f0-9]{64}$/.test(x);
