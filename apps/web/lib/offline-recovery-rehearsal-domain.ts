@@ -314,7 +314,7 @@ export function buildOfflineRecoveryRehearsal(input:{
  const unverifiable=gates.filter(x=>x.status==="NOT_VERIFIED");
  const actualBlockers=gates.filter(x=>x.status==="BLOCK"&&
  x.id!=="DATABASE_RESTORE"&&x.id!=="LIVE_AUTHORIZATION");
- const status=actualBlockers.length?"BLOCKED":
+ const status:OfflineRecoveryRehearsal["status"]=actualBlockers.length?"BLOCKED":
  captures.length===0||missing.length?"INCOMPLETE":"PASS";
  const overview={
  selectedCaptures:captures.length,
