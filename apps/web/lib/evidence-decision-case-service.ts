@@ -1,5 +1,6 @@
 import{db,type Prisma}from "@cyberpilot/database";
 import{collectEvidenceDecisionReport}from "./evidence-decision-service";
+import{collectIntegratedRiskDigest}from "./integrated-risk-service";
 import type{IntegratedReviewer}from "./integrated-risk-service";
 import{
  createDecisionCaseSnapshot,caseCreationEvent,
@@ -77,24 +78,33 @@ async function verifyOwner(organizationId:string,userId:string|null){
  if(!member)fail("CASE_OWNER_NOT_TENANT_MEMBER");
 }
 async function verifyRelatedAction(
- organizationId:string,actionId:string|null,decisionFindingIds:string[],
+ actor:IntegratedReviewer,actionId:string|null,decisionFindingIds:string[],
 ){
  if(actionId===null)return;
  if(!id(actionId))fail("CASE_ACTION_ID_INVALID");
- const action=await db.integratedRiskAction.findFirst({
- where:{organizationId,id:actionId},
- select:{riskKey:true,evidenceRefs:true},
- });
- if(!action)fail("CASE_ACTION_NOT_IN_TENANT");
  if(!decisionFindingIds.length)
  fail("CASE_ACTION_MUST_HAVE_ORIGINAL_FINDING");
- // An action can be bound only if its persisted source risk is present
- // in the current integrated register and shares an original finding.
+ const organizationId=actor.organizationId;
+ const action=await db.integratedRiskAction.findFirst({
+ where:{organizationId,id:actionId},
+ select:{riskKey:true},
+ });
+ if(!action)fail("CASE_ACTION_NOT_IN_TENANT");
+ // Recompute the current risk identity from persisted sources; never
+ // trust a client-supplied action ID or a matching title.
+ const report=await collectIntegratedRiskDigest(actor);
+ if(report.state==="INCOMPLETE")
+ fail("CASE_RISK_SOURCE_INCOMPLETE");
+ const matching=report.risks.find(risk=>
+ risk.key===action.riskKey&&risk.sourceFindingIds.some(sourceId=>
+ decisionFindingIds.includes(sourceId)));
+ if(!matching)
+ fail("CASE_ACTION_SOURCE_FINDINGS_DO_NOT_MATCH");
  const linked=await db.securityFinding.findMany({
  where:{organizationId,id:{in:decisionFindingIds}},
  select:{id:true},
  });
- if(linked.length===0)fail("CASE_FINDING_NOT_IN_TENANT");
+ if(!linked.length)fail("CASE_FINDING_NOT_IN_TENANT");
 }
 export type NewDecisionCase={
  decisionKey:string;ownerUserId:string|null;
@@ -158,7 +168,7 @@ export async function createEvidenceDecisionCase(
  const decision=report.decisions.find(x=>x.key===input.decisionKey);
  if(!decision||decision.code==="QUARANTINE")
  fail("CASE_DECISION_NOT_CURRENT");
- await verifyRelatedAction(actor.organizationId,
+ await verifyRelatedAction(actor,
  input.relatedActionId,decision.supportingFindingIds);
  const existing=await db.evidenceDecisionCase.findUnique({
  where:{organizationId_decisionKey:{
@@ -229,7 +239,7 @@ export async function updateEvidenceDecisionCase(
  if(!current)fail("CASE_NOT_IN_TENANT");
  if(command.kind==="LINK_ACTION"&&
  command.relatedActionId!==undefined)
- await verifyRelatedAction(actor.organizationId,command.relatedActionId,
+ await verifyRelatedAction(actor,command.relatedActionId,
  refs(current.findingIds));
  const transition:DecisionCaseTransition={
  organizationId:actor.organizationId,caseId:current.id,
