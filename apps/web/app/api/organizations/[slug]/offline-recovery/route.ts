@@ -94,7 +94,7 @@ export async function POST(request:NextRequest,context:Context){
  {expectedCaptureDigests:cmd.expectedCaptureDigests as Record<string,string>}:
  {}),
  ...(Object.hasOwn(cmd,"policy")?
- {policy:cmd.policy as Parameters<typeof runOfflineRecoveryRehearsal>[1]["policy"]}:
+ {policy:cmd.policy as NonNullable<Parameters<typeof runOfflineRecoveryRehearsal>[1]["policy"]>}:
  {}),
  });
  return NextResponse.json({
