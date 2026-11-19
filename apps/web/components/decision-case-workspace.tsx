@@ -8,7 +8,7 @@ type Row={
  correlation:Array<{caseId:string;decisionKey:string;
  decisionStillPresent:boolean;sourceReportChanged:boolean;
  evidenceIdsChanged:boolean;findingIdsChanged:boolean}>;
- currentDecisionReportDigest:string};
+ currentDecisionReportDigest:string;currentDecisionCount:number};
  providerCalls:0;remediationVerified:false;
  customerApprovalCreated:false;scoreV1Modified:false;
 };
