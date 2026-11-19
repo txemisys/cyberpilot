@@ -174,8 +174,7 @@ export function OfflineCaptureWorkspace({slug,organizationId,canWrite}:{
  <p>Listo para ensayo de desarrollo: {
  String(manifest?.readyForDevelopmentRehearsal??false)}</p>
  <p>Listo para aprobación LIVE: <strong>NO</strong>.</p>
- <div style={row}>{(["INVENTORY","NEW","COMPARE","AUDIT","DETAIL"]
- as View[]).map(x=><button key={x}
+ <div style={row}>{(["INVENTORY","NEW","COMPARE","AUDIT","DETAIL"] as View[]).map(x=><button key={x}
  style={{...action,fontWeight:view===x?750:400}}
  onClick={()=>setView(x)}>{x}</button>)}</div>
  </section>
