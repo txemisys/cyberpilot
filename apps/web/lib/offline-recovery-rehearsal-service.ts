@@ -11,7 +11,7 @@ import type{OfflineCapture}from "./offline-report-capture-domain";
 export class RecoveryRehearsalError extends Error{
  constructor(public readonly code:string){super(code);}
 }
-const fail=(code:string):never=>{throw new RecoveryRehearsalError(code);};
+function fail(code:string):never{throw new RecoveryRehearsalError(code);}
 const id=(x:string)=>typeof x==="string"&&
  /^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/.test(x);
 const iso=(x:string)=>typeof x==="string"&&
