@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { requireOrganizationAccess } from "../../../../../lib/organizations";
-import { IncidentAssetsWorkspace } from "../../../../../components/incident-assets-workspace";
+import { requireOrganizationAccess } from "../../../../../../lib/organizations";
+import { IncidentAssetsWorkspace } from "../../../../../../components/incident-assets-workspace";
 export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string; incidentId: string }> };
 export default async function IncidentAssetsPage({ params }: Props) {
