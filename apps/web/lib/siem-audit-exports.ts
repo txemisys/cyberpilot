@@ -20,10 +20,14 @@ const ascii = (value: string) => value.normalize("NFKC")
 function ecs(event: PortableAuditEvent) {
   const severity = { INFORMATIONAL: 1, LOW: 2, MEDIUM: 4,
     HIGH: 6, CRITICAL: 8 }[event.severity];
+  const ecsCategory = ({ AUTHENTICATION: "authentication", AUTHORIZATION: "iam",
+    CONSENT: "iam", REMEDIATION: "configuration", EVIDENCE: "configuration",
+    INCIDENT: "intrusion_detection", INTEGRATION: "configuration",
+    CONFIGURATION: "configuration", GENERAL: "configuration" } as const)[event.category];
   return { "@timestamp": event.occurredAt,
     "ecs": { version: "8.11.0" },
     "event": { id: event.eventId,
-      kind: "event", category: [event.category.toLowerCase()],
+      kind: "event", category: [ecsCategory],
       type: ["info"], action: event.action, severity,
       provider: "cyberpilot", dataset: "cyberpilot.audit", module: "cyberpilot" },
     "observer": { vendor: "CyberPilot", product: "CyberPilot" },
@@ -56,9 +60,10 @@ function cef(event: PortableAuditEvent) {
     ...(event.actorReference ? ["suser=" + ascii(event.actorReference)] : []),
     ...(event.resourceReference ? ["cs6Label=ResourceReference",
       "cs6=" + ascii(event.resourceReference)] : []),
-    ...Object.entries(event.metadataFields).slice(0, 12).map(([k, v]) =>
-      "flexString" + (Object.keys(event.metadataFields).indexOf(k) + 1) + "=" +
-        ascii(String(v))),
+    ...Object.entries(event.metadataFields).slice(0, 2).flatMap(([k, v], index) => [
+      "flexString" + (index + 1) + "Label=" + ascii(k),
+      "flexString" + (index + 1) + "=" + ascii(String(v)),
+    ]),
   ].join(" ");
   return "CEF:0|CyberPilot|CyberPilot|1|AUDIT_EVENT|" +
     ascii(event.action) + "|" + numericSeverity + "|" + extension;
