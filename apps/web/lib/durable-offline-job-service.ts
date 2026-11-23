@@ -13,7 +13,7 @@ import { admittedJob, admissionEvent, jobDigest, applyJobCommand,
 export class DurableJobError extends Error {
   constructor(public readonly code: string) { super(code); }
 }
-const fail = (code: string): never => { throw new DurableJobError(code); };
+function fail(code: string): never { throw new DurableJobError(code); }
 const ident = (v: unknown): v is string => typeof v === "string" &&
   /^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/.test(v);
 type Row = NonNullable<Awaited<ReturnType<typeof db.durableOfflineJob.findFirst>>>;
