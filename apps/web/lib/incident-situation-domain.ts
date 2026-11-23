@@ -360,7 +360,7 @@ export function buildIncidentSituation(input: SituationInput): IncidentSituation
     concerns.filter(x => x.urgency === "P0").length * 8 +
     concerns.filter(x => x.urgency === "P1").length * 3 +
     sourceSummaries.filter(x => x.availability !== "PRESENT").length * 5);
-  const completeness = sourceSummaries.every(x =>
+  const completeness: IncidentSituation["completeness"] = sourceSummaries.every(x =>
     x.availability === "ABSENT") ? "UNKNOWN" :
     sourceSummaries.some(x => x.availability !== "PRESENT" ||
       x.truncated || x.missingCount > 0) ? "PARTIAL" : "EXPLICIT_SCOPE_ONLY";
