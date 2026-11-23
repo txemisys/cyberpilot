@@ -3,6 +3,7 @@ import{useMemo,useState}from "react";
 import type{DecisionCaseBoard,DecisionCaseSnapshot,
  DecisionCaseCommand}from "../lib/evidence-decision-case-domain";
 import type{EvidenceDecisionReport}from "../lib/evidence-decision-engine";
+import type{IntegratedRiskDigest}from "../lib/integrated-risk-engine";
 type Row={
  data:{organizationId:string;board:DecisionCaseBoard;
  correlation:Array<{caseId:string;decisionKey:string;
@@ -62,6 +63,12 @@ export function DecisionCaseWorkspace({slug,organizationId,canWrite}:{
  const [modifyDate,setModifyDate]=useState("");
  const [modifyLink,setModifyLink]=useState("");
  const [limit,setLimit]=useState(30);
+ const [handoffRisks,setHandoffRisks]=useState<IntegratedRiskDigest|null>(null);
+ const [handoffKey,setHandoffKey]=useState("");
+ const [handoffPriority,setHandoffPriority]=useState<"LOW"|"NORMAL"|"HIGH"|"URGENT">("NORMAL");
+ const [handoffOwner,setHandoffOwner]=useState("");
+ const [handoffDue,setHandoffDue]=useState("");
+ const [handoffRationale,setHandoffRationale]=useState("");
  const route="/api/organizations/"+encodeURIComponent(slug)+"/decision-cases";
  const source="/api/organizations/"+encodeURIComponent(slug)+
  "/evidence-decisions";
@@ -134,6 +141,57 @@ export function DecisionCaseWorkspace({slug,organizationId,canWrite}:{
  if(kind==="LINK_ACTION")body.relatedActionId=modifyLink.trim()||null;
  await post(body);await refresh();
  setReason("");setNotice("Transición CAS auditada, sin ejecución externa.");
+ });
+ const loadHandoffRisks=()=>execute(async()=>{
+   if(!canWrite)throw Error("No autorizado para crear acciones");
+   const res=await fetch("/api/organizations/"+
+     encodeURIComponent(slug)+"/integrated-risks",{cache:"no-store"});
+   const body=await res.json() as {
+     report?:IntegratedRiskDigest;liveProviderCalls?:number;
+     legacyScoreWrites?:number;customerApprovalSigned?:boolean;
+   };
+   if(!res.ok||body.report?.organizationId!==organizationId||
+     body.report.state==="INCOMPLETE"||body.liveProviderCalls!==0||
+     body.legacyScoreWrites!==0||body.customerApprovalSigned!==false)
+     throw Error("No hay registro de riesgos de origen comprobable");
+   setHandoffRisks(body.report);
+   setNotice("Riesgos cargados desde el registro de la organización.");
+ });
+ const handoff=()=>execute(async()=>{
+   if(!canWrite)throw Error("No autorizado");
+   const item=data?.board.cases.find(x=>x.caseId===selected);
+   const risk=handoffRisks?.risks.find(x=>x.key===handoffKey);
+   if(!item||item.relatedActionId||!risk||risk.status!=="OPEN"||
+     !risk.sourceFindingIds.some(x=>item.findingIds.includes(x)))
+     throw Error("El riesgo debe compartir un hallazgo original del caso");
+   const res=await fetch("/api/organizations/"+
+     encodeURIComponent(slug)+"/case-action-handoff",{
+       method:"POST",cache:"no-store",
+       headers:{"Content-Type":"application/json"},
+       body:JSON.stringify({
+         caseId:item.caseId,expectedRevision:item.revision,
+         riskKey:risk.key,priority:handoffPriority,
+         ownerUserId:handoffOwner.trim()||null,
+         dueAt:handoffDue?new Date(handoffDue).toISOString():null,
+         rationale:handoffRationale.trim()||null,
+       }),
+     });
+   const body=await res.json() as {
+     code?:string;data?:{organizationId:string;caseId:string;
+       actionId:string;providerWrites:0;independentlyVerifiedRemediation:false;
+       customerConsentEstablished:false;cyberScoreV1Writes:0};
+     providerWrites?:number;independentlyVerifiedRemediation?:boolean;
+     customerConsentEstablished?:boolean;cyberScoreV1Writes?:number;
+   };
+   if(!res.ok)throw Error(body.code??"Enlace atómico rechazado");
+   if(body.data?.organizationId!==organizationId||
+     body.data.caseId!==item.caseId||!body.data.actionId||
+     body.providerWrites!==0||body.independentlyVerifiedRemediation!==false||
+     body.customerConsentEstablished!==false||body.cyberScoreV1Writes!==0)
+     throw Error("Respuesta de traspaso incompatible con seguridad");
+   await refresh();setHandoffRisks(null);setHandoffKey("");
+   setHandoffRationale("");
+   setNotice("Acción y enlace auditados de forma atómica. Sin remediación LIVE.");
  });
  const exportFile=(format:"JSON"|"CSV"|"MARKDOWN")=>execute(async()=>{
  const res=await fetch(route+"?format="+format,{cache:"no-store"});
@@ -268,6 +326,41 @@ export function DecisionCaseWorkspace({slug,organizationId,canWrite}:{
  <p>Evidencias originales: {current.evidenceIds.length} ·
  hallazgos originales: {current.findingIds.length}</p>
  <p>Acción relacionada: {current.relatedActionId??"Ninguna"}</p>
+ {canWrite&&!current.relatedActionId&&<>
+ <h4>Crear y enlazar una acción desde un riesgo comprobado</h4>
+ <p>Transacción única con revisión CAS y eventos inmutables;
+ solo se admiten riesgos abiertos que compartan hallazgos originales.</p>
+ <button style={action} disabled={busy} onClick={loadHandoffRisks}>
+ Buscar riesgos de origen persistido</button>
+ {handoffRisks&&<div style={card}>
+ <label>Riesgo relacionado{" "}
+ <select value={handoffKey} onChange={e=>setHandoffKey(e.target.value)}>
+ <option value="">Selecciona riesgo comprobable</option>
+ {handoffRisks.risks.filter(x=>x.status==="OPEN"&&
+ x.sourceFindingIds.some(y=>current.findingIds.includes(y)))
+ .map(x=><option key={x.key} value={x.key}>
+ {x.severity} · {x.title}</option>)}
+ </select></label>
+ <div style={row}>
+ <label>Prioridad{" "}
+ <select value={handoffPriority} onChange={e=>
+ setHandoffPriority(e.target.value as typeof handoffPriority)}>
+ {(["LOW","NORMAL","HIGH","URGENT"] as const).map(x=>
+ <option key={x} value={x}>{x}</option>)}</select></label>
+ <label>Responsable{" "}
+ <input value={handoffOwner} onChange={e=>setHandoffOwner(e.target.value)}/>
+ </label>
+ <label>Fecha objetivo{" "}
+ <input type="datetime-local" value={handoffDue}
+ onChange={e=>setHandoffDue(e.target.value)}/></label>
+ </div>
+ <label>Justificación{" "}
+ <textarea value={handoffRationale} maxLength={2000} rows={3}
+ onChange={e=>setHandoffRationale(e.target.value)}/></label>
+ <button style={action} disabled={!handoffKey||busy} onClick={handoff}>
+ Crear o reutilizar acción y enlazar caso</button>
+ </div>}
+ </>}
  <p>Fecha objetivo: {current.dueAt??"Sin fecha"}</p>
  {quality&&<p>Decisión todavía presente:
  {String(quality.decisionStillPresent)} ·
