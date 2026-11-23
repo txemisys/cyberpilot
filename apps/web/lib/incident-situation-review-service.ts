@@ -9,7 +9,7 @@ import {
   validateSituationReviewHistory, situationReviewDigest,
   compareSituationReviewSources,
   type SituationReviewSnapshot, type SituationReviewEvent,
-  type SituationReviewCommand,
+  type SituationReviewCommand, type SituationReviewRole,
 } from "./incident-situation-review-domain";
 
 export class SituationReviewServiceError extends Error {
@@ -109,7 +109,8 @@ export async function createPersistedSituationReview(
     fail("SITUATION_REVIEW_CASE_DRIFT");
   const now = new Date().toISOString();
   const { snapshot, event } = createSituationReview(
-    requestedId, situationRead.situation, actor.userId, actor.role, now,
+    requestedId, situationRead.situation, actor.userId,
+    actor.role as SituationReviewRole, now,
   );
   return db.$transaction(async tx => {
     const current = await tx.guidedIncidentCase.findFirst({
@@ -157,7 +158,8 @@ export async function mutatePersistedSituationReview(
     fail("SITUATION_REVIEW_INCIDENT_MOVED");
   const { snapshot: next, event } = applySituationReview(previous, {
     ...command, organizationId: actor.organizationId,
-    actorId: actor.userId, role: actor.role, at: new Date().toISOString(),
+    actorId: actor.userId, role: actor.role as SituationReviewRole,
+    at: new Date().toISOString(),
     incidentId: previous.incidentId,
   });
   return db.$transaction(async tx => {
