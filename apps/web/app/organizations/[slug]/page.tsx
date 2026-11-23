@@ -315,6 +315,8 @@ export default async function OrganizationPage({
 
       <section className="dashboard">
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+          "/incident-assurance"}>Preparación y aseguramiento de incidentes</Link></p>
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+
           "/incident-tabletop"}>Simulador de los cinco playbooks</Link></p>
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+
           "/incident-situation"}>Sala de situación de incidentes</Link></p>
