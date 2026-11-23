@@ -146,7 +146,8 @@ export function startPersistedTabletopSession(input:{
   const scenario=generateTabletopScenario({
     id:"scenario-"+input.id,organizationId:input.organizationId,
     type:input.type,title:input.title,seed:input.seed,at:input.at,
-    faultCount:input.faultCount,additionalFaults:input.additionalFaults,
+    faultCount:input.faultCount,
+    ...(input.additionalFaults?{additionalFaults:input.additionalFaults}:{}),
   });
   const session:PersistedTabletopSession={
     schema:"cyberpilot.incident.tabletop.session.v1",
@@ -193,7 +194,7 @@ export function evolvePersistedTabletopSession(
   const author=original.participants.find(x=>x.userId===action.userId&&x.active);
   if(!author||author.permissions==="OBSERVER")
     fail("TABLETOP_SESSION_PARTICIPANT_DENIED");
-  const facilitator=author.permissions==="FACILITATOR"&&
+  const facilitator=author!.permissions==="FACILITATOR"&&
     original.facilitatorId===action.userId;
   const next:PersistedTabletopSession={
     ...original,revision:original.revision+1,updatedAt:command.at,
@@ -219,7 +220,7 @@ export function evolvePersistedTabletopSession(
     const participant=next.participants.find(x=>x.userId===action.participantId);
     if(!participant||!participant.active)
       fail("TABLETOP_SESSION_PARTICIPANT_NOT_FOUND");
-    participant.active=false;
+    participant!.active=false;
   }else if(action.kind==="TRANSFER_FACILITATOR"){
     if(!facilitator||action.participantId===action.userId)
       fail("TABLETOP_SESSION_TRANSFER_DENIED");
@@ -227,10 +228,10 @@ export function evolvePersistedTabletopSession(
       x.userId===action.participantId&&x.active&&
       x.permissions!=="OBSERVER");
     if(!replacement)fail("TABLETOP_SESSION_TRANSFER_TARGET_INVALID");
-    next.facilitatorId=replacement.userId;
+    next.facilitatorId=replacement!.userId;
     const old=next.participants.find(x=>x.userId===action.userId)!;
     old.permissions="PARTICIPANT";
-    replacement.permissions="FACILITATOR";
+    replacement!.permissions="FACILITATOR";
   }else if(action.kind==="PAUSE"){
     if(!facilitator||original.state!=="ACTIVE")
       fail("TABLETOP_SESSION_PAUSE_DENIED");
@@ -240,7 +241,7 @@ export function evolvePersistedTabletopSession(
       fail("TABLETOP_SESSION_RESUME_DENIED");
     next.state="ACTIVE";
   }else if(action.kind==="PLAY"){
-    if(original.state!=="ACTIVE"||author.role!==action.move.actorRole)
+    if(original.state!=="ACTIVE"||author!.role!==action.move.actorRole)
       fail("TABLETOP_SESSION_MOVE_ROLE_OR_STATE_DENIED");
     if(action.move.at!==command.at)
       fail("TABLETOP_SESSION_CLOCK_MISMATCH");
