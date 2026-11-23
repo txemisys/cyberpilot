@@ -55,7 +55,7 @@ describe("durable tabletop training session",()=>{
       at:t1,assertedIndependentEvidence:false,
       assertedExternalCompletion:false,
     }},event.eventDigest);
-    expect(changed.session.moveReceipts[0].accepted).toBe(false);
+    expect(changed.session.moveReceipts[0]!.accepted).toBe(false);
     expect(changed.session.exercise.unsafeOperationsBlocked).toBe(1);
     expect(changed.session.exercise.externalProviderWrites).toBe(0);
     expect(deterministicTabletopSessionReplay(changed.session).identical)
