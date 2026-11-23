@@ -100,6 +100,11 @@ describe("durable tabletop training session",()=>{
       providerContainmentProven:true as false}))
       .toContain("SESSION_FALSE_PROVIDER_CLAIM");
     expect(tabletopSessionDigest(paused.session)).toMatch(/^[0-9a-f]{64}$/);
+    const jsonbRoundtrip=reorderJsonb(paused.session) as typeof paused.session;
+    expect(verifyPersistedTabletopSession(jsonbRoundtrip)).toEqual([]);
+    expect(deterministicTabletopSessionReplay(jsonbRoundtrip).identical).toBe(true);
+    expect(tabletopSessionDigest(jsonbRoundtrip))
+      .toBe(tabletopSessionDigest(paused.session));
   });
   it("records debrief but no independent proof, rejects post-debrief moves",()=>{
     const {session,event}=genesis();
