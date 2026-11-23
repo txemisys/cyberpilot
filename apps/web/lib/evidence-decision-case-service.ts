@@ -26,7 +26,7 @@ type DbCase=NonNullable<Awaited<ReturnType<
  typeof db.evidenceDecisionCase.findFirst>>>;
 type DbEvent=Awaited<ReturnType<
  typeof db.evidenceDecisionCaseEvent.findMany>>[number];
-function mapCase(row:DbCase):DecisionCaseSnapshot{
+export function mapCase(row:DbCase):DecisionCaseSnapshot{
  return{
  caseId:row.id,organizationId:row.organizationId,
  decisionKey:row.decisionKey,sourceReportDigest:row.sourceReportDigest,
