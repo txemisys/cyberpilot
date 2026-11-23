@@ -1,0 +1,28 @@
+import {test,expect} from "@playwright/test";
+test("offline case-action review and capture timeline in LAB browser",async({page})=>{
+ const stamp=Date.now().toString(36);
+ await page.goto("/login");
+ await page.getByLabel("Name").fill("CCC Reviewer");
+ await page.getByLabel("Email").fill("ccc-review-"+stamp+"@cyberpilot.local");
+ await page.getByLabel("Password").fill("CccLab2026!");
+ await page.getByRole("button",{name:"Create Lab account"}).click();
+ await expect(page.getByRole("heading",{name:"Security workspace"})).toBeVisible();
+ await page.getByRole("link",{name:"Create an organization"}).click();
+ await page.getByLabel("Organization name").fill("CCC LAB "+stamp);
+ await page.getByRole("button",{name:"Create organization"}).click();
+ const root=new URL(page.url()).pathname.replace(/\/$/,"");
+ await page.getByRole("button",{name:"Start Microsoft 365 Lab"}).click();
+ await page.getByRole("button",{name:"Re-evaluate lab"}).click();
+ await page.goto(root+"/case-action-review");
+ await expect(page.getByRole("heading",{name:"Relaciones entre casos y acciones"})).toBeVisible();
+ await page.getByRole("button",{name:"Conciliar con fuentes persistidas"}).click();
+ await expect(page.getByText("Casos y riesgos reconciliados con PostgreSQL.")).toBeVisible();
+ await page.goto(root+"/offline-capture-timeline");
+ await expect(page.getByRole("heading",{name:"Serie de capturas y evolución de procedencia"})).toBeVisible();
+ await page.getByRole("button",{name:"Consultar histórico"}).click();
+ await expect(page.getByText("Serie obtenida exclusivamente de capturas PostgreSQL.")).toBeVisible();
+ await page.goto(root+"/offline-recovery-faults");
+ await expect(page.getByRole("heading",{name:"Fallos simulados sobre artefactos archivados"})).toBeVisible();
+ await page.getByRole("button",{name:"Ejecutar matriz de fallos"}).click();
+ await expect(page.getByText("Fallos ejecutados en memoria; cero escrituras SQL.")).toBeVisible();
+});
