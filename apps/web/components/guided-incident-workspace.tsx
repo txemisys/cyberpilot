@@ -1,11 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getIncidentPlaybook, catalogIncidentPlaybooks,
-  type IncidentType } from "../lib/incident-playbook-catalog";
+import type { IncidentType, IncidentPlaybook } from "../lib/incident-playbook-catalog";
 import type { IncidentSnapshot } from "../lib/incident-case-domain";
 
-type Page = { cases: IncidentSnapshot[]; total: number; nextOffset: number | null };
-const catalog = catalogIncidentPlaybooks();
+type Page = { cases: IncidentSnapshot[]; total: number; nextOffset: number | null; playbooks: IncidentPlaybook[] };
 export function GuidedIncidentWorkspace({ slug, mayWrite }: {
   slug: string; mayWrite: boolean;
 }) {
