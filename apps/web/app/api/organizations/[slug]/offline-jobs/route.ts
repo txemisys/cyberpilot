@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOrganizationAccess } from "../../../../../lib/organizations";
 import { enqueueOfflineJob, claimOfflineJob, executeClaimedOfflineJob,
   heartbeatOfflineJob, cancelOfflineJob, recoverExpiredOfflineJob,
-  readOfflineJobs, readOfflineJobAudit, offlineQueueMetrics,
+  readOfflineJobs, readOfflineJobAudit, offlineQueueMetrics, readOfflineQueueHealth,
   DurableJobError } from "../../../../../lib/durable-offline-job-service";
 import { OFFLINE_JOB_TYPES, type OfflineJobType } from "../../../../../lib/durable-offline-job-domain";
 
@@ -33,6 +33,13 @@ export async function GET(request: NextRequest, context: Context) {
     const current = await actor(context);
     if (current.role === "MEMBER") return denied("OFFLINE_JOB_ROLE_REQUIRED", 403);
     const query = new URL(request.url).searchParams;
+    if (query.get("health") === "true") {
+      const format = query.get("format");
+      if (format && !["JSON", "CSV", "MARKDOWN"].includes(format))
+        return denied("OFFLINE_JOB_EXPORT_INVALID", 400);
+      return NextResponse.json({ data: await readOfflineQueueHealth(current,
+        format as "JSON" | "CSV" | "MARKDOWN" | undefined) }, { headers });
+    }
     if (query.get("metrics") === "true")
       return NextResponse.json({ data: await offlineQueueMetrics(current) }, { headers });
     const jobId = query.get("jobId");
