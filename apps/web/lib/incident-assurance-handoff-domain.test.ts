@@ -7,6 +7,7 @@ import {
   beginAssuranceHandoffBoard,applyAssuranceHandoffCommand,
   validateAssuranceHandoffBoard,validateAssuranceHandoffAudit,
   summarizeAssuranceHandoffBoard,planInternalAssuranceEscalations,
+  assuranceHandoffBoardDigest,
 } from "./incident-assurance-handoff-domain";
 const at="2026-11-23T10:00:00.000Z";
 const next="2026-11-23T10:01:00.000Z";
@@ -28,7 +29,24 @@ function genesis(){
   });
   return beginAssuranceHandoffBoard("board-1234",report,"admin-1234",at);
 }
+function reorderJsonb(value:unknown):unknown {
+  if(Array.isArray(value))return value.map(reorderJsonb);
+  if(value!==null&&typeof value==="object"){
+    const entries=Object.entries(value as Record<string,unknown>)
+      .reverse().map(([key,entry])=>[key,reorderJsonb(entry)]);
+    return Object.fromEntries(entries);
+  }
+  return value;
+}
 describe("assurance handoff board",()=>{
+  it("keeps persisted JSONB digests stable when object keys reorder",()=>{
+    const {board:snapshot}=genesis();
+    const reordered=reorderJsonb(snapshot) as typeof snapshot;
+    expect(assuranceHandoffBoardDigest(reordered)).toBe(assuranceHandoffBoardDigest(snapshot));
+    expect(assuranceHandoffBoardDigest({...reordered,revision:reordered.revision+1}))
+      .not.toBe(assuranceHandoffBoardDigest(snapshot));
+  });
+
   it("captures bounded unknown controls without external security claims",()=>{
     const {board,event}=genesis();
     expect(validateAssuranceHandoffBoard(board)).toEqual([]);
