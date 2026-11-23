@@ -14,6 +14,8 @@ export default async function SituationRoomPage({params}:Props) {
       remediaciones. Las evidencias incompletas se indican expresamente.</p>
     <p><Link href={"/organizations/"+encodeURIComponent(slug)+
       "/incident-triage"}>Volver al triage de incidentes</Link></p>
+    {reviewer&&<p><Link href={"/organizations/"+encodeURIComponent(slug)+
+      "/incident-situation-reviews"}>Abrir expedientes persistentes de revisión</Link></p>}
     {reviewer?<IncidentSituationWorkspace slug={slug}/>:
       <p role="alert">Se requiere permiso de revisión.</p>}
   </section></main>;
