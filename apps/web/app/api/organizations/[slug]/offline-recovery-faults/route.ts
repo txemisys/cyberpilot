@@ -44,7 +44,7 @@ function parseQuery(request:NextRequest):ReadFaultMatrixRequest {
     throw Error("RECOVERY_FAULT_SELECTION_AMBIGUOUS");
   if(format!==null&&!["JSON","CSV","MARKDOWN"].includes(format))
     throw Error("RECOVERY_FAULT_FORMAT_INVALID");
-  const request:ReadFaultMatrixRequest={
+  const queryRequest:ReadFaultMatrixRequest={
     latestPerKind:latest===null?true:latest==="true",
   };
   if(ids!==null) {
@@ -52,22 +52,22 @@ function parseQuery(request:NextRequest):ReadFaultMatrixRequest {
     if(list.length<1||list.length>40||
        list.some(x=>!identifier(x))||new Set(list).size!==list.length)
       throw Error("RECOVERY_FAULT_IDS_INVALID");
-    request.latestPerKind=false;
-    request.captureIds=list;
+    queryRequest.latestPerKind=false;
+    queryRequest.captureIds=list;
   }
   if(chosenFaults!==null){
     const list=chosenFaults.split(",") as RecoveryFaultId[];
     if(list.length===0||list.length>12||
        list.some(x=>!validFaults.has(x))||new Set(list).size!==list.length)
       throw Error("RECOVERY_FAULT_SET_INVALID");
-    request.selectedFaults=list;
+    queryRequest.selectedFaults=list;
   }
-  if(format!==null)request.format=format as "JSON"|"CSV"|"MARKDOWN";
+  if(format!==null)queryRequest.format=format as "JSON"|"CSV"|"MARKDOWN";
   if(maxAgeDays!==null){
     if(!/^\d{1,4}$/.test(maxAgeDays)||
        Number(maxAgeDays)<1||Number(maxAgeDays)>3650)
       throw Error("RECOVERY_FAULT_MAX_AGE_INVALID");
-    request.policy={
+    queryRequest.policy={
       requiredKinds:["INTEGRATED_RISKS","EVIDENCE_DECISIONS",
         "EXECUTIVE","LONGITUDINAL"],
       maxAgeDays:Number(maxAgeDays),
@@ -77,7 +77,7 @@ function parseQuery(request:NextRequest):ReadFaultMatrixRequest {
       failOnSourceClassChanges:true,
     };
   }
-  return request;
+  return queryRequest;
 }
 export async function GET(request:NextRequest,context:Context) {
   const origin=request.headers.get("origin");
