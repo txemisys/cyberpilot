@@ -111,8 +111,18 @@ export async function updateGuidedIncident(actor: IncidentActor,
   } });
   if (!record) fail("INCIDENT_NOT_IN_TENANT");
   const previous = fromRow(record);
+  // Browser-supplied evidence is a declaration, never independent provider proof.
+  // The server controls the recording time and rejects forged independence.
+  if (command.kind === "ATTACH_EVIDENCE" &&
+      (!command.evidence || command.evidence.independent !== false ||
+      command.evidence.providerOperation !== false))
+    fail("INCIDENT_CLIENT_PROOF_NOT_INDEPENDENT");
+  const safeCommand = command.kind === "ATTACH_EVIDENCE" && command.evidence ?
+    { ...command, evidence: { ...command.evidence,
+      recordedAt: new Date().toISOString(), independent: false as const,
+      providerOperation: false as const } } : command;
   const result = applyIncidentCommand(previous, {
-    ...command, actorUserId: actor.userId, organizationId: actor.organizationId,
+    ...safeCommand, actorUserId: actor.userId, organizationId: actor.organizationId,
     role, at: new Date().toISOString(),
   });
   if (!result.accepted || !result.event) fail(result.code);
