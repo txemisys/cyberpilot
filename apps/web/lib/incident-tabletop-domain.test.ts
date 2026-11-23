@@ -7,7 +7,7 @@ import {planTabletopExercise,executeDeterministicTabletop,
   from "./incident-tabletop-operations";
 const at="2026-11-23T10:00:00.000Z";
 const later="2026-11-23T11:00:00.000Z";
-const scenario=(type=INCIDENT_TYPES[0])=>generateTabletopScenario({
+const scenario=(type:typeof INCIDENT_TYPES[number]=INCIDENT_TYPES[0])=>generateTabletopScenario({
   id:"scenario-1234",organizationId:"tenant-1234",
   type,title:"LAB readiness scenario",seed:2026,at,faultCount:4,
 });
