@@ -29,7 +29,7 @@ export type CorrelatedSource = {
   basis: CorrelationBasis; verdict: CorrelationVerdict;
   organizationId: string; incidentId: string; sourceId: string;
   sourceLabel: string; controlId: string | null; scope: string | null;
-  observedAt: string | null; evidenceConfidence: "INDEPENDENTLY_PERSISTED" |
+  observedAt: string | null; evidenceConfidence: "PERSISTED_OBSERVATION_NOT_PROVIDER_VERIFIED" |
     "DECLARED_OR_PARTIAL" | "UNDETERMINED";
   severity: string | null; status: string;
   linkedDecisionIds: string[]; requiredReview: boolean;
@@ -114,7 +114,7 @@ function classifyEvidence(row: EvidenceSourceRow, asOf: string, ageHours: number
   return { verdict: row.state === "OBSERVED" && !stale ?
       "SUPPORTED_RECORD" as const : verdict,
     signals, confidence: row.state === "OBSERVED" && !stale ?
-      "INDEPENDENTLY_PERSISTED" as const : reported ?
+      "PERSISTED_OBSERVATION_NOT_PROVIDER_VERIFIED" as const : reported ?
       "DECLARED_OR_PARTIAL" as const : "UNDETERMINED" as const };
 }
 function classifyFinding(row: FindingSourceRow, asOf: string, ageHours: number) {
@@ -217,9 +217,9 @@ export function correlateIncidentEvidence(input: CorrelationInput): IncidentEvid
     const mapped = sources.filter(s => s.kind === "EVIDENCE" &&
       spec.requiredEvidence.some(req =>
         s.sourceLabel === req || s.sourceLabel.startsWith(req + ":")));
-    const independent = mapped.filter(s =>
-      s.verdict === "SUPPORTED_RECORD" &&
-      s.evidenceConfidence === "INDEPENDENTLY_PERSISTED");
+    // Persistence of OBSERVED is not, by itself, independent provider proof.
+    // The SecurityEvidence table does not encode a cryptographic verifier chain.
+    const independent: CorrelatedSource[] = [];
     const required = spec.requiredEvidence.filter(x => x !== "approval");
     const present = required.filter(source => independent.some(x =>
       x.sourceLabel === source || x.sourceLabel.startsWith(source + ":")));
