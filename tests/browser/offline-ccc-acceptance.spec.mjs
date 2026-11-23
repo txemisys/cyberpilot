@@ -11,12 +11,12 @@ test("offline case-action review and capture timeline in LAB browser",async({pag
  await page.getByLabel("Organization name").fill("CCC LAB "+stamp);
  await page.getByRole("button",{name:"Create organization"}).click();
  await expect(page.getByRole("button",{name:"Start Microsoft 365 Lab"})).toBeVisible({timeout:30000});
- await expect(page).toHaveURL(/\/organizations\/[^/]+\/?$/,{timeout:30000});
- const root=new URL(page.url()).pathname.replace(/\/$/,"");
- expect(root).toMatch(/^\/organizations\/[^/]+$/);
  await page.getByRole("button",{name:"Start Microsoft 365 Lab"}).click();
  await page.getByRole("button",{name:"Re-evaluate lab"}).click();
  await expect(page.getByRole("heading",{name:"Top actions"})).toBeVisible({timeout:30000});
+ await expect(page).toHaveURL(/\/organizations\/[^/]+\/?$/,{timeout:30000});
+ const root=new URL(page.url()).pathname.replace(/\/$/,"");
+ expect(root).toMatch(/^\/organizations\/[^/]+$/);
  await page.goto(root+"/case-action-review");
  await expect(page.getByRole("heading",{name:"Relaciones entre casos y acciones"})).toBeVisible();
  await page.getByRole("button",{name:"Conciliar con fuentes persistidas"}).click();
