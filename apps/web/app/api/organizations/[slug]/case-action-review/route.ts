@@ -52,8 +52,8 @@ function decode(request:NextRequest){
     offset:offset===null?0:Number(offset),
     limit:limit===null?50:Number(limit),
   };
-  if(kind!==null)filters.kind=kind as HandoffBoardQuery["kind"];
-  if(priority!==null)filters.minPriority=priority as HandoffBoardQuery["minPriority"];
+  if(kind!==null)filters.kind=kind as Exclude<HandoffBoardQuery["kind"],undefined>;
+  if(priority!==null)filters.minPriority=priority as Exclude<HandoffBoardQuery["minPriority"],undefined>;
   if(search!==null)filters.search=search;
   if(owner!==null)filters.ownerUserId=owner;
   if(include!==null)filters.includeCandidates=include==="true";
