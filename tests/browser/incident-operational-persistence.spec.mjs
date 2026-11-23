@@ -25,7 +25,7 @@ async ({page})=>{
   await page.goto(root+"/incident-situation-reviews");
   await expect(page.getByRole("heading",{
     name:"Expedientes de sala de situación"})).toBeVisible();
-  await page.getByLabel("Incidente",{exact:true}).selectOption({index:1});
+  await page.getByRole("combobox").first().selectOption({index:1});
   await page.getByRole("button",{name:"Crear expediente de revisión"}).click();
   await expect(page.getByRole("heading",{name:/Expediente review-/}))
     .toBeVisible({timeout:30000});
@@ -34,7 +34,7 @@ async ({page})=>{
   await expect(page.getByRole("heading",{name:"Hallazgos del revisor"}))
     .toBeVisible();
   await page.reload();
-  await page.getByLabel("Incidente",{exact:true}).selectOption({index:1});
+  await page.getByRole("combobox").first().selectOption({index:1});
   await expect(page.getByRole("button",{name:/review-.*IN_REVIEW/}))
     .toBeVisible({timeout:30000});
   await page.goto(root+"/incident-tabletop-sessions");
@@ -54,7 +54,7 @@ async ({page})=>{
   await page.goto(root+"/incident-assurance-handoffs");
   await expect(page.getByRole("heading",{
     name:"Asignaciones y escalados de aseguramiento"})).toBeVisible();
-  await page.getByLabel("Incidente",{exact:true}).selectOption({index:1});
+  await page.getByRole("combobox").first().selectOption({index:1});
   await page.getByRole("button",{name:"Crear tablero de seguimiento"}).click();
   await expect(page.getByRole("heading",{name:/Aseguramiento interno: ACTIVE/}))
     .toBeVisible({timeout:30000});
