@@ -65,6 +65,20 @@ describe("immutable incident case transitions", () => {
       expect(s.containmentVerified).toBe(false);
     }
   });
+  it("preserves snapshot digest across PostgreSQL JSONB key ordering", () => {
+    const source = sample("COMPROMISED_ACCOUNT");
+    const reorder = (item: unknown): unknown => {
+      if (Array.isArray(item)) return item.map(reorder);
+      if (item && typeof item === "object") {
+        return Object.fromEntries(Object.entries(item).reverse().map(
+          ([key, value]) => [key, reorder(value)]));
+      }
+      return item;
+    };
+    const reordered = reorder(source) as IncidentSnapshot;
+    expect(incidentDigest(reordered)).toBe(incidentDigest(source));
+    expect(auditIncident(reordered, [incidentCreationEvent(source)]).valid).toBe(true);
+  });
   it("rejects stale revisions and cross-tenant mutations without event", () => {
     const s = sample();
     expect(cmd(s, "START_TRIAGE", { expectedRevision: 0 }).code)
