@@ -18,9 +18,6 @@ type Event = {revision:number;decision:string;actorId:string;
 type Detail = {review:Review;events:Event[];caseDrift:boolean;
   providerReadbackVerified:false};
 type Index = {reviews:Review[];total:number;nextOffset:number|null};
-type Comparison = {comparison:{caseDrift:boolean;situationDrift:boolean;
-  sourceChanges:string[];addedConcerns:string[];removedConcerns:string[];
-  reviewMustBeReevaluated:boolean}};
 type Decision = "BEGIN_REVIEW" | "RECORD_FINDING" |
   "RETURN_FOR_EVIDENCE" | "ACKNOWLEDGE" | "REOPEN" | "SUPERSEDE";
 export function IncidentSituationReviewWorkspace({slug,canWrite}:{
@@ -35,7 +32,6 @@ export function IncidentSituationReviewWorkspace({slug,canWrite}:{
   const [items,setItems]=useState<Review[]>([]);
   const [nextOffset,setNextOffset]=useState<number|null>(null);
   const [detail,setDetail]=useState<Detail|null>(null);
-  const [comparison,setComparison]=useState<Comparison|null>(null);
   const [findingConcern,setFindingConcern]=useState("");
   const [findingConclusion,setFindingConclusion]=useState<
     "CONFIRMED_GAP"|"NEEDS_EVIDENCE"|"NOT_APPLICABLE">("NEEDS_EVIDENCE");
@@ -81,7 +77,6 @@ export function IncidentSituationReviewWorkspace({slug,canWrite}:{
       mode:"detail",reviewId:id,
     }));
     setDetail(data);
-    setComparison(null);
     setFindingConcern(data.review.concernIds[0]??"");
   },[base]);
   useEffect(()=>{
@@ -89,7 +84,7 @@ export function IncidentSituationReviewWorkspace({slug,canWrite}:{
   },[loadCases]);
   useEffect(()=>{
     void loadIndex(incidentId).catch(e=>setError(String(e)));
-    setDetail(null);setComparison(null);
+    setDetail(null);
   },[incidentId,loadIndex]);
   async function operation(task:()=>Promise<void>) {
     setError("");setNotice("");setBusy(true);
@@ -137,12 +132,8 @@ export function IncidentSituationReviewWorkspace({slug,canWrite}:{
   async function compare() {
     if(!active)return;
     await operation(async()=>{
-      const data=await request<Comparison>(base+"?mode=invalid","GET")
-        .catch(()=>null);
-      void data;
-      // Comparison requires an explicit selection and is exposed as a
-      // service operation; until a route authorizes that operation this
-      // workspace only shows the case revision drift from the persisted read.
+      // Refresh the persisted case revision without issuing any supplier action.
+      // Full selected-source comparison remains a separate explicit operation.
       await loadDetail(active.id);
       setNotice("Estado de la revisión actualizado. La comparación completa de fuentes requiere una evaluación nueva.");
     });
@@ -222,9 +213,6 @@ export function IncidentSituationReviewWorkspace({slug,canWrite}:{
         Actualizar estado de origen
       </button>
       <button type="button" onClick={downloadEvidence}>Exportar expediente JSON</button>
-      {comparison&&<p>Deriva de situación:
-        {comparison.comparison.reviewMustBeReevaluated?"requiere revisión":"sin cambios detectados"}
-      </p>}
       <h3>Preocupaciones documentadas</h3>
       {active.concernIds.length?<ul>{active.concernIds.map(x=>
         <li key={x}>{x}</li>)}</ul>:<p>Sin preocupaciones en el conjunto explícito.</p>}
