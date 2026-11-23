@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import { getIncidentPlaybook, catalogIncidentPlaybooks,
   type IncidentType } from "../lib/incident-playbook-catalog";
 import type { IncidentSnapshot } from "../lib/incident-case-domain";
-import { evaluateIncidentReadiness } from "../lib/incident-operations-domain";
+
 type Page = { cases: IncidentSnapshot[]; total: number; nextOffset: number | null };
 const catalog = catalogIncidentPlaybooks();
 export function GuidedIncidentWorkspace({ slug, mayWrite }: {
   slug: string; mayWrite: boolean;
 }) {
   const endpoint = "/api/organizations/" + encodeURIComponent(slug) + "/guided-incidents";
-  const [items, setItems] = useState<IncidentSnapshot[]>([]);
+  const [items, setItems] = useState<IncidentSnapshot[]>([]);\n  const [playbooks, setPlaybooks] = useState<IncidentPlaybook[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [type, setType] = useState<IncidentType>("COMPROMISED_ACCOUNT");
   const [title, setTitle] = useState("");
@@ -30,7 +30,7 @@ export function GuidedIncidentWorkspace({ slug, mayWrite }: {
     const page = payload.data as Page;
     setItems(previous => start === 0 ? page.cases :
       [...previous, ...page.cases.filter(x => !previous.some(p => p.id === x.id))]);
-    setOffset(start); setNextOffset(page.nextOffset);
+    setOffset(start); setNextOffset(page.nextOffset); setPlaybooks(page.playbooks);
   }
   useEffect(() => { void load().catch(e => setMessage(String(e))); }, [endpoint]);
   async function send(command: Record<string, unknown>) {
@@ -75,7 +75,7 @@ export function GuidedIncidentWorkspace({ slug, mayWrite }: {
       <h2>Nuevo incidente</h2>
       <label>Playbook <select value={type} onChange={e =>
         setType(e.target.value as IncidentType)}>
-        {catalog.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}
+        {playbooks.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}
       </select></label>
       <label>Título <input value={title} maxLength={180} required
         onChange={e => setTitle(e.target.value)}/></label>
