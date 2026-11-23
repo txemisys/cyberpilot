@@ -26,7 +26,24 @@ const command = (digest: string, revision: number, decision:
   actorId, role: "ADMIN" as const, expectedRevision: revision,
   expectedSituationDigest: digest, decision, at: t1,
 });
+function reorderJsonb(value:unknown):unknown {
+  if(Array.isArray(value))return value.map(reorderJsonb);
+  if(value!==null&&typeof value==="object"){
+    const entries=Object.entries(value as Record<string,unknown>)
+      .reverse().map(([key,entry])=>[key,reorderJsonb(entry)]);
+    return Object.fromEntries(entries);
+  }
+  return value;
+}
 describe("tenant-safe situation review ledger", () => {
+  it("keeps persisted JSONB digests stable when object keys reorder",()=>{
+    const {snapshot}=createSituationReview("review-canonical-1234",situation(),"admin-1234","ADMIN",t0);
+    const reordered=reorderJsonb(snapshot) as typeof snapshot;
+    expect(situationReviewDigest(reordered)).toBe(situationReviewDigest(snapshot));
+    expect(situationReviewDigest({...reordered,revision:reordered.revision+1}))
+      .not.toBe(situationReviewDigest(snapshot));
+  });
+
   it("creates hash-chained offline review with no external execution", () => {
     const initial = createSituationReview("review-1234", situation(),
       "admin-1234", "ADMIN", t0);
