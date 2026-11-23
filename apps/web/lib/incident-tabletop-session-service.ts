@@ -69,7 +69,7 @@ async function load(actor:IncidentActor,sessionId:string){
     where:{organizationId:actor.organizationId,id:sessionId},
   });
   if(!row)fail("SESSION_NOT_FOUND");
-  return unpack(row);
+  return unpack(row!);
 }
 async function memberFor(
   organizationId:string,userId:string,
@@ -79,7 +79,7 @@ async function memberFor(
     where:{organizationId,userId},select:{role:true},
   });
   if(!member)fail("SESSION_PARTICIPANT_NOT_MEMBER");
-  return member.role;
+  return member!.role;
 }
 export async function createOrganizationTabletopSession(
   actor:IncidentActor,input:{
@@ -113,7 +113,7 @@ export async function createOrganizationTabletopSession(
     incidentId:input.incidentId,facilitatorId:actor.userId,
     type:input.type,title:input.title,seed:input.seed,
     at:now,faultCount:input.faultCount,
-    additionalFaults:input.additionalFaults,
+    ...(input.additionalFaults?{additionalFaults:input.additionalFaults}:{}),
   });
   return db.$transaction(async tx=>{
     const exists=await tx.incidentTabletopSession.findFirst({
@@ -172,7 +172,7 @@ export async function commandOrganizationTabletopSession(
       move:{...input.action.move,at:command.at}};
   }
   const {session,event}=evolvePersistedTabletopSession(
-    previous,command,last.eventDigest,
+    previous,command,last!.eventDigest,
   );
   return db.$transaction(async tx=>{
     const cas=await tx.incidentTabletopSession.updateMany({
