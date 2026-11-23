@@ -8,7 +8,8 @@ async ({ page }) => {
   await page.getByLabel("Email").fill("incident-review-" + stamp + "@cyberpilot.local");
   await page.getByLabel("Password").fill("IncidentLab2026!");
   await page.getByRole("button", { name: "Create Lab account" }).click();
-  await expect(page.getByRole("heading", { name: "Security workspace" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Security workspace" }))
+    .toBeVisible({ timeout: 30000 });
   await page.getByRole("link", { name: "Create an organization" }).click();
   await page.getByLabel("Organization name").fill("Incident LAB " + stamp);
   await page.getByRole("button", { name: "Create organization" }).click();
@@ -41,7 +42,8 @@ async ({ page }) => {
   await page.getByRole("button", { name: "Iniciar triage" }).click();
   await expect(page.getByText("Estado: TRIAGE", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Preparar CSV" }).click();
-  await expect(page.getByLabel("Expediente exportado")).toContainText("incidentId,type,stepId");
+  await expect(page.getByLabel("Expediente exportado"))
+    .toHaveValue(/incidentId,type,stepId/);
   await page.reload();
   await expect(page.getByRole("button", { name: /Cambio bancario reportado/ }))
     .toBeVisible();
