@@ -315,6 +315,8 @@ export default async function OrganizationPage({
 
       <section className="dashboard">
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+          "/managed-restore"}>Objetivos RPO/RTO · preparación de restauración</Link></p>
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+
           "/siem-audit"}>Auditoría exportable · SIEM (sin conexión externa)</Link></p>
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+
           "/offline-jobs"}>Operaciones · trabajos persistentes offline</Link></p>
