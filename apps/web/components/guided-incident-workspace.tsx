@@ -19,6 +19,9 @@ export function GuidedIncidentWorkspace({ slug, mayWrite }: {
   const [offset, setOffset] = useState(0);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [reason, setReason] = useState("");
+  const [evidenceSource, setEvidenceSource] = useState("user-report");
+  const [evidenceReference, setEvidenceReference] = useState("");
+  const [evidenceSummary, setEvidenceSummary] = useState("");
   const [exported, setExported] = useState("");
   const active = items.find(x => x.id === selected) ?? null;
   async function load(start = 0) {
@@ -131,6 +134,33 @@ export function GuidedIncidentWorkspace({ slug, mayWrite }: {
             fuentes pendientes: {evaluation.missingRequiredSources.join(", ") || "ninguna"}.</p>
           <p>Si no está disponible: {spec.fallback}</p>
           {mayWrite && <>
+            {progress.status !== "VERIFIED" && active.status !== "CLOSED" &&
+              <fieldset><legend>Registrar evidencia declarada</legend>
+                <label>Fuente <input value={evidenceSource} maxLength={100}
+                  onChange={e => setEvidenceSource(e.target.value)}/></label>
+                <label>Referencia sin secretos <input value={evidenceReference}
+                  maxLength={300} onChange={e => setEvidenceReference(e.target.value)}/></label>
+                <label>Descripción <input value={evidenceSummary} maxLength={1000}
+                  onChange={e => setEvidenceSummary(e.target.value)}/></label>
+                <button type="button" disabled={busy || !evidenceSource.trim() ||
+                  !evidenceReference.trim() || !evidenceSummary.trim()}
+                  onClick={() => void send({ operation: "UPDATE", incidentId: active.id,
+                    expectedRevision: active.revision, kind: "ATTACH_EVIDENCE", stepId: spec.id,
+                    evidence: { id: crypto.randomUUID(), stepId: spec.id,
+                      source: evidenceSource, sourceReference: evidenceReference,
+                      observedAt: null, recordedAt: new Date().toISOString(),
+                      verdict: "DECLARED", summary: evidenceSummary,
+                      independent: false, providerOperation: false } })}>
+                  Registrar declaración (sin verificación externa)
+                </button>
+              </fieldset>}
+            {progress.status === "IN_PROGRESS" && progress.evidenceIds.length > 0 &&
+              <button type="button" disabled={busy} onClick={() =>
+                void send({ operation: "UPDATE", incidentId: active.id,
+                  expectedRevision: active.revision, kind: "STEP_REPORT",
+                  stepId: spec.id, reason: reason || "Revisión humana pendiente" })}>
+                Declarar paso completado (pendiente de comprobación)
+              </button>}
             {progress.status === "PENDING" &&
               <button disabled={busy || active.status === "CLOSED"} onClick={() =>
                 void send({ operation: "UPDATE", incidentId: active.id,
