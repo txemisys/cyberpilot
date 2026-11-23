@@ -22,6 +22,7 @@ describe("incident situation room and conservative product convergence",()=>{
   it("never mistakes unknown coverage for containment",()=>{
     const r=buildIncidentSituation(input());
     expect(r.completeness).toBe("UNKNOWN");
+    expect(r.sourceSummaries.every(x => x.records === 0)).toBe(true);
     expect(r.actualContainmentVerified).toBe(false);
     expect(r.externalWrites).toBe(0);
     expect(r.concerns.some(x=>x.code==="EVIDENCE_ABSENT")).toBe(true);
