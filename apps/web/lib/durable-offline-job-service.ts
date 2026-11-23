@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { buildQueueDispatchPlan, reviewDeadLetters, analyzeJobEventChain } from "./offline-job-dispatch-assurance";
+import { evaluateQueueFaultScenarios } from "./offline-job-recovery-fault-matrix";
+import { buildQueueAssuranceReport, exportQueueAssuranceReport } from "./offline-job-assurance-report";
 import { evaluateOfflineQueueHealth, exportOfflineQueueHealth, inspectJobReplay } from "./durable-offline-job-operations";
 import { db, type Prisma } from "@cyberpilot/database";
 import type { IntegratedReviewer } from "./integrated-risk-service";
@@ -181,17 +184,65 @@ async function transition(actor: IntegratedReviewer, input: {
   });
   return { job: next, event, providerWrites: 0 as const };
 }
+/**
+ * Serialize claim admission per organization, rather than checking the active
+ * count outside the claim transaction (which permitted a concurrent overshoot).
+ * The organization row is the narrow transaction-wide lock shared by all claims
+ * for a tenant. CAS still protects the individual job and its immutable audit.
+ */
 export async function claimOfflineJob(actor: IntegratedReviewer, id: string,
   expectedRevision: number) {
   await authorize(actor, true);
-  const active = await db.durableOfflineJob.count({
-    where: { organizationId: actor.organizationId, status: "LEASED",
-      leaseExpiresAt: { gt: new Date() } },
+  if (!ident(id) || !Number.isSafeInteger(expectedRevision) ||
+      expectedRevision < 1) fail("JOB_CLAIM_ARGUMENT_INVALID");
+  return serializable(async tx => {
+    const locked = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "Organization"
+      WHERE "id" = ${actor.organizationId}
+      FOR UPDATE
+    `;
+    if (locked.length !== 1) fail("JOB_CLAIM_TENANT_GONE");
+    // Reconfirm membership while holding the tenant lock; the session
+    // alone is never authority for dispatching a persisted job.
+    const membership = await tx.membership.findFirst({
+      where: { organizationId: actor.organizationId,
+        userId: actor.userId },
+      select: { role: true },
+    });
+    if (!membership || membership.role !== actor.role ||
+        !["OWNER", "ADMIN"].includes(membership.role))
+      fail("JOB_CLAIM_MEMBERSHIP_REVOKED");
+    const at = new Date();
+    const active = await tx.durableOfflineJob.count({
+      where: { organizationId: actor.organizationId, status: "LEASED",
+        leaseExpiresAt: { gt: at } },
+    });
+    if (active >= DEFAULT_OFFLINE_JOB_POLICY.concurrencyPerTenant)
+      fail("JOB_TENANT_CONCURRENCY_REACHED");
+    const row = await tx.durableOfflineJob.findFirst({
+      where: { id, organizationId: actor.organizationId },
+    });
+    if (!row) fail("JOB_NOT_IN_TENANT");
+    const snapshot = fromRow(row);
+    const token = randomUUID();
+    const outcome = applyJobCommand(snapshot, {
+      organizationId: actor.organizationId, jobId: id,
+      kind: "CLAIMED", actorId: actor.userId, at: at.toISOString(),
+      expectedRevision, leaseToken: token,
+      leaseSeconds: DEFAULT_OFFLINE_JOB_POLICY.leaseSeconds,
+    });
+    if (!outcome.accepted || !outcome.next || !outcome.event)
+      fail(outcome.code);
+    const modified = await tx.durableOfflineJob.updateMany({
+      where: { id, organizationId: actor.organizationId,
+        revision: snapshot.revision, status: snapshot.status,
+        leaseToken: snapshot.leaseToken },
+      data: snapshotColumns(outcome.next),
+    });
+    if (modified.count !== 1) fail("JOB_CONCURRENT_REVISION_CONFLICT");
+    await makeEvent(tx, outcome.event);
+    return { job: outcome.next, event: outcome.event, providerWrites: 0 as const };
   });
-  if (active >= DEFAULT_OFFLINE_JOB_POLICY.concurrencyPerTenant)
-    fail("JOB_TENANT_CONCURRENCY_REACHED");
-  return transition(actor, { jobId: id, expectedRevision, kind: "CLAIMED",
-    leaseToken: randomUUID(), leaseSeconds: DEFAULT_OFFLINE_JOB_POLICY.leaseSeconds });
 }
 export async function heartbeatOfflineJob(actor: IntegratedReviewer,
   id: string, revision: number, leaseToken: string) {
@@ -345,4 +396,90 @@ export async function readOfflineQueueHealth(actor: IntegratedReviewer,
     new Date().toISOString(), rows.length > 10000);
   return { health, artifact: format ? exportOfflineQueueHealth(health, format) : null,
     providerCalls: 0 as const, unattendedExecution: false as const };
+}
+
+/** Tenant-scoped, read-only planning; no implicit claim or worker scheduling. */
+export async function previewOfflineDispatch(actor: IntegratedReviewer) {
+  await authorize(actor, false);
+  const rows = await db.durableOfflineJob.findMany({
+    where: { organizationId: actor.organizationId },
+    orderBy: [{ scheduledAt: "asc" }, { id: "asc" }], take: 1001,
+  });
+  const truncated = rows.length > 1000;
+  const jobs = rows.slice(0, 1000).map(fromRow);
+  const asOf = new Date().toISOString();
+  return { plan: buildQueueDispatchPlan(actor.organizationId,
+      jobs.map(job => ({ job })), asOf, undefined, truncated),
+    deadLetters: reviewDeadLetters(actor.organizationId, jobs, asOf,
+      undefined, truncated),
+    providerCalls: 0 as const, automaticClaims: 0 as const };
+}
+/** Actual records, but injected faults are computed on cloned memory only. */
+export async function rehearseOfflineJobFaults(actor: IntegratedReviewer) {
+  await authorize(actor, false);
+  const rows = await db.durableOfflineJob.findMany({
+    where: { organizationId: actor.organizationId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 21,
+  });
+  const selected = rows.slice(0, 20).map(fromRow);
+  const events = selected.length ? await db.durableOfflineJobEvent.findMany({
+    where: { organizationId: actor.organizationId,
+      jobId: { in: selected.map(s => s.id) } },
+    take: 401, orderBy: [{ revision: "asc" }, { id: "asc" }],
+  }) : [];
+  if (rows.length > 20 || events.length > 400)
+    return { status: "TRUNCATED_SELECT_NARROWER_SCOPE" as const,
+      organizationId: actor.organizationId, faultMatrix: null,
+      providerCalls: 0 as const, destructiveTestsRun: 0 as const };
+  const history: Record<string, JobEvent[]> = {};
+  for (const event of events) {
+    (history[event.jobId] ??= []).push(fromEvent(event));
+  }
+  const faultMatrix = evaluateQueueFaultScenarios(
+    actor.organizationId, selected, history, new Date().toISOString());
+  return { status: "SIMULATED" as const,
+    organizationId: actor.organizationId, faultMatrix,
+    providerCalls: 0 as const, destructiveTestsRun: 0 as const };
+}
+/** Tenant audit timeline, with explicit integrity defects and revision caps. */
+export async function inspectOfflineJobEventIntegrity(
+  actor: IntegratedReviewer, jobId: string,
+) {
+  const read = await readOfflineJobAudit(actor, jobId);
+  const diagnostic = analyzeJobEventChain(read.snapshot, read.events);
+  return { schema: "cyberpilot.offline.queue.integrity.v1" as const,
+    organizationId: actor.organizationId, jobId, diagnostic,
+    historicalPageTruncated: read.events.length >= 200,
+    combinedAccepted: read.audit.valid && diagnostic.issues.length === 0,
+    providerWrites: 0 as const, liveAssuranceConfirmed: false as const };
+}
+
+/** Read-only operational evidence assembled from persisted job + event rows. */
+export async function readOfflineQueueAssurance(
+  actor: IntegratedReviewer,
+  format?: "JSON" | "CSV" | "MARKDOWN",
+) {
+  await authorize(actor, false);
+  const rows = await db.durableOfflineJob.findMany({
+    where: { organizationId: actor.organizationId },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: 501,
+  });
+  const jobs = rows.slice(0, 500).map(fromRow);
+  const events = await db.durableOfflineJobEvent.findMany({
+    where: { organizationId: actor.organizationId,
+      jobId: { in: jobs.map(x => x.id) } },
+    take: 10001, orderBy: [{ occurredAt: "asc" }, { revision: "asc" }],
+  });
+  const histories: Record<string, JobEvent[]> = {};
+  for (const e of events.slice(0, 10000))
+    (histories[e.jobId] ??= []).push(fromEvent(e));
+  const report = buildQueueAssuranceReport({
+    organizationId: actor.organizationId, snapshots: jobs,
+    histories, at: new Date().toISOString(),
+    truncated: rows.length > 500 || events.length > 10000,
+    historyTruncatedIds: events.length > 10000 ? jobs.map(x => x.id) : [],
+  });
+  return { report, artifact: format ? exportQueueAssuranceReport(report, format) : null,
+    auditedDatabaseRows: jobs.length, providerCalls: 0 as const,
+    externalSideEffects: false as const };
 }
