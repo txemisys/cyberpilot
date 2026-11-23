@@ -75,7 +75,7 @@ async function load(actor:IncidentActor,boardId:string){
     where:{organizationId:actor.organizationId,id:boardId},
   });
   if(!row)fail("HANDOFF_BOARD_NOT_FOUND");
-  return unpack(row);
+  return unpack(row!);
 }
 async function incident(actor:IncidentActor,incidentId:string){
   if(!ident(incidentId))fail("HANDOFF_INCIDENT_INVALID");
@@ -84,7 +84,7 @@ async function incident(actor:IncidentActor,incidentId:string){
     select:{id:true,revision:true},
   });
   if(!found)fail("HANDOFF_INCIDENT_NOT_IN_TENANT");
-  return found;
+  return found!;
 }
 async function assignmentMember(actor:IncidentActor,userId:string){
   if(!ident(userId))fail("HANDOFF_ASSIGNEE_INVALID");
@@ -104,7 +104,7 @@ export async function createPersistedAssuranceHandoffBoard(
     fail("HANDOFF_PARTIAL_READ_CREATE_DENIED");
   const result=await reviewIncidentAssurance(actor,request);
   const caseRow=await incident(actor,result.incidentId);
-  if(caseRow.revision!==result.incidentRevision)
+  if(caseRow!.revision!==result.incidentRevision)
     fail("HANDOFF_INCIDENT_CONCURRENT_DRIFT");
   const now=new Date().toISOString();
   const {board,event}=beginAssuranceHandoffBoard(
@@ -200,7 +200,7 @@ export async function readPersistedAssuranceHandoffBoard(
     board,events,
     summary:summarizeAssuranceHandoffBoard(board,asOf),
     escalationPlan:planInternalAssuranceEscalations(board,asOf),
-    caseRevisionDrift:current.revision!==board.incidentRevision,
+    caseRevisionDrift:current!.revision!==board.incidentRevision,
     sourceReportNotIndependentlyRecollected:true as const,
     providerWrites:0 as const,notificationsSent:0 as const,
   };
