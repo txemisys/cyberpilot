@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - 'apps/web/lib/assets-**'
+      - 'apps/web/lib/incident-situation-**'
+      - 'apps/web/lib/incident-tabletop-**'
+      - 'apps/web/lib/incident-assurance-**'
       - 'apps/web/app/api/organizations/**/assets/**'
       - 'apps/web/components/asset-**'
       - '.github/workflows/ci.yml'
