@@ -64,9 +64,7 @@ export async function runOrganizationTabletop(
   const artifact=request.format?
     exportTabletopReplay(result,request.format):null;
   return{
-    schema:"cyberpilot.incident.tabletop.run.v1" as const,
-    organizationId:actor.organizationId,
-    scenario,plan,...result,artifact,
+    ...result,scenario,plan,artifact,
     persisted:false as const,
     tenantRemotePermissionsUsed:false as const,
     incidentCasesMutated:0 as const,providerWrites:0 as const,
