@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { evaluateOfflineQueueHealth, exportOfflineQueueHealth, inspectJobReplay } from "./durable-offline-job-operations";
 import { db, type Prisma } from "@cyberpilot/database";
 import type { IntegratedReviewer } from "./integrated-risk-service";
 import { auditPersistedCaptureHistory } from "./offline-capture-timeline-service";
@@ -300,6 +301,7 @@ export async function readOfflineJobAudit(actor: IntegratedReviewer, jobId: stri
   const snapshot = fromRow(row);
   const mapped = events.slice(0, 200).map(fromEvent);
   return { snapshot, events: mapped,
+    replayProblems: inspectJobReplay(mapped, actor.organizationId, jobId),
     audit: auditJob(snapshot, mapped, events.length > 200),
     providerCalls: 0 as const };
 }
@@ -327,4 +329,20 @@ export async function offlineQueueMetrics(actor: IntegratedReviewer) {
     exhausted: jobs.filter(x => x.status === "DEAD_LETTER").length,
     retryAttemptCount: jobs.reduce((sum, x) => sum + Math.max(0, x.attempts - 1), 0),
     providerCalls: 0 as const };
+}
+
+/** Read-only queue health with bounded cross-org-safe exports. */
+export async function readOfflineQueueHealth(actor: IntegratedReviewer,
+  format?: "JSON" | "CSV" | "MARKDOWN") {
+  await authorize(actor, false);
+  const rows = await db.durableOfflineJob.findMany({
+    where: { organizationId: actor.organizationId },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    take: 10001,
+  });
+  const health = evaluateOfflineQueueHealth(
+    actor.organizationId, rows.slice(0, 10000).map(fromRow),
+    new Date().toISOString(), rows.length > 10000);
+  return { health, artifact: format ? exportOfflineQueueHealth(health, format) : null,
+    providerCalls: 0 as const, unattendedExecution: false as const };
 }
