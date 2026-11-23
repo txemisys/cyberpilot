@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOrganizationAccess } from "../../../../../lib/organizations";
+import { requireOrganizationAccess } from "../../../../../../lib/organizations";
 import { reviewIncidentIntegratedEvidence, reviewIncidentLinkedDecision,
   inspectIncidentDecisionCase, readIncidentEvidenceInventory,
-  IncidentIntegrationError } from "../../../../../lib/incident-integrated-evidence-service";
+  IncidentIntegrationError } from "../../../../../../lib/incident-integrated-evidence-service";
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store",
   "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" };
