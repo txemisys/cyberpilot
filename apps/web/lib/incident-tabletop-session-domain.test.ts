@@ -24,7 +24,24 @@ const change=(base:ReturnType<typeof genesis>["session"],
   at,action:{kind,userId:actorId,...extra} as
     Parameters<typeof evolvePersistedTabletopSession>[1]["action"],
 },lastEvent);
+function reorderJsonb(value:unknown):unknown {
+  if(Array.isArray(value))return value.map(reorderJsonb);
+  if(value!==null&&typeof value==="object"){
+    const entries=Object.entries(value as Record<string,unknown>)
+      .reverse().map(([key,entry])=>[key,reorderJsonb(entry)]);
+    return Object.fromEntries(entries);
+  }
+  return value;
+}
 describe("durable tabletop training session",()=>{
+  it("keeps persisted JSONB digests stable when object keys reorder",()=>{
+    const {session:snapshot}=genesis();
+    const reordered=reorderJsonb(snapshot) as typeof snapshot;
+    expect(tabletopSessionDigest(reordered)).toBe(tabletopSessionDigest(snapshot));
+    expect(tabletopSessionDigest({...reordered,revision:reordered.revision+1}))
+      .not.toBe(tabletopSessionDigest(snapshot));
+  });
+
   it("creates deterministic unknown-only scenario and verifies genesis",()=>{
     const {session,event}=genesis();
     expect(verifyPersistedTabletopSession(session)).toEqual([]);
