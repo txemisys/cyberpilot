@@ -244,6 +244,8 @@ model Organization {
   exposureExecutionCharges ExposureExecutionCharge[]
   integratedRiskActions IntegratedRiskAction[]
   integratedRiskActionEvents IntegratedRiskActionEvent[]
+  offlineJobs DurableOfflineJob[]
+  offlineJobEvents DurableOfflineJobEvent[]
   evidenceDecisionCases EvidenceDecisionCase[]
   evidenceDecisionEvents EvidenceDecisionCaseEvent[]
   offlineReportCaptures OfflineReportCapture[]
@@ -1971,4 +1973,52 @@ model OfflineRecoveryRehearsal {
   createdAt DateTime @default(now())
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   @@index([organizationId, createdAt])
+}
+
+/** Bounded per-organization offline jobs with CAS revision and fencing lease. */
+model DurableOfflineJob {
+  id String @id @default(cuid())
+  organizationId String
+  type String @db.VarChar(48)
+  status String @db.VarChar(24)
+  idempotencyKey String @db.VarChar(128)
+  requestDigest String @db.VarChar(64)
+  revision Int @default(1)
+  attempts Int @default(0)
+  maxAttempts Int
+  scheduledAt DateTime
+  expiresAt DateTime
+  leaseExpiresAt DateTime?
+  leaseToken String?
+  leasedBy String?
+  resultDigest String?
+  lastFailure String?
+  failureClass String?
+  snapshot Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events DurableOfflineJobEvent[]
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, status, scheduledAt])
+  @@index([status, leaseExpiresAt])
+  @@index([organizationId, type, createdAt])
+}
+/** Revision-addressable immutable audit of job transitions. */
+model DurableOfflineJobEvent {
+  id String @id @default(cuid())
+  organizationId String
+  jobId String
+  revision Int
+  kind String @db.VarChar(32)
+  actorId String
+  previousState String @db.VarChar(24)
+  nextState String @db.VarChar(24)
+  occurredAt DateTime
+  snapshotDigest String @db.VarChar(64)
+  attempts Int
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job DurableOfflineJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  @@unique([jobId, revision])
+  @@index([organizationId, jobId, revision])
 }
