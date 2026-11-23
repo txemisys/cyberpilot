@@ -240,3 +240,62 @@ export function exportIncidentAssetImpact(
       "", "Inventory identification does not prove physical device identity.",
     ].join("\n") };
 }
+
+export type AssetImpactHistory = {
+  schema: "cyberpilot.incident.asset-impact.history.v1";
+  organizationId: string; incidentId: string; snapshots: number;
+  uniqueDevices: number; firstObservedAt: string | null;
+  latestObservedAt: string | null; newlyAppeared: string[];
+  noLongerInSelection: string[]; advisoryChanged: string[];
+  staleBecameCurrent: string[]; versionBecameUnknown: string[];
+  unknownToKnown: string[]; scopeChanged: boolean;
+  comparable: boolean; actualProviderRecoveryObserved: false;
+};
+export function inspectIncidentAssetHistory(
+  assessments: readonly AssetImpactAssessment[],
+): AssetImpactHistory {
+  if (assessments.length > 100) throw Error("ASSET_HISTORY_LIMIT");
+  if (!assessments.length) return {
+    schema: "cyberpilot.incident.asset-impact.history.v1",
+    organizationId: "", incidentId: "", snapshots: 0, uniqueDevices: 0,
+    firstObservedAt: null, latestObservedAt: null, newlyAppeared: [],
+    noLongerInSelection: [], advisoryChanged: [], staleBecameCurrent: [],
+    versionBecameUnknown: [], unknownToKnown: [], scopeChanged: false,
+    comparable: false, actualProviderRecoveryObserved: false,
+  };
+  const ordered = [...assessments].sort((a,b) => a.at.localeCompare(b.at));
+  const org = ordered[0]!.organizationId, incidentId = ordered[0]!.incidentId;
+  if (ordered.some(x => x.organizationId !== org || x.incidentId !== incidentId))
+    throw Error("ASSET_HISTORY_TENANT_SCOPE_INVALID");
+  const first = ordered[0]!, last = ordered[ordered.length-1]!;
+  const earlier = new Map(first.affectedDevices.map(x => [x.id,x]));
+  const current = new Map(last.affectedDevices.map(x => [x.id,x]));
+  const common = [...current.values()].filter(x => earlier.has(x.id));
+  const unique = new Set(ordered.flatMap(x => x.affectedDevices.map(y => y.id)));
+  return {
+    schema: "cyberpilot.incident.asset-impact.history.v1",
+    organizationId: org, incidentId, snapshots: assessments.length,
+    uniqueDevices: unique.size, firstObservedAt: first.at, latestObservedAt: last.at,
+    newlyAppeared: [...current.keys()].filter(x => !earlier.has(x)),
+    noLongerInSelection: [...earlier.keys()].filter(x => !current.has(x)),
+    advisoryChanged: common.filter(x =>
+      x.advisoryStatus !== earlier.get(x.id)!.advisoryStatus).map(x => x.id),
+    staleBecameCurrent: common.filter(x =>
+      earlier.get(x.id)!.outcome === "STALE_ASSET" &&
+      x.outcome !== "STALE_ASSET").map(x => x.id),
+    versionBecameUnknown: common.filter(x =>
+      earlier.get(x.id)!.outcome !== "UNKNOWN_VERSION" &&
+      x.outcome === "UNKNOWN_VERSION").map(x => x.id),
+    unknownToKnown: common.filter(x =>
+      earlier.get(x.id)!.outcome === "UNKNOWN_VERSION" &&
+      x.outcome === "OBSERVED_ASSET").map(x => x.id),
+    scopeChanged: first.selectedDeviceIds !== last.selectedDeviceIds ||
+      first.selectedImportIds !== last.selectedImportIds ||
+      first.selectedExternalIds !== last.selectedExternalIds,
+    comparable: !ordered.some(x => x.truncated) &&
+      first.selectedDeviceIds === last.selectedDeviceIds &&
+      first.selectedImportIds === last.selectedImportIds &&
+      first.selectedExternalIds === last.selectedExternalIds,
+    actualProviderRecoveryObserved: false,
+  };
+}
