@@ -361,9 +361,10 @@ export function buildIncidentSituation(input: SituationInput): IncidentSituation
     concerns.filter(x => x.urgency === "P1").length * 3 +
     sourceSummaries.filter(x => x.availability !== "PRESENT").length * 5);
   const completeness: IncidentSituation["completeness"] = sourceSummaries.every(x =>
-    x.availability === "ABSENT") ? "UNKNOWN" :
+    x.expected === 0 && x.records === 0) ? "UNKNOWN" :
     sourceSummaries.some(x => x.availability !== "PRESENT" ||
-      x.truncated || x.missingCount > 0) ? "PARTIAL" : "EXPLICIT_SCOPE_ONLY";
+      x.expected === 0 || x.truncated || x.missingCount > 0) ?
+      "PARTIAL" : "EXPLICIT_SCOPE_ONLY";
   const report = {
     schema: "cyberpilot.incident.situation.v1" as const,
     organizationId: incident.organizationId, incidentId: incident.id,
