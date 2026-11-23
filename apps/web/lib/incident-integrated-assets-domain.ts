@@ -205,7 +205,7 @@ export function assessIncidentAssetImpact(input: AssetImpactInput): AssetImpactA
       x.outcome === "NO_DATA").length,
     advisoryPossible: rows.filter(x => x.advisoryStatus !== "NONE").length,
     deviceIds: rows.map(x => x.id).sort(),
-    needsIndependentOwnerConfirmation: true,
+    needsIndependentOwnerConfirmation: true as const,
   })).sort((a, b) => b.advisoryPossible - a.advisoryPossible ||
     b.count - a.count || a.productKey.localeCompare(b.productKey));
   const associatedInspections = inspections.filter(x => x.organizationId === org &&
