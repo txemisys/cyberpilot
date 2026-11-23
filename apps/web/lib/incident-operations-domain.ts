@@ -19,8 +19,7 @@ export function buildIncidentPortfolio(organizationId: string,
   if (!organizationId || rows.length > 500 || rows.some(x => x.organizationId !== organizationId) ||
       !Number.isFinite(Date.parse(asOf))) throw new Error("INCIDENT_PORTFOLIO_SCOPE_INVALID");
   const states: IncidentState[] = ["OPEN", "TRIAGE", "CONTAINMENT", "RECOVERY", "REVIEW", "CLOSED"];
-  const status = Object.fromEntries(states.map(s => [s, rows.filter(r => r.status === s).length]))
-    as Record<IncidentState, number>;
+  const status = Object.fromEntries(states.map(s => [s, rows.filter(r => r.status === s).length])) as Record<IncidentState, number>;
   const byType = Object.fromEntries(INCIDENT_TYPES.map(t =>
     [t, rows.filter(r => r.type === t).length])) as Record<IncidentType, number>;
   const age = new Date(asOf).getTime();
