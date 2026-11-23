@@ -1,4 +1,5 @@
 import { db } from "@cyberpilot/database";
+import { getIncidentPlaybook } from "./incident-playbook-catalog";
 import type { IncidentActor } from "./incident-case-service";
 import { incidentDigest, validateIncidentSnapshot,
   type IncidentSnapshot } from "./incident-case-domain";
@@ -195,8 +196,7 @@ export async function readIncidentRemediationChecklist(
 ) {
   await authorize(actor);
   const snapshot = await incident(actor, incidentId);
-  const playbook = (await import("./incident-playbook-catalog"))
-    .getIncidentPlaybook(snapshot.type);
+  const playbook = getIncidentPlaybook(snapshot.type);
   return {
     schema: "cyberpilot.incident.remediation.checklist.v1" as const,
     organizationId: actor.organizationId, incidentId,
