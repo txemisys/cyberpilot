@@ -315,6 +315,8 @@ export default async function OrganizationPage({
 
       <section className="dashboard">
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+          "/offline-jobs"}>Operaciones · trabajos persistentes offline</Link></p>
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+
           "/decision-cases"}>Casos de decisión auditados y seguimiento</Link></p>
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+
           "/offline-captures"}>Capturas históricas inmutables de informes</Link></p>
