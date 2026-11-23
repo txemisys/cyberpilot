@@ -100,7 +100,7 @@ export async function readPersistedCaptureTimeline(
   const rows=await db.offlineReportCapture.findMany({
     where,
     orderBy:[{createdAt:"asc"},{id:"asc"}],
-    skip:query.offset,
+    skip:query.offset??0,
     take:query.limit!+1,
   });
   if (rows.some(x=>x.organizationId!==actor.organizationId))
@@ -131,9 +131,9 @@ export async function readPersistedCaptureTimeline(
 export async function auditPersistedCaptureHistory(
   actor:IntegratedReviewer,request:TimelineReadRequest={},
 ) {
-  const rows=await readPersistedCaptureTimeline(actor,{
-    ...request,format:undefined,
-  });
+  const withoutExport={...request};
+  delete withoutExport.format;
+  const rows=await readPersistedCaptureTimeline(actor,withoutExport);
   const report=rows.report;
   const sourceGaps=report.changes.filter(x=>
     x.elapsedMilliseconds>30*24*60*60*1000);
