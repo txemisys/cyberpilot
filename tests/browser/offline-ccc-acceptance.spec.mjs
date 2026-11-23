@@ -10,6 +10,7 @@ test("offline case-action review and capture timeline in LAB browser",async({pag
  await page.getByRole("link",{name:"Create an organization"}).click();
  await page.getByLabel("Organization name").fill("CCC LAB "+stamp);
  await page.getByRole("button",{name:"Create organization"}).click();
+ await expect(page.getByRole("button",{name:"Start Microsoft 365 Lab"})).toBeVisible({timeout:30000});
  const root=new URL(page.url()).pathname.replace(/\/$/,"");
  await page.getByRole("button",{name:"Start Microsoft 365 Lab"}).click();
  await page.getByRole("button",{name:"Re-evaluate lab"}).click();
