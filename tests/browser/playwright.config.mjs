@@ -4,8 +4,10 @@ export default defineConfig({
   testDir: ".",
   testMatch: "**/*.spec.mjs",
   fullyParallel: false,
+  // Shared LAB development server and PostgreSQL: avoid concurrent spec interference.
+  workers: 1,
   retries: 1,
-  timeout: 60_000,
+  timeout: 90_000,
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000",
