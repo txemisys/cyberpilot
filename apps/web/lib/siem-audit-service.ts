@@ -1,4 +1,5 @@
 import { db } from "@cyberpilot/database";
+import { compareSiemTargetPreparations } from "./siem-target-compatibility";
 import type { Prisma } from "@cyberpilot/database";
 import { DEFAULT_SIEM_POLICY, type SiemFormat, type PortableAuditInput,
   validateSiemPolicy } from "./siem-audit-interchange-domain";
@@ -114,6 +115,7 @@ export async function readSiemAuditPage(actor: Actor, input: SiemAuditRequest = 
   const artifact = input.format ? buildSiemExport(page, input.format) : null;
   return { page, artifact, quality: inspectSiemPageQuality(page),
     readiness: inspectSiemForwardingReadiness(page),
+    targets: compareSiemTargetPreparations(page),
     externalEventDelivery: 0 as const, providerWrites: 0 as const };
 }
 /** Available action/resource classes for safe filter discovery, bounded to tenant. */
