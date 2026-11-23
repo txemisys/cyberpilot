@@ -235,66 +235,67 @@ export function applyAssuranceHandoffCommand(
     next.handoffs.find(x=>x.id===action.handoffId):null;
   if("handoffId" in action&&!item)
     reject("HANDOFF_UNKNOWN_CONTROL");
-  if(item){item.revision++;item.updatedAt=command.at;}
+  const task=item!;
+  if(task){task.revision++;task.updatedAt=command.at;}
   if(action.kind==="ASSIGN"){
-    if(!item||!ident(action.assigneeId)||
-        item.status==="REVIEWED_INTERNAL")
+    if(!task||!ident(action.assigneeId)||
+        task.status==="REVIEWED_INTERNAL")
       reject("HANDOFF_ASSIGN_INVALID");
-    item.assignedUserId=action.assigneeId;
-    item.assignedBy=command.actorId;item.assignedAt=command.at;
-    item.acceptedBy=null;item.acceptedAt=null;item.status="ASSIGNED";
+    task.assignedUserId=action.assigneeId;
+    task.assignedBy=command.actorId;task.assignedAt=command.at;
+    task.acceptedBy=null;task.acceptedAt=null;task.status="ASSIGNED";
   }else if(action.kind==="ACCEPT"){
-    if(!item||item.status!=="ASSIGNED"||
-        item.assignedUserId!==command.actorId||
-        item.assignedBy===command.actorId)
+    if(!task||task.status!=="ASSIGNED"||
+        task.assignedUserId!==command.actorId||
+        task.assignedBy===command.actorId)
       reject("HANDOFF_ACCEPT_SEPARATION_REQUIRED");
-    item.status="ACCEPTED";
-    item.acceptedBy=command.actorId;item.acceptedAt=command.at;
+    task.status="ACCEPTED";
+    task.acceptedBy=command.actorId;task.acceptedAt=command.at;
   }else if(action.kind==="NEEDS_EVIDENCE"){
-    if(!item||item.assignedUserId!==command.actorId||
-        !["ACCEPTED","ESCALATED_INTERNAL"].includes(item.status))
+    if(!task||task.assignedUserId!==command.actorId||
+        !["ACCEPTED","ESCALATED_INTERNAL"].includes(task.status))
       reject("HANDOFF_EVIDENCE_ROLE_DENIED");
-    item.status="NEEDS_EVIDENCE";
+    task.status="NEEDS_EVIDENCE";
   }else if(action.kind==="ADD_NOTE"){
-    if(!item||item.assignedUserId!==command.actorId&&
+    if(!task||task.assignedUserId!==command.actorId&&
         command.actorId!==current.createdBy)
       reject("HANDOFF_NOTE_ROLE_DENIED");
-    if(item.notes.length>=100)reject("HANDOFF_NOTE_LIMIT");
-    item.notes.push({id:command.commandId,authorId:command.actorId,
+    if(task.notes.length>=100)reject("HANDOFF_NOTE_LIMIT");
+    task.notes.push({id:command.commandId,authorId:command.actorId,
       at:command.at,text:action.reason.trim()});
   }else if(action.kind==="ADD_REFERENCE"){
-    if(!item||!ident(action.referenceId)||
-        item.assignedUserId!==command.actorId)
+    if(!task||!ident(action.referenceId)||
+        task.assignedUserId!==command.actorId)
       reject("HANDOFF_REFERENCE_ROLE_DENIED");
-    if(item.evidenceReferences.length>=50)
+    if(task.evidenceReferences.length>=50)
       reject("HANDOFF_REFERENCE_LIMIT");
-    item.evidenceReferences=sortedUnique([...item.evidenceReferences,
+    task.evidenceReferences=sortedUnique([...task.evidenceReferences,
       action.referenceId]);
   }else if(action.kind==="ESCALATE_INTERNAL"){
-    if(!item||!item.assignedUserId||
-        item.status==="REVIEWED_INTERNAL")
+    if(!task||!task.assignedUserId||
+        task.status==="REVIEWED_INTERNAL")
       reject("HANDOFF_ESCALATION_INVALID");
-    item.status="ESCALATED_INTERNAL";
-    item.escalationCount++;item.lastEscalatedAt=command.at;
+    task.status="ESCALATED_INTERNAL";
+    task.escalationCount++;task.lastEscalatedAt=command.at;
   }else if(action.kind==="ACK_DEADLINE"){
-    if(!item||!item.assignedUserId||
-        item.assignedUserId!==command.actorId)
+    if(!task||!task.assignedUserId||
+        task.assignedUserId!==command.actorId)
       reject("HANDOFF_DEADLINE_ACK_DENIED");
-    if(item.notes.length>=100)reject("HANDOFF_NOTE_LIMIT");
-    item.notes.push({id:command.commandId,authorId:command.actorId,
+    if(task.notes.length>=100)reject("HANDOFF_NOTE_LIMIT");
+    task.notes.push({id:command.commandId,authorId:command.actorId,
       at:command.at,text:"DEADLINE_ACK: "+action.reason.trim()});
   }else if(action.kind==="COMPLETE_INTERNAL_REVIEW"){
-    if(!item||!["ACCEPTED","NEEDS_EVIDENCE","ESCALATED_INTERNAL"]
-        .includes(item.status)||item.assignedUserId!==command.actorId)
+    if(!task||!["ACCEPTED","NEEDS_EVIDENCE","ESCALATED_INTERNAL"]
+        .includes(task.status)||task.assignedUserId!==command.actorId)
       reject("HANDOFF_COMPLETION_NOT_AUTHORIZED");
-    if(item.needsEvidence.length>0&&item.evidenceReferences.length===0)
+    if(task.needsEvidence.length>0&&task.evidenceReferences.length===0)
       reject("HANDOFF_UNRESOLVED_EVIDENCE");
-    item.status="REVIEWED_INTERNAL";
+    task.status="REVIEWED_INTERNAL";
   }else if(action.kind==="REOPEN"){
-    if(!item||item.status!=="REVIEWED_INTERNAL")
+    if(!task||task.status!=="REVIEWED_INTERNAL")
       reject("HANDOFF_REOPEN_STATE_DENIED");
-    item.status="REOPENED";
-    item.acceptedBy=null;item.acceptedAt=null;
+    task.status="REOPENED";
+    task.acceptedBy=null;task.acceptedAt=null;
   }else if(action.kind==="CLOSE_BOARD"){
     if(command.actorId!==current.createdBy||
         next.handoffs.some(x=>x.status!=="REVIEWED_INTERNAL"))
