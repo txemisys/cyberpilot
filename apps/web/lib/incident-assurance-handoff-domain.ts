@@ -62,7 +62,18 @@ const ident=(x:unknown):x is string=>typeof x==="string"&&
 const iso=(x:unknown):x is string=>typeof x==="string"&&
   Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===x;
 const sha=(x:unknown):x is string=>typeof x==="string"&&/^[a-f0-9]{64}$/.test(x);
-const hash=(x:unknown)=>createHash("sha256").update(JSON.stringify(x)).digest("hex");
+function canonical(value:unknown):unknown {
+  if(Array.isArray(value))return value.map(canonical);
+  if(value!==null&&typeof value==="object"){
+    const record=value as Record<string,unknown>;
+    return Object.fromEntries(Object.keys(record).sort()
+      .filter(key=>record[key]!==undefined)
+      .map(key=>[key,canonical(record[key])]));
+  }
+  return value;
+}
+const hash=(x:unknown)=>createHash("sha256")
+  .update(JSON.stringify(canonical(x))).digest("hex");
 const reject=(code:string):never=>{throw Error(code);};
 const sortedUnique=(x:string[])=>[...new Set(x)].sort();
 const statuses:HandoffStatus[]=["UNASSIGNED","ASSIGNED","ACCEPTED",
