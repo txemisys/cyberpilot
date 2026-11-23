@@ -14,6 +14,8 @@ export default async function DecisionCasesPage({params}:Props){
  Ni una revisión declarada ni una acción enlazada acreditan remediación.</p>
  <p><Link href={"/organizations/"+encodeURIComponent(slug)+
  "/evidence-decisions"}>Revisar las decisiones de origen</Link></p>
+ <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+ "/case-action-review"}>Conciliar con acciones y riesgos persistidos</Link></p>
  {allowed?<DecisionCaseWorkspace slug={slug}
  organizationId={membership.organization.id}
  canWrite={["OWNER","ADMIN"].includes(membership.role)}/>:
