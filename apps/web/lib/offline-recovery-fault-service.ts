@@ -98,19 +98,26 @@ export async function readRecoveryFaultMatrix(
   if(request.format!==undefined&&
     !["JSON","CSV","MARKDOWN"].includes(request.format))
     fail("RECOVERY_FAULT_FORMAT_INVALID");
-  const rows=await db.offlineReportCapture.findMany({
-    where:{
-      organizationId:actor.organizationId,
-      ...(ids?{id:{in:ids}}:{}),
-    },
-    take:ids?.length??41,
-    orderBy:[{createdAt:"desc"},{id:"asc"}],
-  });
+  const rows=request.latestPerKind===true&&!ids?
+    (await Promise.all((["INTEGRATED_RISKS","EVIDENCE_DECISIONS",
+      "EXECUTIVE","LONGITUDINAL"] as const).map(kind=>
+      db.offlineReportCapture.findMany({
+        where:{organizationId:actor.organizationId,kind},
+        take:1,orderBy:[{createdAt:"desc"},{id:"asc"}],
+      })))).flat():
+    await db.offlineReportCapture.findMany({
+      where:{
+        organizationId:actor.organizationId,
+        ...(ids?{id:{in:ids}}:{}),
+      },
+      take:ids?.length??41,
+      orderBy:[{createdAt:"desc"},{id:"asc"}],
+    });
   if(ids&&rows.length!==ids.length)
     fail("RECOVERY_FAULT_CAPTURE_NOT_IN_TENANT");
   if(rows.some(x=>x.organizationId!==actor.organizationId))
     fail("RECOVERY_FAULT_DATABASE_SCOPE_VIOLATION");
-  if(!ids&&rows.length>40)
+  if(!ids&&request.latestPerKind!==true&&rows.length>40)
     fail("RECOVERY_FAULT_ARCHIVE_TRUNCATED_SELECT_EXPLICITLY");
   let captures=rows.map(map);
   if(request.latestPerKind===true){
