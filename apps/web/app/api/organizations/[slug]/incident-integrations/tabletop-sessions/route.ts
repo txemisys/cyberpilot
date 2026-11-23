@@ -100,7 +100,7 @@ export async function POST(req:NextRequest,ctx:Context){
     const data=await createOrganizationTabletopSession(current,{
       id:v.id,incidentId:v.incidentId,type:v.type as IncidentType,
       title:v.title,seed:v.seed,faultCount:v.faultCount,
-      additionalFaults:v.additionalFaults as TabletopFault[]|undefined,
+      ...(v.additionalFaults?{additionalFaults:v.additionalFaults as TabletopFault[]}:{}),
     });
     return NextResponse.json({data,providerWrites:0},{
       status:data.created?201:200,headers,
