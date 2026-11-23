@@ -3,7 +3,8 @@ import { requireOrganizationAccess } from "../../../../../lib/organizations";
 import { enqueueOfflineJob, claimOfflineJob, executeClaimedOfflineJob,
   heartbeatOfflineJob, cancelOfflineJob, recoverExpiredOfflineJob,
   readOfflineJobs, readOfflineJobAudit, offlineQueueMetrics, readOfflineQueueHealth,
-  DurableJobError } from "../../../../../lib/durable-offline-job-service";
+  DurableJobError, previewOfflineDispatch, rehearseOfflineJobFaults,
+  readOfflineQueueAssurance } from "../../../../../lib/durable-offline-job-service";
 import { OFFLINE_JOB_TYPES, type OfflineJobType } from "../../../../../lib/durable-offline-job-domain";
 
 type Context = { params: Promise<{ slug: string }> };
@@ -33,6 +34,17 @@ export async function GET(request: NextRequest, context: Context) {
     const current = await actor(context);
     if (current.role === "MEMBER") return denied("OFFLINE_JOB_ROLE_REQUIRED", 403);
     const query = new URL(request.url).searchParams;
+    if (query.get("dispatch") === "true")
+      return NextResponse.json({ data: await previewOfflineDispatch(current) }, { headers });
+    if (query.get("faults") === "true")
+      return NextResponse.json({ data: await rehearseOfflineJobFaults(current) }, { headers });
+    if (query.get("assurance") === "true") {
+      const format = query.get("format");
+      if (format && !["JSON", "CSV", "MARKDOWN"].includes(format))
+        return denied("QUEUE_ASSURANCE_FORMAT_INVALID", 400);
+      return NextResponse.json({ data: await readOfflineQueueAssurance(current,
+        format as "JSON" | "CSV" | "MARKDOWN" | undefined) }, { headers });
+    }
     if (query.get("health") === "true") {
       const format = query.get("format");
       if (format && !["JSON", "CSV", "MARKDOWN"].includes(format))
