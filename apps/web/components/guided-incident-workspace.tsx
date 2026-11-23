@@ -194,7 +194,7 @@ export function GuidedIncidentWorkspace({ slug, mayWrite }: {
           .map(([, kind, label]) => <button type="button" key={kind}
             disabled={busy} onClick={() => void send({ operation: "UPDATE",
               incidentId: active.id, expectedRevision: active.revision,
-              kind, reason })}>{label}</button>)}
+              kind, ...(reason.trim() ? { reason } : {}) })}>{label}</button>)}
       </section>}
       <h3>Exportación revisable</h3>
       {(["JSON", "CSV", "MARKDOWN"] as const).map(f =>
