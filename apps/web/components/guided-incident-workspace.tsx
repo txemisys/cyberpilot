@@ -8,7 +8,8 @@ export function GuidedIncidentWorkspace({ slug, mayWrite }: {
   slug: string; mayWrite: boolean;
 }) {
   const endpoint = "/api/organizations/" + encodeURIComponent(slug) + "/guided-incidents";
-  const [items, setItems] = useState<IncidentSnapshot[]>([]);\n  const [playbooks, setPlaybooks] = useState<IncidentPlaybook[]>([]);
+  const [items, setItems] = useState<IncidentSnapshot[]>([]);
+  const [playbooks, setPlaybooks] = useState<IncidentPlaybook[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [type, setType] = useState<IncidentType>("COMPROMISED_ACCOUNT");
   const [title, setTitle] = useState("");
@@ -61,8 +62,21 @@ export function GuidedIncidentWorkspace({ slug, mayWrite }: {
       setMessage("Expediente generado; copiar o revisar antes de distribuir.");
     } catch (e) { setMessage(String(e)); } finally { setBusy(false); }
   }
-  const book = active ? getIncidentPlaybook(active.type) : null;
-  const readiness = active ? evaluateIncidentReadiness(active) : null;
+  const book = active ? playbooks.find(b => b.id === active.type) ?? null : null;
+  const readiness = active && book ? {
+    gate: active.steps.every(s => s.status === "VERIFIED") ?
+      "READY_FOR_MANUAL_REVIEW" : "REQUIRES_REVIEW",
+    steps: book.steps.map(spec => {
+      const state = active.steps.find(s => s.stepId === spec.id)!;
+      const observed = active.evidence.filter(e => state.evidenceIds.includes(e.id) &&
+        e.verdict === "OBSERVED" && e.independent);
+      return { id: spec.id, independentObservedCount: observed.length,
+        missingRequiredSources: spec.requiredEvidence.filter(source => source !== "approval" &&
+          !observed.some(e => e.source === source)) };
+    }),
+    warnings: active.steps.filter(s => s.status === "BLOCKED" || s.status === "REPORTED_DONE")
+      .map(s => s.stepId + ": manual verification pending"),
+  } : null;
   return <section aria-label="Incidentes guiados">
     <p role="note">Solo flujos guiados, sin revocación, purga, aislamiento, borrado
       ni comunicaciones reales. Todo resultado del proveedor requiere evidencia independiente.</p>
