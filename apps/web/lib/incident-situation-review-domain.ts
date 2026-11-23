@@ -87,8 +87,18 @@ const sha = (v: unknown): v is string =>
 const iso = (v: unknown): v is string =>
   typeof v === "string" && Number.isFinite(Date.parse(v)) &&
   new Date(v).toISOString() === v;
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return Object.fromEntries(Object.keys(record).sort().filter(
+      key => record[key] !== undefined,
+    ).map(key => [key, canonical(record[key])]));
+  }
+  return value;
+}
 const hash = (v: unknown) => createHash("sha256")
-  .update(JSON.stringify(v)).digest("hex");
+  .update(JSON.stringify(canonical(v))).digest("hex");
 const sortedUnique = (v: string[]) => [...new Set(v)].sort();
 const safeSame = (a: string, b: string) =>
   sha(a) && sha(b) && timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
