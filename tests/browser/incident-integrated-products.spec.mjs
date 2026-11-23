@@ -46,7 +46,7 @@ async ({ page }) => {
     const href = await page.locator("nav[aria-label='Integraciones del incidente']")
       .locator("a[href$='/" + kind + "']").getAttribute("href");
     expect(href).toBeTruthy();
-    await page.goto(href!);
+    await page.goto(href);
     await expect(page.getByRole("heading", { name: heading }))
       .toBeVisible({ timeout: 30000 });
     if (kind === "remediation") {
