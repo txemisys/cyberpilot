@@ -119,7 +119,7 @@ export function summarizeIncidentEvidenceMatrix(
   const all = correlation.sourceRecords.length;
   const independent = correlation.sourceRecords.filter(x =>
     x.kind === "EVIDENCE" &&
-    x.evidenceConfidence === "INDEPENDENTLY_PERSISTED").length;
+    x.evidenceConfidence === "PERSISTED_OBSERVATION_NOT_PROVIDER_VERIFIED").length;
   const unknown = correlation.sourceRecords.filter(x =>
     ["UNKNOWN_COVERAGE", "ERROR_RECORD", "STALE_RECORD",
       "MISSING_RECORD"].includes(x.verdict)).length;
