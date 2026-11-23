@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { buildQueueDispatchPlan, reviewDeadLetters, analyzeJobEventChain } from "./offline-job-dispatch-assurance";
 import { evaluateQueueFaultScenarios } from "./offline-job-recovery-fault-matrix";
+import { buildQueueAssuranceReport, exportQueueAssuranceReport } from "./offline-job-assurance-report";
 import { evaluateOfflineQueueHealth, exportOfflineQueueHealth, inspectJobReplay } from "./durable-offline-job-operations";
 import { db, type Prisma } from "@cyberpilot/database";
 import type { IntegratedReviewer } from "./integrated-risk-service";
@@ -451,4 +452,34 @@ export async function inspectOfflineJobEventIntegrity(
     historicalPageTruncated: read.events.length >= 200,
     combinedAccepted: read.audit.valid && diagnostic.issues.length === 0,
     providerWrites: 0 as const, liveAssuranceConfirmed: false as const };
+}
+
+/** Read-only operational evidence assembled from persisted job + event rows. */
+export async function readOfflineQueueAssurance(
+  actor: IntegratedReviewer,
+  format?: "JSON" | "CSV" | "MARKDOWN",
+) {
+  await authorize(actor, false);
+  const rows = await db.durableOfflineJob.findMany({
+    where: { organizationId: actor.organizationId },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: 501,
+  });
+  const jobs = rows.slice(0, 500).map(fromRow);
+  const events = await db.durableOfflineJobEvent.findMany({
+    where: { organizationId: actor.organizationId,
+      jobId: { in: jobs.map(x => x.id) } },
+    take: 10001, orderBy: [{ occurredAt: "asc" }, { revision: "asc" }],
+  });
+  const histories: Record<string, JobEvent[]> = {};
+  for (const e of events.slice(0, 10000))
+    (histories[e.jobId] ??= []).push(fromEvent(e));
+  const report = buildQueueAssuranceReport({
+    organizationId: actor.organizationId, snapshots: jobs,
+    histories, at: new Date().toISOString(),
+    truncated: rows.length > 500 || events.length > 10000,
+    historyTruncatedIds: events.length > 10000 ? jobs.map(x => x.id) : [],
+  });
+  return { report, artifact: format ? exportQueueAssuranceReport(report, format) : null,
+    auditedDatabaseRows: jobs.length, providerCalls: 0 as const,
+    externalSideEffects: false as const };
 }
