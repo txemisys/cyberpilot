@@ -10,7 +10,7 @@ import { correlateIncidentEvidence, compareIncidentCorrelations,
 export class IncidentIntegrationError extends Error {
   constructor(public readonly code: string) { super(code); }
 }
-const fail = (code: string): never => { throw new IncidentIntegrationError(code); };
+function fail(code: string): never { throw new IncidentIntegrationError(code); }
 const ident = (x: unknown): x is string => typeof x === "string" &&
   /^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/.test(x);
 function selectionIds(value: unknown, cap: number): string[] {
