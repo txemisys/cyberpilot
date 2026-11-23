@@ -22,7 +22,7 @@ async ({ page }) => {
   await page.getByRole("combobox", { name: "Formato" }).selectOption("CSV");
   await page.getByRole("button", { name: "Preparar exportación manual" }).click();
   await expect(page.getByRole("textbox", { name: "Archivo SIEM exportable" }))
-    .toHaveValue(/eventId,.*occurredAt/);
+    .toHaveValue(/"eventId","occurredAt"/);
   await expect(page.getByText("no se ha transmitido a ningún destinatario", {
     exact: false })).toBeVisible();
   const auditUrl = root.replace("/organizations/", "/api/organizations/") +
