@@ -35,6 +35,8 @@ describe("incident evidence cross-product integration",()=>{
     expect(report.matchedDecisionCount).toBe(1);
     expect(report.coverage).toBe("EXPLICIT_COMPLETE");
     expect(report.providerWrites).toBe(0);
+    expect(report.steps.every(step => step.independentObservedCount === 0)).toBe(true);
+    expect(report.steps.some(step => step.missingSources.length > 0)).toBe(true);
     expect(report.actualIncidentContainmentConfirmed).toBe(false);
   });
   it("rejects cross tenant evidence and never treats fuzzy name as a match",()=>{
