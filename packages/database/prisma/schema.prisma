@@ -246,6 +246,8 @@ model Organization {
   integratedRiskActionEvents IntegratedRiskActionEvent[]
   incidentCases GuidedIncidentCase[]
   incidentEvents GuidedIncidentEvent[]
+  situationReviews IncidentSituationReview[]
+  situationReviewEvents IncidentSituationReviewEvent[]
   offlineJobs DurableOfflineJob[]
   offlineJobEvents DurableOfflineJobEvent[]
   evidenceDecisionCases EvidenceDecisionCase[]
@@ -1997,6 +1999,7 @@ model GuidedIncidentCase {
   updatedAt DateTime @updatedAt
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   events GuidedIncidentEvent[]
+  situationReviews IncidentSituationReview[]
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, type, severity])
   @@index([organizationId, ownerUserId])
@@ -2065,4 +2068,43 @@ model DurableOfflineJobEvent {
   job DurableOfflineJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
   @@unique([jobId, revision])
   @@index([organizationId, jobId, revision])
+}
+
+/** Tenant-scoped immutable offline situation review, not a provider receipt. */
+model IncidentSituationReview {
+  id String @id
+  organizationId String
+  incidentId String
+  revision Int @default(1)
+  state String @db.VarChar(24)
+  situationDigest String @db.VarChar(64)
+  snapshotDigest String @db.VarChar(64)
+  snapshot Json
+  createdById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  incident GuidedIncidentCase @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  events IncidentSituationReviewEvent[]
+  @@index([organizationId, incidentId, createdAt])
+  @@index([organizationId, state, updatedAt])
+}
+/** Chain-verifiable review transition receipts with CAS revision. */
+model IncidentSituationReviewEvent {
+  id String @id @default(cuid())
+  organizationId String
+  reviewId String
+  revision Int
+  actorUserId String
+  decision String @db.VarChar(32)
+  occurredAt DateTime
+  eventDigest String @db.VarChar(64)
+  previousDigest String? @db.VarChar(64)
+  nextDigest String @db.VarChar(64)
+  previousState String? @db.VarChar(24)
+  nextState String @db.VarChar(24)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  review IncidentSituationReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  @@unique([reviewId, revision])
+  @@index([organizationId, reviewId, occurredAt])
 }
