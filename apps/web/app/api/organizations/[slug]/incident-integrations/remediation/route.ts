@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOrganizationAccess } from "../../../../../lib/organizations";
+import { requireOrganizationAccess } from "../../../../../../lib/organizations";
 import { reviewIncidentRemediationIntegration,
   discoverIncidentRemediationReferences, readIncidentRemediationChecklist,
   IncidentRemediationIntegrationError }
-  from "../../../../../lib/incident-integrated-remediation-service";
+  from "../../../../../../lib/incident-integrated-remediation-service";
 import { exportRemediationIntegration, planRemediationHandoffs,
   summarizeRemediationReadiness, buildIncidentRemediationDecisions }
-  from "../../../../../lib/incident-integrated-remediation-operations";
+  from "../../../../../../lib/incident-integrated-remediation-operations";
 type Context = { params: Promise<{ slug: string }> };
 const headers = { "Cache-Control": "private, no-store",
   "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" };
