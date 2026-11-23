@@ -130,8 +130,7 @@ export function planIncidentAssetActions(
     a.targetBy.localeCompare(b.targetBy) || a.id.localeCompare(b.id));
   const priorityCounts = Object.fromEntries(
     (["P0", "P1", "P2", "P3"] as const).map(priority =>
-      [priority, actions.filter(x => x.urgency === priority).length]))
-    as Record<AssetResponsePriority, number>;
+      [priority, actions.filter(x => x.urgency === priority).length])) as Record<AssetResponsePriority, number>;
   return {
     schema: "cyberpilot.incident.asset-response.plan.v1",
     organizationId: impact.organizationId, incidentId: impact.incidentId,
