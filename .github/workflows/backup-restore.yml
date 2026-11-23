@@ -5,6 +5,8 @@ on:
     paths:
       - ".github/workflows/backup-restore.yml"
       - "packages/database/**"
+      - "apps/web/lib/incident-integrated-**"
+      - "apps/web/app/api/organizations/**/incident-integrations/**"
       - "apps/web/lib/baseline-development-dossier*.ts"
       - "apps/web/lib/exposure-operational-closeout*.ts"
       - "apps/web/app/api/organizations/**/baseline-development-dossier/**"
@@ -17,6 +19,8 @@ on:
     paths:
       - ".github/workflows/backup-restore.yml"
       - "packages/database/**"
+      - "apps/web/lib/incident-integrated-**"
+      - "apps/web/app/api/organizations/**/incident-integrations/**"
       - "apps/web/lib/baseline-development-dossier*.ts"
       - "apps/web/lib/exposure-operational-closeout*.ts"
       - "apps/web/app/api/organizations/**/baseline-development-dossier/**"
