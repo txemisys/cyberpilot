@@ -315,6 +315,8 @@ export default async function OrganizationPage({
 
       <section className="dashboard">
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+          "/siem-audit"}>Auditoría exportable · SIEM (sin conexión externa)</Link></p>
+        <p><Link href={"/organizations/"+encodeURIComponent(slug)+
           "/guided-incidents"}>Respuesta guiada a incidentes · 5 playbooks</Link></p>
         <p><Link href={"/organizations/"+encodeURIComponent(slug)+
           "/decision-cases"}>Casos de decisión auditados y seguimiento</Link></p>
