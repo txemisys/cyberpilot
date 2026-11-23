@@ -56,8 +56,24 @@ const timestamp = (s: unknown): s is string => typeof s === "string" &&
 const text = (s: unknown, limit: number): s is string =>
   typeof s === "string" && s.trim().length > 0 && s.length <= limit &&
   !/[\u0000-\u001f\u007f]/.test(s);
+// PostgreSQL JSONB does not preserve object member insertion order.
+function canonicalIncidentJson(value: unknown): string {
+  if (value === null || typeof value === "string" ||
+      typeof value === "boolean" || typeof value === "number") {
+    if (typeof value === "number" && !Number.isFinite(value))
+      throw new Error("INCIDENT_NONFINITE_NUMBER");
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value))
+    return "[" + value.map(canonicalIncidentJson).join(",") + "]";
+  if (value && typeof value === "object")
+    return "{" + Object.entries(value).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0).map(([key, item]) =>
+        JSON.stringify(key) + ":" + canonicalIncidentJson(item)).join(",") + "}";
+  throw new Error("INCIDENT_NONCANONICAL_INPUT");
+}
 const digest = (x: unknown) => createHash("sha256")
-  .update(JSON.stringify(x)).digest("hex");
+  .update(canonicalIncidentJson(x)).digest("hex");
 export function incidentDigest(snapshot: IncidentSnapshot) { return digest(snapshot); }
 export function incidentCreationEvent(s: IncidentSnapshot): IncidentEvent {
   if (validateIncidentSnapshot(s).length || s.revision !== 1)
