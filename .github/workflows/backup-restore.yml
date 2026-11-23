@@ -120,6 +120,20 @@ jobs:
           pg_dump             --format=custom             --no-owner             --no-privileges             --file="$RUNNER_TEMP/cyberpilot.dump"             "$DATABASE_URL"
           test -s "$RUNNER_TEMP/cyberpilot.dump"
 
+      - name: Refuse corrupted logical backups before restore
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/cyberpilot.dump"
+          head -c 64 "$RUNNER_TEMP/cyberpilot.dump" > "$RUNNER_TEMP/cyberpilot-truncated.dump"
+          if pg_restore --list "$RUNNER_TEMP/cyberpilot-truncated.dump" > "$RUNNER_TEMP/corrupt-list.out" 2>&1; then
+            echo "FAIL: truncated PostgreSQL archive was incorrectly accepted"
+            exit 1
+          fi
+          pg_restore --list "$RUNNER_TEMP/cyberpilot.dump" > "$RUNNER_TEMP/valid-list.out"
+          grep -q 'Organization' "$RUNNER_TEMP/valid-list.out"
+          grep -q 'SecurityScore' "$RUNNER_TEMP/valid-list.out"
+          echo "Corrupt archive rejected; valid archive inventory verified"
+
       - name: Create isolated restore database
         run: |
           createdb             --host=localhost             --port=5432             --username=postgres             cyberpilot_restore

@@ -14,6 +14,8 @@ export default async function OfflineCapturesPage({params}:Props){
  No son una copia de seguridad SQL ni un certificado de seguridad.</p>
  <p><Link href={"/organizations/"+encodeURIComponent(slug)+
  "/offline-trends"}>Consultar tendencias de origen</Link></p>
+ <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+ "/offline-capture-timeline"}>Abrir histórico de capturas persistidas</Link></p>
  {reviewer?<OfflineCaptureWorkspace slug={slug}
  organizationId={membership.organization.id}
  canWrite={["OWNER","ADMIN"].includes(membership.role)}/>:
