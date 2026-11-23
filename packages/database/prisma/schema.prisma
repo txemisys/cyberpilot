@@ -250,6 +250,8 @@ model Organization {
   situationReviewEvents IncidentSituationReviewEvent[]
   tabletopSessions IncidentTabletopSession[]
   tabletopSessionEvents IncidentTabletopSessionEvent[]
+  assuranceHandoffBoards IncidentAssuranceHandoffBoard[]
+  assuranceHandoffEvents IncidentAssuranceHandoffEvent[]
   offlineJobs DurableOfflineJob[]
   offlineJobEvents DurableOfflineJobEvent[]
   evidenceDecisionCases EvidenceDecisionCase[]
@@ -2148,4 +2150,44 @@ model IncidentTabletopSessionEvent {
   @@unique([sessionId, revision])
   @@unique([sessionId, commandId])
   @@index([organizationId, sessionId, at])
+}
+
+/** Offline assurance work coordination, not authorization for external writes. */
+model IncidentAssuranceHandoffBoard {
+  id String @id
+  organizationId String
+  incidentId String
+  revision Int @default(1)
+  state String @db.VarChar(24)
+  snapshot Json
+  snapshotDigest String @db.VarChar(64)
+  assuranceDigest String @db.VarChar(64)
+  createdById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events IncidentAssuranceHandoffEvent[]
+  @@index([organizationId, incidentId, createdAt])
+  @@index([organizationId, state, updatedAt])
+}
+/** Append-only CAS handoff ledger with per-command idempotency. */
+model IncidentAssuranceHandoffEvent {
+  id String @id @default(cuid())
+  organizationId String
+  boardId String
+  revision Int
+  commandId String
+  actorUserId String
+  action String @db.VarChar(32)
+  occurredAt DateTime
+  eventDigest String @db.VarChar(64)
+  previousDigest String? @db.VarChar(64)
+  nextDigest String @db.VarChar(64)
+  priorEventDigest String? @db.VarChar(64)
+  handoffId String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  board IncidentAssuranceHandoffBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  @@unique([boardId, revision])
+  @@unique([boardId, commandId])
+  @@index([organizationId, boardId, occurredAt])
 }
