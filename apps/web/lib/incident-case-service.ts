@@ -1,6 +1,6 @@
 import { db, type Prisma } from "@cyberpilot/database";
 import type { IncidentRole, IncidentType } from "./incident-playbook-catalog";
-import { INCIDENT_TYPES, catalogIncidentPlaybooks } from "./incident-playbook-catalog";
+import { INCIDENT_TYPES, catalogIncidentPlaybooks, getIncidentPlaybook } from "./incident-playbook-catalog";
 import { createIncident, incidentCreationEvent, incidentDigest, auditIncident,
   applyIncidentCommand, validateIncidentSnapshot, type IncidentMutation,
   type IncidentSnapshot, type IncidentEvent } from "./incident-case-domain";
@@ -172,7 +172,8 @@ export async function readGuidedIncidents(actor: IncidentActor, query: {
     organizationId: actor.organizationId, total, offset, limit,
     nextOffset: offset + limit < total ? offset + limit : null,
     cases: incidents, history: query.includeHistory ? history : null,
-    catalog: catalogIncidentPlaybooks(), providerCalls: 0 as const };
+    catalog: catalogIncidentPlaybooks(),
+    playbooks: INCIDENT_TYPES.map(getIncidentPlaybook), providerCalls: 0 as const };
 }
 export async function readGuidedIncidentDossier(actor: IncidentActor, id: string,
   format: "JSON" | "CSV" | "MARKDOWN" = "JSON") {
