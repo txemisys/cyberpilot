@@ -29,7 +29,7 @@ async ({page})=>{
   await expect(page.getByRole("heading",{name:"Sala de situación de incidentes"}))
     .toBeVisible({timeout:30000});
   await page.getByLabel("Incidente a coordinar")
-    .selectOption({label:/Assurance incident/});
+    .selectOption({index:1});
   await page.getByRole("button",{name:"Analizar situación multifuente"}).click();
   await expect(page.getByRole("heading",{name:/Prioridad P/}))
     .toBeVisible({timeout:30000});
@@ -47,7 +47,7 @@ async ({page})=>{
   await expect(page.getByRole("heading",{
     name:"Preparación y aseguramiento de incidentes"})).toBeVisible();
   await page.getByLabel("Incidente a auditar")
-    .selectOption({label:/Assurance incident/});
+    .selectOption({index:1});
   await page.getByRole("button",{name:"Revisar controles y evidencias"}).click();
   await expect(page.getByRole("heading",{name:/Decisión: /}))
     .toBeVisible({timeout:30000});
