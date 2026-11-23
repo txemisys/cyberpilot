@@ -69,7 +69,18 @@ const id=(x:unknown):x is string=>typeof x==="string"&&
 const iso=(x:unknown):x is string=>typeof x==="string"&&
   Number.isFinite(Date.parse(x))&&new Date(x).toISOString()===x;
 const sha=(x:unknown):x is string=>typeof x==="string"&&/^[a-f0-9]{64}$/.test(x);
-const digest=(x:unknown)=>createHash("sha256").update(JSON.stringify(x)).digest("hex");
+function canonical(value:unknown):unknown {
+  if(Array.isArray(value))return value.map(canonical);
+  if(value!==null&&typeof value==="object"){
+    const record=value as Record<string,unknown>;
+    return Object.fromEntries(Object.keys(record).sort()
+      .filter(key=>record[key]!==undefined)
+      .map(key=>[key,canonical(record[key])]));
+  }
+  return value;
+}
+const digest=(x:unknown)=>createHash("sha256")
+  .update(JSON.stringify(canonical(x))).digest("hex");
 const fail=(code:string):never=>{throw Error(code);};
 const roleAllowed=(r:string):r is TabletopActorRole=>
   ["INCIDENT_COMMANDER","SECURITY_REVIEWER","IT_OPERATOR","FINANCE_APPROVER",
