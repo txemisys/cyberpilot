@@ -100,9 +100,10 @@ function classifyEvidence(row: EvidenceSourceRow, asOf: string, ageHours: number
   const reported = row.state === "DECLARED";
   const stale = !Number.isFinite(stamp) ||
     stamp > Date.parse(asOf) || stamp < Date.parse(asOf) - ageHours * 3600000;
-  const verdict: CorrelationVerdict = error ? "ERROR_RECORD" :
-    unknown ? "UNKNOWN_COVERAGE" : reported ? "DECLARED_RECORD" :
-    stale ? "STALE_RECORD" : "SUPPORTED_RECORD";
+  const recognized = ["OBSERVED", "DECLARED", "UNKNOWN", "ERROR"].includes(row.state);
+  const verdict: CorrelationVerdict = !recognized ? "UNKNOWN_COVERAGE" :
+    error ? "ERROR_RECORD" : unknown ? "UNKNOWN_COVERAGE" :
+    reported ? "DECLARED_RECORD" : stale ? "STALE_RECORD" : "SUPPORTED_RECORD";
   const signals = [
     ...(error ? ["PROVIDER_OR_COLLECTION_ERROR"] : []),
     ...(unknown ? ["COLLECTION_UNKNOWN"] : []),
