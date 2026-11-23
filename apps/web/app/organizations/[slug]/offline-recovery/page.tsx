@@ -14,6 +14,8 @@ export default async function OfflineRecoveryPage({params}:Props){
  de capturas. No ejecuta una restauración SQL de producción.</p>
  <p><Link href={"/organizations/"+encodeURIComponent(slug)+
  "/offline-captures"}>Administrar capturas de origen</Link></p>
+ <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+ "/offline-recovery-faults"}>Ejecutar inyección de fallos en memoria</Link></p>
  {allowed?<OfflineRecoveryWorkspace slug={slug}
  organizationId={membership.organization.id}
  canWrite={["OWNER","ADMIN"].includes(membership.role)}/>:
