@@ -248,6 +248,8 @@ model Organization {
   incidentEvents GuidedIncidentEvent[]
   situationReviews IncidentSituationReview[]
   situationReviewEvents IncidentSituationReviewEvent[]
+  tabletopSessions IncidentTabletopSession[]
+  tabletopSessionEvents IncidentTabletopSessionEvent[]
   offlineJobs DurableOfflineJob[]
   offlineJobEvents DurableOfflineJobEvent[]
   evidenceDecisionCases EvidenceDecisionCase[]
@@ -2107,4 +2109,43 @@ model IncidentSituationReviewEvent {
   review IncidentSituationReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   @@unique([reviewId, revision])
   @@index([organizationId, reviewId, occurredAt])
+}
+
+/** Deterministic training session with no external provider execution. */
+model IncidentTabletopSession {
+  id String @id
+  organizationId String
+  incidentId String?
+  revision Int @default(1)
+  state String @db.VarChar(24)
+  snapshot Json
+  snapshotDigest String @db.VarChar(64)
+  createdById String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events IncidentTabletopSessionEvent[]
+  @@index([organizationId, incidentId, updatedAt])
+  @@index([organizationId, state, createdAt])
+}
+/** Serialized CAS training session events; client receipt includes digest chain. */
+model IncidentTabletopSessionEvent {
+  id String @id @default(cuid())
+  organizationId String
+  sessionId String
+  revision Int
+  commandId String
+  actorUserId String
+  kind String @db.VarChar(32)
+  at DateTime
+  beforeDigest String? @db.VarChar(64)
+  afterDigest String @db.VarChar(64)
+  priorEventDigest String? @db.VarChar(64)
+  eventDigest String @db.VarChar(64)
+  moveAccepted Boolean?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  session IncidentTabletopSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@unique([sessionId, revision])
+  @@unique([sessionId, commandId])
+  @@index([organizationId, sessionId, at])
 }
