@@ -115,6 +115,20 @@ export function IncidentTriageWorkspace({slug,mayExport}:{
       onClick={()=>void load(nextOffset)}>Cargar página siguiente</button>}
     {active&&dossier&&<section aria-label="Revisión del caso">
       <h2>{active.title}</h2>
+      <nav aria-label="Integraciones del incidente">
+        <p>Revisar registros reales de la misma organización:</p>
+        <ul>
+          <li><a href={"/organizations/"+encodeURIComponent(slug)+
+            "/incident-integrations/"+encodeURIComponent(active.id)+"/evidence"}>
+            Evidencias, hallazgos y decisiones</a></li>
+          <li><a href={"/organizations/"+encodeURIComponent(slug)+
+            "/incident-integrations/"+encodeURIComponent(active.id)+"/assets"}>
+            Activos y exposición OSV</a></li>
+          <li><a href={"/organizations/"+encodeURIComponent(slug)+
+            "/incident-integrations/"+encodeURIComponent(active.id)+"/remediation"}>
+            Remediaciones y aprobaciones supervisadas</a></li>
+        </ul>
+      </nav>
       <p>Revisión: {dossier.dossier.reviewDecision}.
         Auditoría íntegra: {dossier.dossier.audit.complete?"sí":"no"}.</p>
       <p>Aprobaciones vencidas: {dossier.dossier.approvalReview.expiredApprovals};
