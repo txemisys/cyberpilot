@@ -37,7 +37,7 @@ const digest=(s:string)=>typeof s==="string"&&/^[a-f0-9]{64}$/.test(s);
 const sha=(s:string)=>createHash("sha256").update(s).digest("hex");
 const optionalDate=(d:Date|null)=>d?.toISOString()??null;
 type DbRiskAction=Awaited<ReturnType<typeof db.integratedRiskAction.findFirst>>;
-function rowToSnapshot(row:NonNullable<DbRiskAction>):ActionSnapshot{
+export function rowToSnapshot(row:NonNullable<DbRiskAction>):ActionSnapshot{
   return{
     organizationId:row.organizationId,actionId:row.id,
     riskKey:row.riskKey,title:row.title,
