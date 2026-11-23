@@ -244,6 +244,8 @@ model Organization {
   exposureExecutionCharges ExposureExecutionCharge[]
   integratedRiskActions IntegratedRiskAction[]
   integratedRiskActionEvents IntegratedRiskActionEvent[]
+  incidentCases GuidedIncidentCase[]
+  incidentEvents GuidedIncidentEvent[]
   offlineJobs DurableOfflineJob[]
   offlineJobEvents DurableOfflineJobEvent[]
   evidenceDecisionCases EvidenceDecisionCase[]
@@ -1973,6 +1975,48 @@ model OfflineRecoveryRehearsal {
   createdAt DateTime @default(now())
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   @@index([organizationId, createdAt])
+}
+
+/** Provider-neutral response case. The immutable audit stream is bound to revisions. */
+model GuidedIncidentCase {
+  id String @id @default(cuid())
+  organizationId String
+  type String @db.VarChar(48)
+  status String @db.VarChar(24)
+  severity String @db.VarChar(16)
+  title String @db.VarChar(180)
+  subjectReference String @db.VarChar(220)
+  ownerUserId String?
+  relatedDecisionCaseId String?
+  revision Int @default(1)
+  snapshotDigest String @db.VarChar(64)
+  snapshot Json
+  createdById String
+  updatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events GuidedIncidentEvent[]
+  @@index([organizationId, status, updatedAt])
+  @@index([organizationId, type, severity])
+  @@index([organizationId, ownerUserId])
+}
+/** Append-only audit of incident state transitions; no provider action tokens. */
+model GuidedIncidentEvent {
+  id String @id @default(cuid())
+  organizationId String
+  incidentId String
+  revision Int
+  command String @db.VarChar(32)
+  actorUserId String
+  previousState String @db.VarChar(24)
+  nextState String @db.VarChar(24)
+  occurredAt DateTime
+  snapshotDigest String @db.VarChar(64)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  incident GuidedIncidentCase @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  @@unique([incidentId, revision])
+  @@index([organizationId, incidentId, occurredAt])
 }
 
 /** Bounded per-organization offline jobs with CAS revision and fencing lease. */
