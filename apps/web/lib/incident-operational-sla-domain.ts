@@ -392,8 +392,9 @@ export function analyzeOperationalSla(args: {
       completedAt: item.assignedAt,
       dueAt: addMinutes(item.createdAt, assignmentTarget),
       targetMinutes: assignmentTarget, asOf: args.asOf,
-      sourceOutcome: item.assignedAt === null && related.length === 0 ?
-        "UNKNOWN" : "PARTIAL",
+      // The persisted handoff itself establishes its unassigned state and
+      // internal target, but does not independently verify the event chain.
+      sourceOutcome: "PARTIAL",
       warning: "HANDOFF_EVENT_SCOPE_NOT_INDEPENDENTLY_REPLAYED",
       linkedEventIds: assignment.map(x => x.eventId),
       warningMinutes: args.policy.followupWarningMinutes,
