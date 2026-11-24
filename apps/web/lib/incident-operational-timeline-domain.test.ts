@@ -38,7 +38,7 @@ describe("operational timeline read model", () => {
     expect(e.providerOutcomeIndependentlyVerified).toBe(false);
     expect(verifyTimelineEvent(e)).toEqual([]);
     expect(verifyTimelineEvent({ ...e,
-      providerOutcomeIndependentlyVerified: true })).toContain(
+      providerOutcomeIndependentlyVerified: true as never })).toContain(
         "TIMELINE_PROVIDER_ASSERTION_FORGED");
     expect(verifyTimelineEvent({ ...e,
       sourceRevision: 0 })).toContain("TIMELINE_REVISION_INVALID");
