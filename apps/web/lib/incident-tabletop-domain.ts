@@ -75,8 +75,18 @@ const validId = (x: unknown): x is string => typeof x === "string" &&
   /^[A-Za-z0-9][A-Za-z0-9_.:-]{3,127}$/.test(x);
 const validTime = (x: unknown): x is string => typeof x === "string" &&
   Number.isFinite(Date.parse(x)) && new Date(x).toISOString() === x;
+function canonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return Object.fromEntries(Object.keys(record).sort()
+      .filter(key => record[key] !== undefined)
+      .map(key => [key, canonical(record[key])]));
+  }
+  return value;
+}
 const digest = (x: unknown) => createHash("sha256")
-  .update(JSON.stringify(x)).digest("hex");
+  .update(JSON.stringify(canonical(x))).digest("hex");
 const stepFor = (type: IncidentType, id: string) =>
   getIncidentPlaybook(type).steps.find(step => step.id === id);
 const FAULT_CLASS: Record<TabletopFault,

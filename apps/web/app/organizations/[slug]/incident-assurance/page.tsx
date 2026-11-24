@@ -15,6 +15,8 @@ export default async function IncidentAssurancePage({params}:Props){
       El dossier no acredita contención técnica ni consentimiento LIVE.</p>
     <p><Link href={"/organizations/"+encodeURIComponent(slug)+
       "/incident-situation"}>Volver a la sala de situación</Link></p>
+    <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+      "/incident-assurance-handoffs"}>Abrir seguimiento operativo persistente</Link></p>
     {reviewer?<IncidentAssuranceWorkspace slug={slug}/>:
       <p role="alert">Se requieren permisos de revisión.</p>}
   </section></main>;

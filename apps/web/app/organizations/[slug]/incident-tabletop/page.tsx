@@ -14,6 +14,8 @@ export default async function IncidentTabletopPage({params}:Props){
       y revisión de decisiones sin cambios a clientes ni proveedores.</p>
     <p><Link href={"/organizations/"+encodeURIComponent(slug)+
       "/incident-situation"}>Volver a la sala de situación</Link></p>
+    <p><Link href={"/organizations/"+encodeURIComponent(slug)+
+      "/incident-tabletop-sessions"}>Abrir seguimiento operativo persistente</Link></p>
     {permitted?<IncidentTabletopWorkspace slug={slug}/>:
       <p role="alert">Simulaciones restringidas a revisores.</p>}
   </section></main>;
