@@ -314,10 +314,10 @@ function emit(args: {
     manualReviewRequired: true as const,
   };
 }
-function groupEvents(
-  events: TimelineEvent[], key: (e: TimelineEvent) => string,
+function groupEvents<T>(
+  events: T[], key: (e: T) => string,
 ) {
-  const groups = new Map<string, TimelineEvent[]>();
+  const groups = new Map<string, T[]>();
   for (const e of events) {
     const k = key(e);
     const bucket = groups.get(k) ?? [];
