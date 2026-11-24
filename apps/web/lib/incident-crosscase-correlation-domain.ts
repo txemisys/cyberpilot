@@ -326,9 +326,9 @@ function groupEvents<T>(
   }
   return groups;
 }
-function sharedKeys(
-  a: Map<string, TimelineEvent[]>,
-  b: Map<string, TimelineEvent[]>,
+function sharedKeys<A, B>(
+  a: Map<string, A[]>,
+  b: Map<string, B[]>,
 ) {
   return [...a.keys()].filter(key => b.has(key)).sort();
 }
@@ -610,7 +610,7 @@ export function graphSelectedCorrelations(
       kinds: [...new Set(findings.map(x => x.kind))].sort(),
       strongestPriority: findings.reduce(
         (p, x) => higher(p, x.priority), "P3" as CorrelationPriority),
-      directProviderProof: false,
+      directProviderProof: false as const,
     };
   }).sort((a, b) => a.left.localeCompare(b.left) ||
     a.right.localeCompare(b.right));
