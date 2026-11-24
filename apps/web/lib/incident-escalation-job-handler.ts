@@ -76,7 +76,7 @@ export async function evaluateClaimedIncidentEscalationJob(
     if (!value || validateAssuranceHandoffBoard(value).length ||
         value.id !== row.id ||
         value.organizationId !== row.organizationId ||
-        value.incidentId !== incident.id ||
+        value.incidentId !== incident!.id ||
         value.revision !== row.revision ||
         value.status !== row.state ||
         assuranceHandoffBoardDigest(value) !== row.snapshotDigest)
