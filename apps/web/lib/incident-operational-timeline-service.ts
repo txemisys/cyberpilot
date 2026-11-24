@@ -9,6 +9,7 @@ import { tabletopSessionDigest, verifyPersistedTabletopSession,
 import { assuranceHandoffBoardDigest, validateAssuranceHandoffBoard,
   type AssuranceHandoffBoard } from "./incident-assurance-handoff-domain";
 import { inspectIncidentForensics } from "./incident-timeline-forensics-domain";
+import { buildInvestigationCasebook } from "./incident-timeline-investigation-domain";
 import {
   paginateTimeline, normalizeTimelineEvent, exportTimelineCSV,
   exportTimelineJSON, summarizeTimeline, type RawTimelineEvent,
@@ -292,6 +293,10 @@ export async function readOperationalTimeline(
       })),
     ],
   });
+  const investigation = buildInvestigationCasebook({
+    organizationId: actor.organizationId, incidentId,
+    generatedAt: forensics.analyzedAt, report: forensics, events: entries,
+  });
   const page = paginateTimeline({
     organizationId: actor.organizationId, incidentId,
     incidentRevision: incident.revision,
@@ -300,7 +305,7 @@ export async function readOperationalTimeline(
     query,
   });
   return {
-    page, summary: summarizeTimeline(page), forensics,
+    page, summary: summarizeTimeline(page), forensics, investigation,
     warnings: sourceWarnings,
     integrityLimitations: [
       "Timeline event source digests have not been independently replayed.",
