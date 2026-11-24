@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import type { TimelinePage, TimelineEvent, TimelineSource,
   TimelineIntegrity } from "../lib/incident-operational-timeline-domain";
 
+import type { ForensicCaseReport } from "../lib/incident-timeline-forensics-domain";
+
 type TimelineResponse = {
   page: TimelinePage;
   summary: { matchingTotal: number; displayed: number;
@@ -11,6 +13,7 @@ type TimelineResponse = {
       uniqueInternalActors: number; lastAt: string | null;
       operations: Array<{ operation: string; count: number }> }> };
   warnings: string[];
+  forensics: ForensicCaseReport;
   integrityLimitations: string[];
   providerWrites: 0;
 };
@@ -38,7 +41,8 @@ function isPage(value: unknown): value is TimelineResponse {
   const result = value as Partial<TimelineResponse>;
   return result.page?.schema === "cyberpilot.incident.timeline.page.v1" &&
     Array.isArray(result.page.entries) &&
-    result.providerWrites === 0 && Array.isArray(result.warnings);
+    result.providerWrites === 0 && Array.isArray(result.warnings) &&
+    result.forensics?.schema === "cyberpilot.incident.timeline.forensic-report.v1";
 }
 function eventLabel(e: TimelineEvent) {
   const state = e.priorState === null ? e.nextState :
@@ -214,6 +218,41 @@ export function IncidentOperationalTimelineWorkspace({ slug }: {
         <summary>Advertencias ({page.warnings.length})</summary>
         <ul>{page.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
       </details>}
+      <details>
+        <summary>Auditoría forense del historial ({page.forensics.findings.length}
+          {page.forensics.findingsTruncated ? "+": ""} hallazgos)</summary>
+        <p><strong>Integridad local:</strong> {statusLabels[page.forensics.integrity]}.
+          <strong> Registros aceptados:</strong> {page.forensics.acceptedEvents}.
+          <strong> Registros rechazados:</strong> {page.forensics.rejectedEvents}.
+          <strong> Expedientes:</strong> {page.forensics.ledgerCount}.</p>
+        <p>La verificación local no acredita ejecución de acciones externas
+          ni resultados independientes de proveedores.</p>
+        <p>Huella del análisis: <code>{page.forensics.digest}</code></p>
+        {page.forensics.findingsTruncated && <p role="alert">
+          La lista de hallazgos se ha truncado. No interprete la tabla
+          como una revisión completa.</p>}
+        <table><thead><tr><th>Hallazgo</th><th>Fuente</th>
+          <th>Revisión</th><th>Severidad</th><th>Detalle</th>
+        </tr></thead><tbody>
+          {page.forensics.findings.map((x, i) =>
+            <tr key={x.code + "/" + x.sourceId + "/" + i}>
+              <td>{x.code}</td><td>{x.source ?? "Inventario"}</td>
+              <td>{x.revision ?? "—"}</td><td>{x.severity}</td>
+              <td>{x.explanation}</td>
+            </tr>)}
+        </tbody></table>
+        <h4>Conciliación de expedientes</h4>
+        <table><thead><tr><th>Fuente</th><th>Expediente</th>
+          <th>Revisiones observadas</th><th>Revisión esperada</th>
+          <th>Estado</th></tr></thead><tbody>
+          {page.forensics.ledgers.map(x =>
+            <tr key={x.source + "/" + x.sourceId}>
+              <td>{x.source}</td><td>{x.sourceId}</td>
+              <td>{x.observedEvents}</td><td>{x.expectedRevision ?? "—"}</td>
+              <td>{statusLabels[x.status]}</td>
+            </tr>)}
+        </tbody></table>
+      </details>
       <h3>Fuentes incluidas</h3>
       <table><thead><tr><th>Fuente</th><th>Registros</th>
         <th>Incompletos</th><th>Conflictos</th><th>Último evento</th>
