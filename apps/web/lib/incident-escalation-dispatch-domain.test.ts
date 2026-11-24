@@ -95,6 +95,10 @@ describe("incident escalation planning and safe durable state", () => {
     expect(p.dispatches[0]?.authorizedProviderMutations).toBe(0);
     expect(p.dispatches[0]?.notificationDeliveries).toBe(0);
     expect(p.dispatches[0]?.payload.internalOnly).toBe(true);
+    expect(p.dispatches[0]?.payload.boardDigest)
+      .toBe(escalationDigest(board()));
+    expect(p.candidates[0]?.boardDigest)
+      .toBe(p.dispatches[0]?.payload.boardDigest);
     expect(plan().dispatches[0]?.idempotencyKey)
       .toBe(p.dispatches[0]?.idempotencyKey);
   });
