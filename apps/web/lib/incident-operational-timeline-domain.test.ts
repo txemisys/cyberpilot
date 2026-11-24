@@ -99,6 +99,18 @@ describe("operational timeline read model", () => {
       incidentId: "incident-other",
     })])).toThrow("TIMELINE_CROSS_TENANT_OR_INCIDENT");
   });
+  it("rejects malformed foreign-tenant entries before they can be filtered", () => {
+    const foreign = { ...event(1), organizationId: "org-other-tenant",
+      sourceRevision: 0 };
+    expect(() => page([foreign])).toThrow("TIMELINE_CROSS_TENANT_OR_INCIDENT");
+    const otherIncident = { ...event(1), incidentId: "incident-other",
+      nextDigest: "not-a-digest" };
+    expect(() => page([otherIncident])).toThrow("TIMELINE_CROSS_TENANT_OR_INCIDENT");
+    expect(() => page([null as unknown as TimelineEvent]))
+      .toThrow("TIMELINE_CROSS_TENANT_OR_INCIDENT");
+    expect(() => page([event(1), foreign]))
+      .toThrow("TIMELINE_CROSS_TENANT_OR_INCIDENT");
+  });
   it("rejects unsupported query keys, filters and ranges", () => {
     expect(() => validateTimelineQuery({
       sources: ["INCIDENT", "INCIDENT"],
