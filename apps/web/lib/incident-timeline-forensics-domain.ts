@@ -269,8 +269,9 @@ export function inspectIncidentForensics(req: ForensicCaseRequest): ForensicCase
   const findingBuffer: ForensicFinding[] = [];
   const push = (f: ForensicFinding) => findingBuffer.push(f);
   const grouped = new Map<string, TimelineEvent[]>();
-  const expectationMap = new Map((req.expectations ?? []).map(x =>
-    [ledgerKey(x.source, x.sourceId), x]));
+  const expectationMap = new Map<string, ForensicLedgerExpectation>(
+    (req.expectations ?? []).map(x =>
+      [ledgerKey(x.source, x.sourceId), x] as const));
   let rejectedEvents = 0;
   const allEventIds = new Set<string>();
   for (const e of req.events) {
