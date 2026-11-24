@@ -82,7 +82,7 @@ describe("incident escalation planning and safe durable state", () => {
   it("rejects policy permitting external writes", () => {
     expect(validateEscalationPolicy(policy)).toEqual([]);
     expect(validateEscalationPolicy({ ...policy,
-      externalNotificationsAllowed: true }))
+      externalNotificationsAllowed: true as never }))
       .toContain("ESCALATION_EXTERNAL_PERMISSION_FORGED");
     expect(validateEscalationPolicy({ ...policy,
       rules: [rule, rule] })).toContain("ESCALATION_RULE_ID_INVALID");
@@ -145,7 +145,7 @@ describe("incident escalation planning and safe durable state", () => {
     expect(validateEscalationQueue(snapshot, [event])).toEqual([]);
     expect(snapshot.externallyExecuted).toBe(false);
     expect(validateEscalationQueue({ ...snapshot,
-      externallyExecuted: true }, [event]))
+      externallyExecuted: true as never }, [event]))
       .toContain("ESCALATION_QUEUE_EXTERNAL_CLAIM");
   });
   it("applies queue transitions with CAS and immutable event chains", () => {
