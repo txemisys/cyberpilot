@@ -115,7 +115,7 @@ async function collectEvents(actor: IncidentActor, incidentId: string,
 }
 function assertPolicy(policy: OperationalSlaPolicy) {
   const problems = validateOperationalSlaPolicy(policy);
-  if (problems.length) fail(problems[0]);
+  if (problems.length) fail(problems[0]!);
   if (policy.effectiveAt > new Date().toISOString())
     fail("SLA_FUTURE_POLICY_NOT_ACTIVE");
 }
@@ -125,7 +125,7 @@ export async function readIncidentOperationalSla(
 ) {
   await membership(actor);
   assertPolicy(policy);
-  const incident = await getIncident(actor, incidentId);
+  const incident = (await getIncident(actor, incidentId))!;
   const [timeline, boardData] = await Promise.all([
     collectEvents(actor, incidentId, options?.maxPages ?? 20),
     readHandoffs(actor, incidentId),
