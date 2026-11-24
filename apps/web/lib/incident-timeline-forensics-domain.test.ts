@@ -50,7 +50,7 @@ describe("incident timeline forensic reconciliation", () => {
     expect(r.ledgers[0]?.eventDigestCoverage).toBe(2);
   });
   it("reports missing origin, gaps and expected revision mismatch", () => {
-    const r = run([event(2), event(4)], 5);
+    const r = run([event(2), event(4, { priorDigest: b })], 5);
     expect(r.findings.map(x => x.code)).toContain("FIRST_REVISION_MISSING");
     expect(r.findings.map(x => x.code)).toContain("REVISION_GAP");
     expect(r.findings.map(x => x.code)).toContain("SNAPSHOT_REVISION_MISMATCH");
