@@ -8,6 +8,7 @@ import { tabletopSessionDigest, verifyPersistedTabletopSession,
   type PersistedTabletopSession } from "./incident-tabletop-session-domain";
 import { assuranceHandoffBoardDigest, validateAssuranceHandoffBoard,
   type AssuranceHandoffBoard } from "./incident-assurance-handoff-domain";
+import { inspectIncidentForensics } from "./incident-timeline-forensics-domain";
 import {
   paginateTimeline, normalizeTimelineEvent, exportTimelineCSV,
   exportTimelineJSON, summarizeTimeline, type RawTimelineEvent,
@@ -266,6 +267,31 @@ export async function readOperationalTimeline(
       }));
     }
   }
+  const forensics = inspectIncidentForensics({
+    organizationId: actor.organizationId, incidentId,
+    analyzedAt: new Date().toISOString(), events: entries,
+    inventoryComplete: sourceWarnings.length === 0,
+    expectations: [
+      { source: "INCIDENT", sourceId: incident.id,
+        expectedRevision: incident.revision,
+        expectedDigest: incident.snapshotDigest, inventoryComplete: true },
+      ...reviews.map(row => ({
+        source: "SITUATION_REVIEW" as const, sourceId: row.id,
+        expectedRevision: row.revision, expectedDigest: row.snapshotDigest,
+        inventoryComplete: true,
+      })),
+      ...sessions.map(row => ({
+        source: "TABLETOP_SESSION" as const, sourceId: row.id,
+        expectedRevision: row.revision, expectedDigest: row.snapshotDigest,
+        inventoryComplete: true,
+      })),
+      ...boards.map(row => ({
+        source: "ASSURANCE_HANDOFF" as const, sourceId: row.id,
+        expectedRevision: row.revision, expectedDigest: row.snapshotDigest,
+        inventoryComplete: true,
+      })),
+    ],
+  });
   const page = paginateTimeline({
     organizationId: actor.organizationId, incidentId,
     incidentRevision: incident.revision,
@@ -274,7 +300,7 @@ export async function readOperationalTimeline(
     query,
   });
   return {
-    page, summary: summarizeTimeline(page),
+    page, summary: summarizeTimeline(page), forensics,
     warnings: sourceWarnings,
     integrityLimitations: [
       "Timeline event source digests have not been independently replayed.",
