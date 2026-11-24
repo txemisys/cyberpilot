@@ -234,13 +234,13 @@ export function validateEscalationPolicy(policy: EscalationPolicy) {
           rule.minimumAgeMinutes < 0 || rule.minimumAgeMinutes > 525600 ||
           !Number.isSafeInteger(rule.warningMinutes) ||
           rule.warningMinutes < 0 || rule.warningMinutes > 525600 ||
-          !Number.isSafeInteger(rule.maximumFrequencyMinutes) ||
-          rule.maximumFrequencyMinutes < 1 ||
-          rule.maximumFrequencyMinutes > 525600)
+          !Number.isSafeInteger(rule!.maximumFrequencyMinutes) ||
+          rule!.maximumFrequencyMinutes < 1 ||
+          rule!.maximumFrequencyMinutes > 525600)
         errors.push("ESCALATION_RULE_TIMING_INVALID");
       if (![1, 2, 3].includes(rule.escalationLevel) ||
           !["OWNER", "ADMIN", "SECURITY_REVIEWER"]
-            .includes(rule.recommendedRole) ||
+            .includes(rule!.recommendedRole) ||
           typeof rule.requireIndependentReview !== "boolean")
         errors.push("ESCALATION_RULE_APPROVAL_INVALID");
     }
@@ -323,7 +323,7 @@ function candidateFrom(rule: EscalationRule, board: AssuranceHandoffBoard,
   item: AssuranceHandoff, at: string): EscalationCandidate {
   const checked = qualifies(rule, board, item, at);
   const cooldown = item.lastEscalatedAt !== null &&
-    minutes(at, item.lastEscalatedAt) < rule.maximumFrequencyMinutes;
+    minutes(at, item.lastEscalatedAt) < rule!.maximumFrequencyMinutes;
   const terminal = !activeStatus(item.status) ||
     board.status !== "ACTIVE";
   const future = at < item.updatedAt || at < board.createdAt;
@@ -337,7 +337,7 @@ function candidateFrom(rule: EscalationRule, board: AssuranceHandoffBoard,
     handoffRevision: item.revision,
     boardRevision: board.revision,
     eligibleWindow: Math.floor(Date.parse(at) /
-      (rule.maximumFrequencyMinutes * 60000)),
+      (rule!.maximumFrequencyMinutes * 60000)),
   });
   const idempotencyKey = "escalation:" + token.slice(0, 64);
   return {
@@ -351,7 +351,7 @@ function candidateFrom(rule: EscalationRule, board: AssuranceHandoffBoard,
     level: rule.escalationLevel, eligibleAt: at,
     dueAt: item.dueAt, evaluatedAt: at,
     assignedUserId: item.assignedUserId,
-    recommendedRole: rule.recommendedRole,
+    recommendedRole: rule!.recommendedRole,
     requiresIndependentReview: rule.requireIndependentReview,
     evidenceMissing: checked.evidenceMissing,
     ageMinutes: checked.age,
@@ -555,17 +555,17 @@ export function evaluateEscalationDispatch(args: {
   if (board.status !== "ACTIVE" || !activeStatus(item.status))
     return empty("RESOLVED_INTERNAL", "BOARD_OR_ITEM_NOT_ACTIVE",
       board.revision);
-  const q = qualifies(rule, board, item, args.at);
+  const q = qualifies(rule!, board, item, args.at);
   if (!q.result) return empty("RESOLVED_INTERNAL",
     "TRIGGER_NO_LONGER_SATISFIED", board.revision);
   if (item.lastEscalatedAt &&
       minutes(args.at, item.lastEscalatedAt) <
-        rule.maximumFrequencyMinutes)
+        rule!.maximumFrequencyMinutes)
     return empty("NOT_DUE", "ESCALATION_COOLDOWN_ACTIVE",
-      board.revision, rule.recommendedRole,
-      plus(item.lastEscalatedAt, rule.maximumFrequencyMinutes));
+      board.revision, rule!.recommendedRole,
+      plus(item.lastEscalatedAt, rule!.maximumFrequencyMinutes));
   return empty("STILL_ACTIONABLE", "INTERNAL_REVIEW_SUGGESTED",
-    board.revision, rule.recommendedRole,
+    board.revision, rule!.recommendedRole,
     plus(args.at, args.policy.minReevaluationMinutes));
 }
 export function validateEscalationQueue(
@@ -586,7 +586,7 @@ export function validateEscalationQueue(
     problems.push("ESCALATION_QUEUE_REVISION_INVALID");
   let previous: EscalationQueueEvent | null = null;
   for (let i = 0; i < events.length; i++) {
-    const e = events[i];
+    const e = events[i]!;
     if (e.schema !== "cyberpilot.incident.escalation.queue-event.v1" ||
         e.organizationId !== snapshot.organizationId ||
         e.incidentId !== snapshot.incidentId ||
@@ -645,7 +645,7 @@ export function applyEscalationQueueTransition(
     reject("ESCALATION_QUEUE_CORRUPT");
   if (input.expectedRevision !== snapshot.revision ||
       !ident(input.actorId) || !iso(input.at) ||
-      input.at < events[events.length - 1].at)
+      input.at < events[events.length - 1]!.at)
     reject("ESCALATION_QUEUE_CAS_REJECTED");
   const allowed: Record<EscalationQueueState, EscalationQueueState[]> = {
     PLANNED: ["ADMITTED", "CANCELLED"],
