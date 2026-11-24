@@ -135,7 +135,7 @@ export function validateForensicRequest(req: ForensicCaseRequest): void {
        new Set(req.requiredSources).size !== req.requiredSources.length))
     fail("FORENSIC_REQUIRED_SOURCES_INVALID");
   if (req.expectations !== undefined) {
-    if (!Array.isArray(req.expectations) || req.expectations.length > 1500)
+    if (!Array.isArray(req.expectations) || req.expectations.length > 1600)
       fail("FORENSIC_EXPECTATION_LIMIT");
     const seen = new Set<string>();
     for (const row of req.expectations) {
