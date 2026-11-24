@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1/4, 2/4, 3/4, 4/4]
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     services:
@@ -80,7 +80,7 @@ jobs:
           cat "$RUNNER_TEMP/cyberpilot-browser.log"
           exit 1
       - name: Exercise LAB customer journey in Chromium
-        run: ./tests/browser/node_modules/.bin/playwright test --config tests/browser/playwright.config.mjs --shard=${{ matrix.shard }}
+        run: ./tests/browser/node_modules/.bin/playwright test --config tests/browser/playwright.config.mjs --shard=${{ matrix.shard }}/4
       - name: Upload browser report
         if: always()
         uses: actions/upload-artifact@v4
