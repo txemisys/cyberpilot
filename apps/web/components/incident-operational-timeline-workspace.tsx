@@ -5,6 +5,7 @@ import type { TimelinePage, TimelineEvent, TimelineSource,
   TimelineIntegrity } from "../lib/incident-operational-timeline-domain";
 
 import type { ForensicCaseReport } from "../lib/incident-timeline-forensics-domain";
+import type { InvestigationCasebook } from "../lib/incident-timeline-investigation-domain";
 
 type TimelineResponse = {
   page: TimelinePage;
@@ -14,6 +15,7 @@ type TimelineResponse = {
       operations: Array<{ operation: string; count: number }> }> };
   warnings: string[];
   forensics: ForensicCaseReport;
+  investigation: InvestigationCasebook;
   integrityLimitations: string[];
   providerWrites: 0;
 };
@@ -42,7 +44,8 @@ function isPage(value: unknown): value is TimelineResponse {
   return result.page?.schema === "cyberpilot.incident.timeline.page.v1" &&
     Array.isArray(result.page.entries) &&
     result.providerWrites === 0 && Array.isArray(result.warnings) &&
-    result.forensics?.schema === "cyberpilot.incident.timeline.forensic-report.v1";
+    result.forensics?.schema === "cyberpilot.incident.timeline.forensic-report.v1" &&
+    result.investigation?.schema === "cyberpilot.incident.timeline.investigation.v1";
 }
 function eventLabel(e: TimelineEvent) {
   const state = e.priorState === null ? e.nextState :
@@ -252,6 +255,33 @@ export function IncidentOperationalTimelineWorkspace({ slug }: {
               <td>{statusLabels[x.status]}</td>
             </tr>)}
         </tbody></table>
+      </details>
+      <details>
+        <summary>Plan de investigación interno ({page.investigation.tasks.length}
+          tareas, {page.investigation.requests.length} solicitudes de prueba)</summary>
+        <p>Propuestas manuales derivadas de datos persistidos. No representan
+          asignación aceptada, notificación enviada ni remediación ejecutada.</p>
+        <p>Digest del expediente: <code>{page.investigation.digest}</code></p>
+        <h4>Tareas priorizadas</h4>
+        <table><thead><tr><th>Prioridad</th><th>Área</th>
+          <th>Rol sugerido</th><th>Estado</th><th>Pruebas necesarias</th>
+        </tr></thead><tbody>{page.investigation.tasks.map(t =>
+          <tr key={t.id}><td>{t.priority}</td><td>{t.workstream}</td>
+            <td>{t.assignedRole}</td><td>{t.status}</td>
+            <td>{t.evidenceRequestIds.length}</td></tr>)}
+        </tbody></table>
+        <h4>Solicitudes de evidencia</h4>
+        <ol>{page.investigation.requests.slice(0, 100).map(r =>
+          <li key={r.id}><strong>{r.kind}</strong> · {r.requiredFromRole}
+            <p>{r.question}</p>
+            <ul>{r.acceptanceCriteria.map((c, i) =>
+              <li key={i}>{c}</li>)}</ul></li>)}</ol>
+        {page.investigation.requests.length > 100 && <p role="status">
+          Se muestran las primeras 100 solicitudes. El expediente completo
+          permanece en la respuesta de lectura autenticada.</p>}
+        <h4>Límites de interpretación</h4>
+        <ul>{page.investigation.limitations.map((l, i) =>
+          <li key={i}>{l}</li>)}</ul>
       </details>
       <h3>Fuentes incluidas</h3>
       <table><thead><tr><th>Fuente</th><th>Registros</th>
