@@ -48,7 +48,7 @@ async function readIncident(actor: IncidentActor, incidentId: string) {
       snapshot.revision !== row.revision ||
       incidentDigest(snapshot) !== row.snapshotDigest)
     fail("TIMELINE_INCIDENT_SNAPSHOT_CORRUPT");
-  return row;
+  return row!;
 }
 function recordEntry(e: RawTimelineEvent) {
   return normalizeTimelineEvent(e);
@@ -129,7 +129,7 @@ export async function readOperationalTimeline(
   query: TimelineQuery = {},
 ) {
   await authorize(actor);
-  const incident = await readIncident(actor, incidentId);
+  const incident = (await readIncident(actor, incidentId))!;
   const where = { organizationId: actor.organizationId, incidentId };
   const [incidentEvents, reviews, sessions, boards] = await Promise.all([
     db.guidedIncidentEvent.findMany({
