@@ -138,7 +138,9 @@ export async function admitIncidentEscalationDispatch(
   });
   if (!board) fail("ESCALATION_BOARD_DISAPPEARED");
   const value = board!.snapshot as unknown as AssuranceHandoffBoard;
-  if (!value || board!.snapshotDigest !== input.boardDigest ||
+  if (!value ||
+      escalationDigest(value) !== input.boardDigest ||
+      input.boardDigest !== dispatch.payload.boardDigest ||
       assuranceHandoffBoardDigest(value) !== board!.snapshotDigest ||
       board!.revision !== dispatch.payload.boardRevision)
     fail("ESCALATION_BOARD_CAS_CONFLICT");
