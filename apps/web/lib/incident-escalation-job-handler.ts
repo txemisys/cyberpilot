@@ -55,7 +55,7 @@ export async function evaluateClaimedIncidentEscalationJob(
     fail("ESCALATION_JOB_OPERATOR_REVOKED");
   const submitter = await db.membership.findFirst({
     where: { organizationId: actor.organizationId,
-      userId: payload.submittedBy },
+      userId: payload.submittedBy as string },
     select: { role: true },
   });
   if (!submitter || !["OWNER", "ADMIN"].includes(submitter.role))
@@ -68,7 +68,7 @@ export async function evaluateClaimedIncidentEscalationJob(
   if (!incident) fail("ESCALATION_JOB_INCIDENT_NOT_FOUND");
   const row = await db.incidentAssuranceHandoffBoard.findFirst({
     where: { organizationId: actor.organizationId,
-      incidentId: incident.id, id: dispatch.boardId },
+      incidentId: incident!.id, id: dispatch.boardId },
   });
   let board: AssuranceHandoffBoard | null = null;
   if (row) {
@@ -90,9 +90,9 @@ export async function evaluateClaimedIncidentEscalationJob(
   return {
     schema: "cyberpilot.incident.escalation.offline-result.v1",
     organizationId: actor.organizationId,
-    incidentId: incident.id,
-    incidentRevision: incident.revision,
-    incidentInternalStatus: incident.status,
+    incidentId: incident!.id,
+    incidentRevision: incident!.revision,
+    incidentInternalStatus: incident!.status,
     dispatchIdempotencyKey: dispatch.idempotencyKey,
     requestDigest: payload.requestDigest,
     evaluation: result,
