@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { evaluateClaimedIncidentEscalationJob } from "./incident-escalation-job-handler";
 import { buildQueueDispatchPlan, reviewDeadLetters, analyzeJobEventChain } from "./offline-job-dispatch-assurance";
 import { evaluateQueueFaultScenarios } from "./offline-job-recovery-fault-matrix";
 import { buildQueueAssuranceReport, exportQueueAssuranceReport } from "./offline-job-assurance-report";
@@ -299,6 +300,9 @@ export async function executeClaimedOfflineJob(actor: IntegratedReviewer,
         matrixDigest: jobDigest(report.matrix), acceptance: report.acceptance,
         sqlRestoreOperations: 0, productionRecoveryEstablished: false,
       };
+    } else if (snapshot.type === "INCIDENT_ESCALATION_REVIEW") {
+      output = await evaluateClaimedIncidentEscalationJob(actor,
+        snapshot.payload);
     } else fail("JOB_HANDLER_NOT_RECOGNIZED");
   } catch (error) {
     const failureCode =
