@@ -199,7 +199,7 @@ export function reconcileTimeline(entries: TimelineEvent[]): TimelineReconciliat
   for (const entry of entries) {
     const invalid = verifyTimelineEvent(entry);
     if (invalid.length) {
-      problems.push({ code: invalid[0], source: entry.source,
+      problems.push({ code: invalid[0]!, source: entry.source,
         sourceId: entry.sourceId, revision: entry.sourceRevision });
       continue;
     }
@@ -220,19 +220,19 @@ export function reconcileTimeline(entries: TimelineEvent[]): TimelineReconciliat
   for (const ledger of ledgerMap.values()) {
     ledger.sort((a, b) => a.sourceRevision - b.sourceRevision);
     for (let i = 0; i < ledger.length; i++) {
-      const event = ledger[i];
+      const event = ledger[i]!;
       if (event.sourceRevision !== i + 1) {
         problems.push({ code: "TIMELINE_REVISION_GAP", source: event.source,
           sourceId: event.sourceId, revision: event.sourceRevision });
         event.sourceIntegrity = "INCOMPLETE";
       }
-      if (i > 0 && event.occurredAt < ledger[i - 1].occurredAt) {
+      if (i > 0 && event.occurredAt < ledger[i - 1]!.occurredAt) {
         problems.push({ code: "TIMELINE_TIME_REGRESSION", source: event.source,
           sourceId: event.sourceId, revision: event.sourceRevision });
         event.sourceIntegrity = "CONFLICT";
       }
       if (i > 0 && event.priorDigest !== null &&
-          event.priorDigest !== ledger[i - 1].nextDigest) {
+          event.priorDigest !== ledger[i - 1]!.nextDigest) {
         problems.push({ code: "TIMELINE_DIGEST_CHAIN_BROKEN", source: event.source,
           sourceId: event.sourceId, revision: event.sourceRevision });
         event.sourceIntegrity = "CONFLICT";
@@ -273,7 +273,7 @@ function decodeCursor(cursor: string, queryDigest: string): string {
     if (obj.v !== 1 || typeof obj.key !== "string" ||
         obj.queryDigest !== queryDigest || obj.key.length > 512)
       reject("TIMELINE_CURSOR_STALE");
-    return obj.key;
+    return obj.key as string;
   } catch { return reject("TIMELINE_CURSOR_INVALID"); }
 }
 export function paginateTimeline(args: {
@@ -308,7 +308,7 @@ export function paginateTimeline(args: {
   const limit = query.limit ?? 40;
   const entries = after.slice(0, limit);
   const nextCursor = after.length > limit && entries.length ?
-    encodeCursor(tuple(entries[entries.length - 1]), queryDigest) : null;
+    encodeCursor(tuple(entries[entries.length - 1]!), queryDigest) : null;
   const completeness = !args.inventoryComplete ? "UNKNOWN" :
     reconciled.integrity === "VERIFIED" ? "COMPLETE" : "PARTIAL";
   const page: Omit<TimelinePage, "pageDigest"> = {
