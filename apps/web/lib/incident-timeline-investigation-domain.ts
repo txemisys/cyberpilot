@@ -499,3 +499,54 @@ export function exportInvestigationTaskCSV(value: InvestigationCasebook) {
     t.description, t.signalIds.join(";"), t.evidenceRequestIds.join(";"), "0",
   ].map(csvSafe).join(","))].join("\r\n") + "\r\n";
 }
+
+export function summarizeInvestigationCasebook(value: InvestigationCasebook) {
+  if (verifyInvestigationCasebook(value).length)
+    reject("CASEBOOK_SUMMARY_INVALID");
+  const byRole = (["OWNER", "ADMIN", "AUDITOR"] as const).map(role => {
+    const tasks = value.tasks.filter(task => task.assignedRole === role);
+    const requested = tasks.reduce((acc, task) =>
+      acc + task.evidenceRequestIds.length, 0);
+    return {
+      role,
+      tasks: tasks.length,
+      requestedEvidence: requested,
+      critical: tasks.filter(task => task.priority === "P0").length,
+      high: tasks.filter(task => task.priority === "P1").length,
+      blocked: tasks.filter(task => task.status === "BLOCKED").length,
+    };
+  });
+  const streams = workstreams.map(workstream => {
+    const tasks = value.tasks.filter(task =>
+      task.workstream === workstream);
+    return {
+      workstream,
+      tasks: tasks.length,
+      signalCount: value.workstreamCounts[workstream],
+      highestPriority: tasks.reduce(
+        (result, task) => choice(result, task.priority),
+        "P3" as InvestigationPriority),
+    };
+  });
+  const uncovered = value.signals.filter(signal =>
+    !value.tasks.some(task => task.signalIds.includes(signal.id)));
+  const unrequested = value.signals.filter(signal =>
+    !value.requests.some(request => request.signalId === signal.id));
+  return {
+    schema: "cyberpilot.incident.timeline.investigation-summary.v1" as const,
+    organizationId: value.organizationId,
+    incidentId: value.incidentId,
+    sourceDigest: value.digest,
+    totalSignals: value.signals.length,
+    totalEvidenceRequests: value.requests.length,
+    totalTasks: value.tasks.length,
+    byRole, streams,
+    uncoveredSignals: uncovered.map(signal => signal.id),
+    signalsWithoutEvidenceRequest: unrequested.map(signal => signal.id),
+    needsHumanReview: value.tasks.length > 0,
+    needsProviderProof: value.requests.some(request =>
+      request.kind === "PROVIDER_RECEIPT"),
+    providerMutationsExecuted: 0 as const,
+    independentProviderProofEstablished: false as const,
+  };
+}
