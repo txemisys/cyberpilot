@@ -511,7 +511,7 @@ export function calculateSlaActorWorkloads(events: TimelineEvent[],
     result.push({
       userId, totalEvents: rows.length, sourceCounts,
       lastInternalActionAt: rows.reduce((max, x) =>
-        max > x.occurredAt ? max : x.occurredAt, rows[0].occurredAt),
+        max > x.occurredAt ? max : x.occurredAt, rows[0]!.occurredAt),
       distinctSources: Object.values(sourceCounts).filter(x => x > 0).length,
       distinctLedgers: new Set(rows.map(x =>
         x.source + ":" + x.sourceId)).size,
