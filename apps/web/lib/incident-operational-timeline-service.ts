@@ -41,12 +41,12 @@ async function readIncident(actor: IncidentActor, incidentId: string) {
     where: { organizationId: actor.organizationId, id: incidentId },
   });
   if (!row) fail("TIMELINE_INCIDENT_NOT_FOUND");
-  const snapshot = row.snapshot as unknown as IncidentSnapshot;
+  const snapshot = row!.snapshot as unknown as IncidentSnapshot;
   if (!snapshot || validateIncidentSnapshot(snapshot).length ||
-      snapshot.id !== row.id ||
-      snapshot.organizationId !== row.organizationId ||
-      snapshot.revision !== row.revision ||
-      incidentDigest(snapshot) !== row.snapshotDigest)
+      snapshot.id !== row!.id ||
+      snapshot.organizationId !== row!.organizationId ||
+      snapshot.revision !== row!.revision ||
+      incidentDigest(snapshot) !== row!.snapshotDigest)
     fail("TIMELINE_INCIDENT_SNAPSHOT_CORRUPT");
   return row!;
 }
