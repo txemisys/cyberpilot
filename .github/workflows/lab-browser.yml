@@ -13,6 +13,12 @@ on:
 permissions:
   contents: read
 
+# Only the latest PR commit requires an expensive full-browser acceptance.
+# Superseded runs are cancelled to prevent runner saturation and SIGTERM 143.
+concurrency:
+  group: lab-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lab-browser:
     runs-on: ubuntu-24.04
