@@ -58,7 +58,7 @@ describe("conservative internal incident SLA analysis", () => {
   it("validates explicit targets and denies any external guarantee", () => {
     expect(validateOperationalSlaPolicy(policy)).toEqual([]);
     expect(validateOperationalSlaPolicy({ ...policy,
-      externalServiceGuarantee: true }))
+      externalServiceGuarantee: true as never }))
       .toContain("SLA_POLICY_EXTERNAL_CLAIM_DENIED");
     expect(validateOperationalSlaPolicy({ ...policy,
       firstReviewTargetMinutes: 0 }))
