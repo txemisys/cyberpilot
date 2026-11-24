@@ -268,8 +268,8 @@ function encodeCursor(key: string, queryDigest: string): string {
 }
 function decodeCursor(cursor: string, queryDigest: string): string {
   try {
-    const obj = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"))
-      as { v?: unknown; key?: unknown; queryDigest?: unknown };
+    const obj = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as
+      { v?: unknown; key?: unknown; queryDigest?: unknown };
     if (obj.v !== 1 || typeof obj.key !== "string" ||
         obj.queryDigest !== queryDigest || obj.key.length > 512)
       reject("TIMELINE_CURSOR_STALE");
