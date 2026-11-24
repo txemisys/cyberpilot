@@ -69,7 +69,8 @@ export async function readSelectedIncidentCorrelations(
       pageCount++;
       if (entries.length > policy.maximumEventsPerCase)
         fail("CORRELATION_SOURCE_EVENT_CAP_EXCEEDED");
-      complete = !cursor && current.page.completeness === "COMPLETE";
+      complete = !cursor && current.warnings.length === 0 &&
+        current.forensics.inventoryComplete;
       if (pageCount > Math.ceil(policy.maximumEventsPerCase / 100) + 1)
         fail("CORRELATION_PAGING_LIMIT_EXCEEDED");
     } while (cursor);
