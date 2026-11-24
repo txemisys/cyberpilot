@@ -58,7 +58,7 @@ describe("incident timeline forensic reconciliation", () => {
   });
   it("detects duplicate revision, broken chain and timestamp regression", () => {
     const r = run([event(1), event(2), event(2, {
-      eventId: "event-other", priorDigest: b,
+      eventId: "event-other", priorDigest: a,
       occurredAt: "2026-11-24T12:00:00.000Z",
     })], 2);
     expect(r.integrity).toBe("CONFLICT");
