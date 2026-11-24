@@ -86,6 +86,18 @@ describe("incident timeline forensic reconciliation", () => {
       ...after, organizationId: "org-other",
     })).toThrow("FORENSIC_COMPARE_CROSS_TENANT_OR_INCIDENT");
   });
+  it("accepts the full bounded source inventory without an off-by-one failure", () => {
+    const expectations = Array.from({ length: 1501 }, (_, i) => ({
+      source: "SITUATION_REVIEW" as const,
+      sourceId: "review-" + String(i + 1000),
+      expectedRevision: 1, expectedDigest: null,
+      inventoryComplete: true,
+    }));
+    expect(() => validateForensicRequest({
+      organizationId: org, incidentId: incident, analyzedAt: at,
+      events: [event(1)], inventoryComplete: true, expectations,
+    })).not.toThrow();
+  });
   it("denies invalid expectations, duplicate inventories and unbounded input", () => {
     const req = {
       organizationId: org, incidentId: incident, analyzedAt: at,
