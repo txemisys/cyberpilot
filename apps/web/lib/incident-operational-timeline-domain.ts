@@ -286,10 +286,14 @@ export function paginateTimeline(args: {
       args.incidentRevision < 1 || !iso(args.generatedAt))
     reject("TIMELINE_CONTEXT_INVALID");
   const query = validateTimelineQuery(args.query);
-  const reconciled = reconcileTimeline(args.events.map(x => ({ ...x })));
-  if (reconciled.entries.some(x => x.organizationId !== args.organizationId ||
+  // Check all raw source rows before reconciliation can omit malformed ones.
+  // Otherwise a cross-tenant malformed row could disappear from the output
+  // and leave the projected read model apparently safe to export.
+  if (!Array.isArray(args.events) || args.events.some(x =>
+      !x || x.organizationId !== args.organizationId ||
       x.incidentId !== args.incidentId))
     reject("TIMELINE_CROSS_TENANT_OR_INCIDENT");
+  const reconciled = reconcileTimeline(args.events.map(x => ({ ...x })));
   const filters = { ...query, cursor: undefined, limit: undefined };
   const queryDigest = timelineDigest({
     organizationId: args.organizationId, incidentId: args.incidentId,
