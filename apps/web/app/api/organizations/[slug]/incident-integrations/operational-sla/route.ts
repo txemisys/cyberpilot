@@ -26,7 +26,7 @@ async function getActor(ctx: Context) {
   };
 }
 async function parse(req: NextRequest) {
-  if (req.headers.get("content-type")?.split(";")[0].trim() !==
+  if (req.headers.get("content-type")?.split(";")[0]?.trim() !==
       "application/json") throw Error("SLA_JSON_REQUIRED");
   const origin = req.headers.get("origin");
   if (origin && origin !== new URL(req.url).origin)
@@ -81,7 +81,10 @@ export async function POST(req: NextRequest, ctx: Context) {
     return NextResponse.json(
       await readIncidentOperationalSla(
         actor, args.incidentId, args.policy,
-        { from: args.from, to: args.to, maxPages: args.maxPages }),
+        { ...(args.from !== undefined ? { from: args.from } : {}),
+          ...(args.to !== undefined ? { to: args.to } : {}),
+          ...(args.maxPages !== undefined ?
+            { maxPages: args.maxPages } : {}) }),
       { headers });
   } catch (error) {
     const code = error instanceof IncidentSlaServiceError ? error.code :
