@@ -17,6 +17,16 @@ export default async function IncidentTimelinePage({ params }: Props) {
       integridad indica los límites de la reconstrucción.</p>
     <p><Link href={"/organizations/" + encodeURIComponent(slug) +
       "/incident-situation"}>Volver a la situación operativa</Link></p>
+    <nav aria-label="Operaciones de incidentes relacionadas">
+      <p><Link href={"/organizations/" + encodeURIComponent(slug) +
+        "/incident-crosscase-correlation"}>
+        Correlación de incidentes seleccionados
+      </Link></p>
+      <p><Link href={"/organizations/" + encodeURIComponent(slug) +
+        "/incident-shift-briefing"}>
+        Briefing de relevo operativo
+      </Link></p>
+    </nav>
     {permitted ? <IncidentOperationalTimelineWorkspace slug={slug} /> :
       <p role="alert">Acceso restringido a propietarios, administradores
         y auditores de esta organización.</p>}
