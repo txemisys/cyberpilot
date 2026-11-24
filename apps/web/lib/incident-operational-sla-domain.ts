@@ -221,7 +221,7 @@ function measure(input: {
   startedAt: string | null; completedAt: string | null;
   dueAt: string | null; targetMinutes: number | null;
   sourceOutcome: MetricOutcome; asOf: string; warning: string | null;
-  linkedEventIds: string[];
+  linkedEventIds: string[]; warningMinutes: number;
 }): OperationalSlaMeasure {
   const actual = elapsed(input.completedAt, input.startedAt);
   const current = elapsed(input.asOf, input.startedAt);
@@ -235,7 +235,7 @@ function measure(input: {
     input.completedAt !== null && late !== null && late > 0 ? "OVERDUE" :
     input.completedAt !== null ? "ON_TIME" :
     late !== null && late > 0 ? "OVERDUE" :
-    remaining !== null && remaining <= 60 ? "DUE_SOON" :
+    remaining !== null && remaining <= input.warningMinutes ? "DUE_SOON" :
     "ON_TIME";
   return {
     metricId: input.metricId, subjectId: input.subjectId,
@@ -323,7 +323,9 @@ export function analyzeOperationalSla(args: {
   const sourceIntegrity: TimelineIntegrity = sourceCoverage.some(x =>
     x.conflicts > 0) ? "CONFLICT" :
     sourceCoverage.some(x => x.incompleteEntries > 0) ||
-      !args.inventoryComplete ? "INCOMPLETE" : "VERIFIED";
+      !args.inventoryComplete ||
+      !sourceCoverage.some(x => x.source === "INCIDENT" &&
+        x.availableEntries > 0) ? "INCOMPLETE" : "VERIFIED";
   const start = firstMatching(events, e => e.source === "INCIDENT" &&
     e.operation === "CREATE");
   const firstReview = firstMatching(events, e =>
@@ -358,6 +360,7 @@ export function analyzeOperationalSla(args: {
           "INCIDENT_SOURCE_INCOMPLETE" : null,
       linkedEventIds: [start?.eventId, done?.eventId]
         .filter((x): x is string => Boolean(x)),
+      warningMinutes: args.policy.followupWarningMinutes,
     });
   const measurements: OperationalSlaMeasure[] = [
     interval("FIRST_INTERNAL_REVIEW", args.policy.firstReviewTargetMinutes,
@@ -393,6 +396,7 @@ export function analyzeOperationalSla(args: {
         "UNKNOWN" : "PARTIAL",
       warning: "HANDOFF_EVENT_SCOPE_NOT_INDEPENDENTLY_REPLAYED",
       linkedEventIds: assignment.map(x => x.eventId),
+      warningMinutes: args.policy.followupWarningMinutes,
     }));
     measurements.push(measure({
       metricId: "HANDOFF_ACCEPTANCE:" + item.handoffId,
@@ -404,6 +408,7 @@ export function analyzeOperationalSla(args: {
       sourceOutcome: item.assignedAt ? "PARTIAL" : "UNKNOWN",
       warning: "HANDOFF_ACCEPTANCE_INTERNAL_ONLY",
       linkedEventIds: accepted.map(x => x.eventId),
+      warningMinutes: args.policy.followupWarningMinutes,
     }));
     if (item.lastEscalatedAt || escalated.length)
       measurements.push(measure({
@@ -416,6 +421,7 @@ export function analyzeOperationalSla(args: {
         asOf: args.asOf, sourceOutcome: "PARTIAL",
         warning: "ESCALATION_NOT_EXTERNAL_DISPATCH",
         linkedEventIds: escalated.map(x => x.eventId),
+        warningMinutes: args.policy.followupWarningMinutes,
       }));
   }
   const totals = {
@@ -446,7 +452,7 @@ export function analyzeOperationalSla(args: {
     distinctAssignedUsers: new Set(args.handoffs
       .flatMap(x => x.assignedUserId ? [x.assignedUserId] : [])).size,
   };
-  const completeness = !args.inventoryComplete ? "UNKNOWN" :
+  const completeness = !args.inventoryComplete || !start ? "UNKNOWN" :
     sourceIntegrity === "VERIFIED" ? "COMPLETE" : "PARTIAL";
   const signal = totals.overdue || handoffSummary.pastExplicitDueAt ||
     handoffSummary.staleUnassigned ? "ACTION_REQUIRED" :
