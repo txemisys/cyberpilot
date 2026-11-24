@@ -82,7 +82,7 @@ export async function prepareIncidentEscalationPlan(
   actor: IncidentActor, incidentId: string, policy: EscalationPolicy,
 ) {
   await authorize(actor);
-  const current = await incident(actor, incidentId);
+  const current = (await incident(actor, incidentId))!;
   const boards = await boardData(actor, incidentId);
   const plan = planIncidentEscalations({
     organizationId: actor.organizationId,
@@ -108,7 +108,7 @@ function pickDispatch(plan: EscalationPlan, idempotencyKey: string) {
     x.idempotencyKey === idempotencyKey);
   if (match.length !== 1)
     fail("ESCALATION_DISPATCH_NOT_IN_CURRENT_PLAN");
-  return match[0];
+  return match[0]!;
 }
 function policyForDispatch(policy: EscalationPolicy,
   dispatch: EscalationDispatch): EscalationPolicy {
@@ -123,7 +123,7 @@ export async function admitIncidentEscalationDispatch(
     expectedIncidentRevision: number },
 ) {
   await authorize(actor, true);
-  const current = await incident(actor, incidentId);
+  const current = (await incident(actor, incidentId))!;
   if (!Number.isSafeInteger(input.expectedIncidentRevision) ||
       current.revision !== input.expectedIncidentRevision)
     fail("ESCALATION_INCIDENT_CAS_CONFLICT");
@@ -131,16 +131,16 @@ export async function admitIncidentEscalationDispatch(
     actor, incidentId, policy);
   // The current time is not a client authority. The one selected handoff
   // must retain its board snapshot digest before durable admission.
-  const dispatch = pickDispatch(read.plan, input.idempotencyKey);
+  const dispatch = pickDispatch(read.plan, input.idempotencyKey)!;
   const board = await db.incidentAssuranceHandoffBoard.findFirst({
     where: { organizationId: actor.organizationId, incidentId,
       id: dispatch.boardId },
   });
   if (!board) fail("ESCALATION_BOARD_DISAPPEARED");
-  const value = board.snapshot as unknown as AssuranceHandoffBoard;
-  if (!value || board.snapshotDigest !== input.boardDigest ||
-      assuranceHandoffBoardDigest(value) !== board.snapshotDigest ||
-      board.revision !== dispatch.payload.boardRevision)
+  const value = board!.snapshot as unknown as AssuranceHandoffBoard;
+  if (!value || board!.snapshotDigest !== input.boardDigest ||
+      assuranceHandoffBoardDigest(value) !== board!.snapshotDigest ||
+      board!.revision !== dispatch.payload.boardRevision)
     fail("ESCALATION_BOARD_CAS_CONFLICT");
   const member = await db.membership.findFirst({
     where: { organizationId: actor.organizationId, userId: actor.userId },
