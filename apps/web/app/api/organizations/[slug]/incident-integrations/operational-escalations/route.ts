@@ -28,7 +28,7 @@ async function actor(ctx: Context) {
   };
 }
 async function readBody(req: NextRequest) {
-  if (req.headers.get("content-type")?.split(";")[0].trim() !==
+  if (req.headers.get("content-type")?.split(";")[0]?.trim() !==
       "application/json") throw Error("ESCALATION_JSON_REQUIRED");
   const origin = req.headers.get("origin");
   if (origin && origin !== new URL(req.url).origin)
