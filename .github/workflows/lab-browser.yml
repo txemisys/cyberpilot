@@ -13,8 +13,19 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded runs, while retaining every acceptance spec on the latest head.
+# Shard by spec to avoid a long-lived single runner accumulating LAB journeys.
+concurrency:
+  group: lab-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lab-browser:
+    name: lab-browser (shard ${{ matrix.shard }})
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     services:
@@ -69,12 +80,12 @@ jobs:
           cat "$RUNNER_TEMP/cyberpilot-browser.log"
           exit 1
       - name: Exercise LAB customer journey in Chromium
-        run: ./tests/browser/node_modules/.bin/playwright test --config tests/browser/playwright.config.mjs
+        run: ./tests/browser/node_modules/.bin/playwright test --config tests/browser/playwright.config.mjs --shard=${{ matrix.shard }}/4
       - name: Upload browser report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lab-browser-report
+          name: lab-browser-report-${{ matrix.shard }}
           path: |
             tests/browser/playwright-report/
             tests/browser/test-results/
