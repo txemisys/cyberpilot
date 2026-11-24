@@ -19,7 +19,7 @@ const at = "2026-11-24T14:00:00.000Z";
 const digest = "a".repeat(64);
 function event(revision = 1): TimelineEvent {
   return normalizeTimelineEvent({
-    organizationId: org, incidentId, source: "INCIDENT",
+    organizationId: org, incidentId: incident, source: "INCIDENT",
     sourceId: incident, sourceRevision: revision,
     eventId: "event-" + revision,
     actorUserId: "owner-shift-test",
