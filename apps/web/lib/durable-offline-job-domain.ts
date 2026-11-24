@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
-export const OFFLINE_JOB_TYPES = ["CAPTURE_TIMELINE_AUDIT", "RECOVERY_FAULT_MATRIX"] as const;
+export const OFFLINE_JOB_TYPES = ["CAPTURE_TIMELINE_AUDIT", "RECOVERY_FAULT_MATRIX",
+  "INCIDENT_ESCALATION_REVIEW"] as const;
 export type OfflineJobType = typeof OFFLINE_JOB_TYPES[number];
 export type OfflineJobStatus = "QUEUED" | "LEASED" | "SUCCEEDED" | "RETRY_WAIT" |
   "DEAD_LETTER" | "CANCELLED";
