@@ -25,7 +25,7 @@ async function memberRole(actor: IncidentActor, id: string) {
   });
   if (!member || !["OWNER", "ADMIN"].includes(member.role))
     fail("SHIFT_HANDOFF_RECIPIENT_NOT_AUTHORIZED");
-  return member.role as "OWNER" | "ADMIN";
+  return member!.role as "OWNER" | "ADMIN";
 }
 export async function createPersistedShiftHandoff(
   actor: IncidentActor, args: {
