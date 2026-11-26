@@ -481,3 +481,104 @@ export function compareCorrelationBoards(
     disappearanceDoesNotProveContainment: true as const,
   };
 }
+
+export type CorrelationReadiness = {
+  hypothesisId: string;
+  state: CorrelationReviewState;
+  assigned: boolean;
+  hasAlternativeExplanation: boolean;
+  hasScopedEvidence: boolean;
+  hasUnscopedEvidence: boolean;
+  independentReviewerAvailable: boolean;
+  canSubmitForReview: boolean;
+  canCompleteInternally: boolean;
+  blockers: string[];
+  independentProviderConfirmation: false;
+};
+export function assessCorrelationReadiness(
+  record: CoordinationEnvelope<CorrelationBoardPayload>,
+): CorrelationReadiness[] {
+  if (validateCorrelationBoardPayload(record.payload).length)
+    fail("CORRELATION_READINESS_SOURCE_INVALID");
+  const evidence = new Map(record.payload.evidence.map(x => [x.id, x]));
+  return record.payload.hypotheses.map(h => {
+    const attached = h.attachedEvidenceIds.map(id => evidence.get(id)!);
+    const hasScopedEvidence = attached.some(e => e.scopeChecked);
+    const hasUnscopedEvidence = attached.some(e => !e.scopeChecked);
+    const hasAlternativeExplanation = h.alternateExplanations.length > 0;
+    const assigned = h.assignedUserId !== null;
+    const independentReviewerAvailable = h.submittedBy !== null &&
+      h.assignedUserId !== null;
+    const blockers: string[] = [];
+    if (!assigned) blockers.push("ASSIGNEE_REQUIRED");
+    if (!hasAlternativeExplanation) blockers.push("ALTERNATIVE_MISSING");
+    if (!attached.length) blockers.push("EVIDENCE_MISSING");
+    if (!hasScopedEvidence) blockers.push("SCOPED_EVIDENCE_MISSING");
+    if (hasUnscopedEvidence) blockers.push("UNSCOPED_REFERENCE_REVIEW");
+    if (record.payload.sourceReportWasTruncated)
+      blockers.push("SOURCE_REPORT_TRUNCATED");
+    const canSubmitForReview = assigned &&
+      hasAlternativeExplanation && attached.length > 0 &&
+      ["ANALYZING", "EVIDENCE_REQUIRED"].includes(h.state);
+    const canCompleteInternally =
+      ["SUPPORTED_INTERNAL", "REJECTED_INTERNAL",
+        "INCONCLUSIVE"].includes(h.state) &&
+      h.reviewedBy !== null && h.submittedBy !== null &&
+      h.reviewedBy !== h.submittedBy;
+    return {
+      hypothesisId: h.id, state: h.state, assigned,
+      hasAlternativeExplanation, hasScopedEvidence,
+      hasUnscopedEvidence, independentReviewerAvailable,
+      canSubmitForReview, canCompleteInternally, blockers,
+      independentProviderConfirmation: false,
+    };
+  });
+}
+export function correlationPendingReviewQueue(
+  record: CoordinationEnvelope<CorrelationBoardPayload>,
+) {
+  const readiness = assessCorrelationReadiness(record);
+  const priorityOrder = ["P0", "P1", "P2", "P3"];
+  return record.payload.hypotheses.filter(h =>
+    h.state === "READY_FOR_REVIEW").map(h => {
+      const inspection = readiness.find(x => x.hypothesisId === h.id)!;
+      return {
+        hypothesisId: h.id, priority: h.priority,
+        assignedUserId: h.assignedUserId,
+        submittedBy: h.submittedBy, submittedAt: h.submittedAt,
+        selectedIncidentIds: h.incidentIds,
+        unscopedEvidence: inspection.hasUnscopedEvidence,
+        alternateExplanations: h.alternateExplanations.length,
+        reviewerMustDifferFromSubmitter: true as const,
+        providerIdentityConfirmed: false as const,
+      };
+    }).sort((a, b) =>
+      priorityOrder.indexOf(a.priority) -
+        priorityOrder.indexOf(b.priority) ||
+      (a.submittedAt ?? "").localeCompare(b.submittedAt ?? "") ||
+      a.hypothesisId.localeCompare(b.hypothesisId));
+}
+export function correlationDecisionLedger(
+  record: CoordinationEnvelope<CorrelationBoardPayload>,
+) {
+  if (validateCorrelationBoardPayload(record.payload).length)
+    fail("CORRELATION_DECISION_LEDGER_INVALID");
+  const reviews = new Map<string, number>();
+  return record.payload.decisions.map((decision, index) => {
+    const sequence = (reviews.get(decision.hypothesisId) ?? 0) + 1;
+    reviews.set(decision.hypothesisId, sequence);
+    const h = record.payload.hypotheses.find(
+      x => x.id === decision.hypothesisId)!;
+    return {
+      sequence: index + 1, hypothesisSequence: sequence,
+      hypothesisId: decision.hypothesisId,
+      reviewedBy: decision.reviewedBy,
+      conclusion: decision.conclusion, at: decision.at,
+      explanation: decision.explanation,
+      selectedIncidentIds: h.incidentIds,
+      sourceReportDigest: record.payload.sourceReportDigest,
+      internalOnly: true as const,
+      externalProviderVerified: false as const,
+    };
+  });
+}
