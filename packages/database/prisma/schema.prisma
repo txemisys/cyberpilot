@@ -244,6 +244,8 @@ model Organization {
   exposureExecutionCharges ExposureExecutionCharge[]
   integratedRiskActions IntegratedRiskAction[]
   integratedRiskActionEvents IntegratedRiskActionEvent[]
+  incidentCoordinationRecords IncidentCoordinationRecord[]
+  incidentCoordinationEvents IncidentCoordinationEvent[]
   incidentCases GuidedIncidentCase[]
   incidentEvents GuidedIncidentEvent[]
   situationReviews IncidentSituationReview[]
@@ -2004,6 +2006,7 @@ model GuidedIncidentCase {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   events GuidedIncidentEvent[]
   situationReviews IncidentSituationReview[]
+  coordinationRecords IncidentCoordinationRecord[]
   @@index([organizationId, status, updatedAt])
   @@index([organizationId, type, severity])
   @@index([organizationId, ownerUserId])
@@ -2190,4 +2193,45 @@ model IncidentAssuranceHandoffEvent {
   @@unique([boardId, revision])
   @@unique([boardId, commandId])
   @@index([organizationId, boardId, occurredAt])
+}
+
+/** Tenant-scoped, immutable-snapshot coordination records for 6V–6X. */
+model IncidentCoordinationRecord {
+  id String @id
+  organizationId String
+  incidentId String
+  kind String @db.VarChar(24)
+  state String @db.VarChar(32)
+  revision Int @default(1)
+  snapshot Json
+  snapshotDigest String @db.VarChar(64)
+  sourceDigest String @db.VarChar(64)
+  createdById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  incident GuidedIncidentCase @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  events IncidentCoordinationEvent[]
+  @@index([organizationId, incidentId, kind, updatedAt])
+  @@index([organizationId, kind, state, updatedAt])
+}
+/** Append-only, digest-chained CAS events for coordinated incident work. */
+model IncidentCoordinationEvent {
+  id String @id @default(cuid())
+  organizationId String
+  recordId String
+  revision Int
+  commandId String @db.VarChar(128)
+  actorUserId String
+  action String @db.VarChar(48)
+  occurredAt DateTime
+  beforeDigest String? @db.VarChar(64)
+  afterDigest String @db.VarChar(64)
+  previousEventDigest String? @db.VarChar(64)
+  eventDigest String @db.VarChar(64)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  record IncidentCoordinationRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  @@unique([recordId, revision])
+  @@unique([recordId, commandId])
+  @@index([organizationId, recordId, occurredAt])
 }
