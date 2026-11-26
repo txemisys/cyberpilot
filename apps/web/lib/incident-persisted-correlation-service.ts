@@ -5,7 +5,9 @@ import { readSelectedIncidentCorrelations } from
 import {
   beginCorrelationBoard, applyCorrelationBoard,
   summarizeCorrelationBoard, correlationHypothesisQueue,
-  correlationReviewIntegrityMatrix, type CorrelationBoardPayload,
+  correlationReviewIntegrityMatrix, assessCorrelationReadiness,
+  correlationPendingReviewQueue, correlationDecisionLedger,
+  type CorrelationBoardPayload,
   type CorrelationBoardAction,
 } from "./incident-persisted-correlation-domain";
 import type { CoordinationCommand } from
@@ -76,6 +78,9 @@ export async function readCorrelationBoard(
     snapshot, events, summary: summarizeCorrelationBoard(snapshot),
     queue: correlationHypothesisQueue(snapshot),
     integrity: correlationReviewIntegrityMatrix(snapshot),
+    readiness: assessCorrelationReadiness(snapshot),
+    pendingReviews: correlationPendingReviewQueue(snapshot),
+    decisions: correlationDecisionLedger(snapshot),
     providerWrites: 0 as const,
     providerIdentitiesVerified: false as const,
   };
