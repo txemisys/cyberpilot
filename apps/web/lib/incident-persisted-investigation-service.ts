@@ -1,4 +1,5 @@
 import type { IncidentActor } from "./incident-case-service";
+import { db } from "@cyberpilot/database";
 import { readOperationalTimeline } from "./incident-operational-timeline-service";
 import {
   beginInvestigationReview, applyInvestigationReview,
@@ -20,12 +21,12 @@ export async function createInvestigationRecord(
   await authorizeCoordination(actor, true);
   const current = await readOperationalTimeline(actor, incidentId);
   const incident = await checkIncidentMembership(actor, incidentId);
-  if (incident.revision !== current.page.incidentRevision)
+  if (incident!.revision !== current.page.incidentRevision)
     throw Error("INVESTIGATION_SOURCE_DRIFT");
   const created = beginInvestigationReview({
     recordId, incidentId, organizationId: actor.organizationId,
     actorId: actor.userId, commandId,
-    incidentRevision: incident.revision,
+    incidentRevision: incident!.revision,
     at: new Date().toISOString(), casebook: current.investigation,
   });
   return createPersistedCoordination(actor, created.snapshot, created.event);
@@ -37,8 +38,7 @@ export async function updateInvestigationRecord(
 ) {
   await authorizeCoordination(actor, true);
   if (command.action.kind === "ASSIGN") {
-    const { db } = await import("@cyberpilot/database");
-    const target = await db.membership.findFirst({
+     const target = await db.membership.findFirst({
       where: { userId: command.action.assigneeId,
         organizationId: actor.organizationId },
       select: { role: true },
