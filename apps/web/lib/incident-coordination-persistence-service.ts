@@ -38,7 +38,7 @@ export async function checkIncidentMembership(
     select: { revision: true, snapshotDigest: true },
   });
   if (!row) fail("COORDINATION_INCIDENT_NOT_FOUND");
-  return row;
+  return row!;
 }
 function unpack<T>(row: Stored): CoordinationEnvelope<T> {
   const snapshot = row.snapshot as unknown as CoordinationEnvelope<T>;
@@ -95,7 +95,7 @@ export async function readCoordination<T>(
     where: { id: recordId, organizationId: actor.organizationId, kind },
   });
   if (!record) fail("COORDINATION_RECORD_NOT_FOUND");
-  const snapshot = unpack<T>(record);
+  const snapshot = unpack<T>(record!);
   await checkIncidentMembership(actor, snapshot.incidentId);
   const rows = await db.incidentCoordinationEvent.findMany({
     where: { organizationId: actor.organizationId, recordId },
@@ -127,8 +127,8 @@ export async function createPersistedCoordination<T>(
       where: { organizationId: actor.organizationId, id: snapshot.incidentId },
       select: { revision: true, snapshotDigest: true },
     });
-    if (!current || current.revision !== incident.revision ||
-        current.snapshotDigest !== incident.snapshotDigest)
+    if (!current || current.revision !== incident!.revision ||
+        current.snapshotDigest !== incident!.snapshotDigest)
       fail("COORDINATION_INCIDENT_CHANGED");
     const exists = await tx.incidentCoordinationRecord.findFirst({
       where: { id: snapshot.id, organizationId: actor.organizationId },
@@ -163,13 +163,13 @@ export async function mutatePersistedCoordination<T>(
   const previous = await readCoordination<T>(actor, recordId, kind);
   const last = previous.events.at(-1);
   if (!last) fail("COORDINATION_HISTORY_EMPTY");
-  const next = prepare(previous.snapshot, last.eventDigest);
+  const next = prepare(previous.snapshot, last!.eventDigest);
   if (next.snapshot.kind !== kind ||
       next.snapshot.id !== recordId ||
       next.snapshot.organizationId !== actor.organizationId ||
       next.snapshot.revision !== previous.snapshot.revision + 1 ||
       next.event.beforeDigest !== coordinationDigest(previous.snapshot) ||
-      next.event.previousEventDigest !== last.eventDigest ||
+      next.event.previousEventDigest !== last!.eventDigest ||
       next.event.afterDigest !== coordinationDigest(next.snapshot) ||
       next.event.actorId !== actor.userId ||
       next.event.organizationId !== actor.organizationId ||
