@@ -142,6 +142,6 @@ describe("persisted forensic investigation", () => {
       expectedRevision: 8,
       action: { kind: "CLOSE", reason },
     }, initial.event.eventDigest)).toThrow(
-      "INVESTIGATION_CLOSE_UNREVIEWED_WORK");
+      "COORDINATION_CAS_REVISION_CONFLICT");
   });
 });
