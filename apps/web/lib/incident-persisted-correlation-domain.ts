@@ -1,5 +1,6 @@
 import {
   createCoordination, evolveCoordination, coordinationDigest,
+  assertCoordinationPreconditions,
   type CoordinationEnvelope, type CoordinationCommand,
 } from "./incident-coordination-ledger-domain";
 import type {
@@ -257,6 +258,7 @@ export function applyCorrelationBoard(
   command: CoordinationCommand<CorrelationBoardAction>,
   lastEventDigest: string,
 ) {
+  assertCoordinationPreconditions(current, command);
   if (current.kind !== "CORRELATION" ||
       validateCorrelationBoardPayload(current.payload).length)
     fail("CORRELATION_CURRENT_BOARD_INVALID");
