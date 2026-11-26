@@ -1,5 +1,6 @@
 import {
   createCoordination, evolveCoordination, coordinationDigest,
+  assertCoordinationPreconditions,
   type CoordinationEnvelope, type CoordinationCommand,
 } from "./incident-coordination-ledger-domain";
 import type {
@@ -246,6 +247,7 @@ export function applyShiftHandoff(
   command: CoordinationCommand<ShiftHandoffAction>,
   lastEventDigest: string,
 ) {
+  assertCoordinationPreconditions(current, command);
   if (current.kind !== "SHIFT" ||
       validateShiftHandoffPayload(current.payload).length)
     fail("SHIFT_HANDOFF_CURRENT_INVALID");
