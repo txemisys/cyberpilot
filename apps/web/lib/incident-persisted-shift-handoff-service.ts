@@ -10,7 +10,7 @@ import {
   shiftHandoffContinuityMatrix, shiftHandoffResponsibility,
   type ShiftHandoffPayload, type ShiftHandoffAction,
 } from "./incident-persisted-shift-handoff-domain";
-import type { CoordinationCommand } from
+import { coordinationDigest, type CoordinationCommand } from
   "./incident-coordination-ledger-domain";
 import {
   authorizeCoordination, checkIncidentMembership,
@@ -102,6 +102,7 @@ export async function readPersistedShiftHandoff(
   const incident = await checkIncidentMembership(actor, snapshot.incidentId);
   return {
     snapshot, events,
+    snapshotDigest: coordinationDigest(snapshot),
     summary: summarizeShiftHandoff(snapshot),
     pendingWork: pendingShiftHandoffWork(snapshot),
     continuity: shiftHandoffContinuityMatrix(snapshot),
