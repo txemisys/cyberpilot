@@ -93,7 +93,7 @@ const fail = (code: string): never => { throw Error(code); };
 function goodReason(input: unknown): string {
   if (typeof input !== "string" || input.trim().length < 15 ||
       input.length > 2000) fail("CORRELATION_REVIEW_REASON_INVALID");
-  return input.trim();
+  return (input as string).trim();
 }
 function tally(hypotheses: CorrelationHypothesis[]) {
   return {
