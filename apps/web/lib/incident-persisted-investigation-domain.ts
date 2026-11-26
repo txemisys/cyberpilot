@@ -200,7 +200,7 @@ function reason(value: unknown) {
   if (typeof value !== "string" || value.trim().length < 12 ||
       value.length > 2000)
     fail("INVESTIGATION_REASON_INVALID");
-  return (input as string).trim();
+  return (value as string).trim();
 }
 function note(
   work: InvestigationWork, text: string, id: string,
