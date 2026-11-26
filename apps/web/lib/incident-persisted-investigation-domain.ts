@@ -1,5 +1,6 @@
 import {
   createCoordination, evolveCoordination, coordinationDigest,
+  assertCoordinationPreconditions,
   type CoordinationEnvelope, type CoordinationCommand,
   type CoordinationReceipt,
 } from "./incident-coordination-ledger-domain";
@@ -221,6 +222,7 @@ export function applyInvestigationReview(
   command: CoordinationCommand<InvestigationReviewCommandAction>,
   lastEventDigest: string,
 ) {
+  assertCoordinationPreconditions(current, command);
   if (current.kind !== "INVESTIGATION" ||
       validateInvestigationReviewPayload(current.payload).length)
     fail("INVESTIGATION_CURRENT_CORRUPT");
