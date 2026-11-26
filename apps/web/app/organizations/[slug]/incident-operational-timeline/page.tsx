@@ -27,6 +27,14 @@ export default async function IncidentTimelinePage({ params }: Props) {
         Briefing de relevo operativo
       </Link></p>
     </nav>
+    <nav aria-label="Coordinación persistente">
+      <p><Link href={"/organizations/" + encodeURIComponent(slug) +
+        "/incident-persisted-investigations"}>Investigaciones persistentes</Link></p>
+      <p><Link href={"/organizations/" + encodeURIComponent(slug) +
+        "/incident-persisted-correlations"}>Correlaciones revisables</Link></p>
+      <p><Link href={"/organizations/" + encodeURIComponent(slug) +
+        "/incident-persisted-shift-handoffs"}>Relevos de turno auditables</Link></p>
+    </nav>
     {permitted ? <IncidentOperationalTimelineWorkspace slug={slug} /> :
       <p role="alert">Acceso restringido a propietarios, administradores
         y auditores de esta organización.</p>}
