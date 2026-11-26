@@ -171,6 +171,29 @@ export function makeCoordinationEvent<T>(args: {
   };
   return { ...base, eventDigest: coordinationDigest(base) };
 }
+
+/** Authorization precondition for all domain action handlers. Perform this
+ * before business-state inspection so foreign-tenant data never affects
+ * errors, policy checks or mutations.
+ */
+export function assertCoordinationPreconditions<T, A>(
+  current: CoordinationEnvelope<T>,
+  command: CoordinationCommand<A>,
+): void {
+  const snapshotIssues = validateCoordinationEnvelope(current);
+  const commandIssues = validateCoordinationCommand(command);
+  if (snapshotIssues.length || commandIssues.length)
+    fail("COORDINATION_COMMAND_OR_SNAPSHOT_INVALID");
+  if (current.organizationId !== command.organizationId ||
+      current.incidentId !== command.incidentId ||
+      current.id !== command.recordId ||
+      current.kind !== command.kind)
+    fail("COORDINATION_CROSS_TENANT_OR_RECORD");
+  if (current.revision !== command.expectedRevision)
+    fail("COORDINATION_CAS_REVISION_CONFLICT");
+  if (command.at < current.updatedAt)
+    fail("COORDINATION_TIME_REGRESSION");
+}
 export function evolveCoordination<T, A>(args: {
   current: CoordinationEnvelope<T>; command: CoordinationCommand<A>;
   lastEventDigest: string; nextPayload: T;
@@ -178,16 +201,8 @@ export function evolveCoordination<T, A>(args: {
 }): { snapshot: CoordinationEnvelope<T>; event: CoordinationReceipt } {
   const previous = args.current;
   const command = args.command;
-  if (validateCoordinationEnvelope(previous).length ||
-      validateCoordinationCommand(command).length)
-    fail("COORDINATION_EVOLVE_INVALID");
-  if (previous.organizationId !== command.organizationId ||
-      previous.incidentId !== command.incidentId ||
-      previous.id !== command.recordId || previous.kind !== command.kind)
-    fail("COORDINATION_CROSS_TENANT_OR_RECORD");
-  if (previous.revision !== command.expectedRevision)
-    fail("COORDINATION_CAS_REVISION_CONFLICT");
-  if (!hash(args.lastEventDigest) || command.at < previous.updatedAt)
+  assertCoordinationPreconditions(previous, command);
+  if (!hash(args.lastEventDigest))
     fail("COORDINATION_EVENT_CLOCK_OR_HASH_INVALID");
   if (previous.revision >= 10000)
     fail("COORDINATION_REVISION_LIMIT");
