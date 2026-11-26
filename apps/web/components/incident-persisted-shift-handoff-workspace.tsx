@@ -7,6 +7,7 @@ import type {
 } from "../lib/incident-persisted-shift-handoff-domain";
 type Detail = {
   snapshot: CoordinationEnvelope<ShiftHandoffPayload>;
+  snapshotDigest: string;
   events: CoordinationReceipt[];
   summary: { status: string; workTotal: number; acknowledgedWork: number;
     outstandingConcerns: number; acceptedInternally: boolean;
@@ -210,12 +211,12 @@ export function IncidentPersistedShiftHandoffWorkspace({ slug }: {
         <button disabled={busy || !validReason ||
             detail.sourceIncidentRevisionDrift}
           onClick={() => void mutate({ kind: "ACCEPT",
-            expectedSubmittedDigest: coordinationHash(detail.snapshot),
+            expectedSubmittedDigest: detail.snapshotDigest,
             reason })}>Aceptar recepción interna</button>
         <button disabled={busy || !validReason}
           onClick={() => void mutate({ kind: "RETURN",
             category: "OPERATIONAL_DISAGREEMENT",
-            expectedSubmittedDigest: coordinationHash(detail.snapshot),
+            expectedSubmittedDigest: detail.snapshotDigest,
             reason })}>Devolver con observaciones</button>
         <button disabled={busy || !validReason}
           onClick={() => void mutate({ kind: "REOPEN", reason })}>
@@ -265,9 +266,4 @@ export function IncidentPersistedShiftHandoffWorkspace({ slug }: {
         </li>)}</ol></details>
     </section>}
   </section>;
-}
-// A receipt refers to the exact snapshot seen by the receiving operator.
-// The server verifies this digest again and commits under CAS.
-function coordinationHash(value: CoordinationEnvelope<ShiftHandoffPayload>) {
-  return value.__digestFallbackNever ?? "";
 }
