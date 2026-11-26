@@ -52,8 +52,10 @@ test("6V–6X durable investigations, correlation and shift coordination stay of
     await page.getByRole("button", {
       name: "Crear investigación desde el estado actual",
     }).click();
-    await expect(page.getByRole("status")).toContainText(
-      "Sin acciones externas.", { timeout: 30000 });
+    await expect(page.getByText(
+      "Investigación interna creada. Sin acciones externas.",
+      { exact: true },
+    )).toBeVisible({ timeout: 30000 });
     await expect(page.getByRole("heading", {
       name: /Investigación work-/,
     })).toBeVisible();
