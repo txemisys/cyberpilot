@@ -89,8 +89,9 @@ test("6V–6X durable investigations, correlation and shift coordination stay of
     await page.getByRole("button", {
       name: "Preparar relevo interno",
     }).click();
-    await expect(page.getByRole("alert")).toContainText(
-      "SHIFT_HANDOFF_RECIPIENT_NOT_AUTHORIZED", { timeout: 30000 });
+    await expect(page.getByText(
+      "SHIFT_HANDOFF_RECIPIENT_NOT_AUTHORIZED", { exact: true },
+    )).toBeVisible({ timeout: 30000 });
     const prohibited = await page.request.delete(
       api + "/incident-integrations/persisted-shift-handoffs");
     expect(prohibited.status()).toBe(405);
